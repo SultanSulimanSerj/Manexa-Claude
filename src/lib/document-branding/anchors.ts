@@ -17,19 +17,17 @@ export interface ImagePlacement {
 }
 
 export interface DocumentBrandingAnchors {
-  stamp?: ImagePlacement
-  signature?: ImagePlacement
+  stamp?: ImagePlacement[]
+  signature?: ImagePlacement[]
 }
 
-function cellPlacement(
-  cell: string,
-  maxWidth: number,
-  maxHeight: number
-): ImagePlacement {
+/** Якорь по адресу ячейки шаблона. rowOff/colOff — сдвиг в ячейках:
+ *  подпись ставим выше подписной строки, печать центрируем на «М.П.». */
+function at(cell: string, maxWidth: number, maxHeight: number, rowOff = 0, colOff = 0): ImagePlacement {
   const { col, row } = parseCellAddress(cell)
   return {
-    col: columnLettersToIndex(col),
-    row: row - 1,
+    col: columnLettersToIndex(col) + colOff,
+    row: row - 1 + rowOff,
     width: maxWidth,
     height: maxHeight,
     maxWidth,
@@ -37,21 +35,25 @@ function cellPlacement(
   }
 }
 
-/** Позиции печати/подписи для XLSX-форм (ячейки из шаблона ФНС) */
+/**
+ * Координаты печати/подписи в XLSX-формах — по фактическим ячейкам шаблона
+ * (строки «(подпись)» и «М.П.» стороны исполнителя/продавца):
+ *  УПД  — руководитель (AZ43), товар передал (AA54), ответственный (AA61), М.П. (M65)
+ *  КС-2 — блок «Сдал»: подпись (E40), М.П. (B42)
+ *  КС-3 — блок «Подрядчик»: подпись (D43), М.П. (A45)
+ */
 export const XLSX_BRANDING_ANCHORS: Record<string, DocumentBrandingAnchors> = {
   UPD: {
-    /** Строка подписи продавца (AZ41), не блок «Генеральный директор» */
-    signature: cellPlacement('AZ41', 105, 38),
-    /** М.П. продавца */
-    stamp: cellPlacement('M65', 95, 95),
+    signature: [at('AZ43', 90, 30, -2), at('AA54', 90, 30, -1), at('AA61', 90, 30, -1)],
+    stamp: [at('M65', 85, 85, -1)],
   },
   KS2: {
-    stamp: { col: 1, row: 41, width: 95, height: 95, maxWidth: 95, maxHeight: 95 },
-    signature: { col: 8, row: 38, width: 105, height: 38, maxWidth: 105, maxHeight: 38 },
+    signature: [at('E40', 95, 32, -1)],
+    stamp: [at('B42', 80, 80, -1)],
   },
   KS3: {
-    stamp: { col: 0.3, row: 39, width: 95, height: 95, maxWidth: 95, maxHeight: 95 },
-    signature: { col: 6.2, row: 41, width: 105, height: 38, maxWidth: 105, maxHeight: 38 },
+    signature: [at('D43', 95, 32, -2)],
+    stamp: [at('A45', 80, 80, -1)],
   },
 }
 
