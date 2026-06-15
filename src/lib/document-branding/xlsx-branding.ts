@@ -150,7 +150,8 @@ function buildDrawingRels(images: PreparedImage[]): string {
 function prepareImage(
   placement: ImagePlacement,
   asset: { buffer: Buffer; mimeType: string },
-  ordinal: number
+  ordinal: number,
+  name: string
 ): PreparedImage {
   const maxWidth = placement.maxWidth ?? placement.width
   const maxHeight = placement.maxHeight ?? placement.height
@@ -165,7 +166,7 @@ function prepareImage(
     cx: Math.round(width * EMU_PER_PX),
     cy: Math.round(height * EMU_PER_PX),
     picId: ordinal + 1,
-    name: ordinal === 1 ? 'Stamp' : 'Signature',
+    name: `${name}-${ordinal}`,
   }
 }
 
@@ -181,11 +182,15 @@ export async function applyBrandingToXlsx(
   if (!anchors) return xlsxBuffer
 
   const images: PreparedImage[] = []
-  if (options.stamp?.buffer && anchors.stamp) {
-    images.push(prepareImage(anchors.stamp, options.stamp, images.length + 1))
+  if (options.stamp?.buffer) {
+    for (const placement of anchors.stamp ?? []) {
+      images.push(prepareImage(placement, options.stamp, images.length + 1, "Stamp"))
+    }
   }
-  if (options.signature?.buffer && anchors.signature) {
-    images.push(prepareImage(anchors.signature, options.signature, images.length + 1))
+  if (options.signature?.buffer) {
+    for (const placement of anchors.signature ?? []) {
+      images.push(prepareImage(placement, options.signature, images.length + 1, "Signature"))
+    }
   }
   if (images.length === 0) return xlsxBuffer
 
