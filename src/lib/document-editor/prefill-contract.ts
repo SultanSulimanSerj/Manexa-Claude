@@ -40,6 +40,7 @@ function buildContractDataFromProject(
       directorName?: string | null
       directorPosition?: string | null
       inn?: string | null
+      kpp?: string | null
       ogrn?: string | null
       legalAddress?: string | null
       address?: string | null
@@ -76,6 +77,7 @@ function buildContractDataFromProject(
     executorDirector: project.company?.directorName || '',
     executorDirectorPosition: project.company?.directorPosition || 'Генеральный директор',
     executorInn: project.company?.inn || '',
+    executorKpp: project.company?.kpp || '',
     executorOgrn: project.company?.ogrn || '',
     executorAddress: project.company?.legalAddress || project.company?.address || '',
     executorPhone: project.company?.phone || project.company?.contactPhone || '',

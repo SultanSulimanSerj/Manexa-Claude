@@ -6,7 +6,11 @@ import { getDocumentTypeDefinition } from './registry'
 import { buildUpdDraftContent, type CreateUpdDraftParams } from './prefill-upd'
 import { buildInvoiceDraftContent, type CreateInvoiceDraftParams } from './prefill-invoice'
 import { buildCommercialOfferDraftContent } from './prefill-commercial-offer'
+import { buildKs2DraftContent } from './prefill-ks2'
+import { buildKs3DraftContent } from './prefill-ks3'
+import { buildServiceActDraftContent } from './prefill-service-act'
 import { buildContractDraftContent } from './prefill-contract'
+import { documentTypeToTemplateCategory, findDefaultTemplateId } from '@/lib/template-default'
 
 const PLACEHOLDER_FILE = 'draft-placeholder.txt'
 
@@ -24,6 +28,7 @@ export interface CreateEditableDraftParams {
   documentNumber?: string | null
   documentDate?: Date
   updStatus?: 1 | 2
+  templateId?: string
 }
 
 function draftDescription(type: DocumentContentType, sourceMeta: DocumentSourceMeta): string {
@@ -83,11 +88,73 @@ async function buildDraftByType(
         estimateIds: params.estimateIds,
       })
     case 'KS2':
+      return buildKs2DraftContent({
+        projectId: params.projectId,
+        companyId: params.companyId,
+        creatorId: params.creatorId,
+        estimateIds: params.estimateIds,
+        stageIds: params.stageIds,
+        documentNumber: params.documentNumber,
+        documentDate: params.documentDate,
+      })
     case 'KS3':
-      throw new Error('КС-2 и КС-3 пока не поддерживаются')
+      return buildKs3DraftContent({
+        projectId: params.projectId,
+        companyId: params.companyId,
+        creatorId: params.creatorId,
+        estimateIds: params.estimateIds,
+        stageIds: params.stageIds,
+        documentNumber: params.documentNumber,
+        documentDate: params.documentDate,
+      })
+    case 'SERVICE_ACT':
+      return buildServiceActDraftContent({
+        projectId: params.projectId,
+        companyId: params.companyId,
+        creatorId: params.creatorId,
+        estimateIds: params.estimateIds,
+        invoiceDocumentId: params.invoiceDocumentId,
+        documentNumber: params.documentNumber,
+        documentDate: params.documentDate,
+        parentDocumentId: params.parentDocumentId,
+      })
     default:
       throw new Error(`Тип ${params.type} не поддерживает редактор черновика`)
   }
+}
+
+async function resolveTemplateId(
+  templateId: string | undefined,
+  companyId: string,
+  type: DocumentContentType
+): Promise<string | undefined> {
+  const expectedCategory = documentTypeToTemplateCategory(type)
+  if (!expectedCategory) return undefined
+
+  const resolvedId =
+    templateId || (await findDefaultTemplateId(companyId, expectedCategory))
+
+  if (!resolvedId) return undefined
+
+  const template = await prisma.documentTemplate.findFirst({
+    where: {
+      id: resolvedId,
+      companyId,
+      isActive: true,
+      category: expectedCategory,
+      fileType: 'DOCX',
+      filePath: { not: null },
+    },
+  })
+
+  if (!template) {
+    if (templateId) {
+      throw new Error('Шаблон не найден или не подходит для выбранного типа документа')
+    }
+    return undefined
+  }
+
+  return template.id
 }
 
 export async function createEditableDocumentDraft(params: CreateEditableDraftParams) {
@@ -96,6 +163,12 @@ export async function createEditableDocumentDraft(params: CreateEditableDraftPar
   if (!typeDef.supportsEditor) {
     throw new Error(`Тип ${typeDef.label} не поддерживает редактор черновика`)
   }
+
+  const resolvedTemplateId = await resolveTemplateId(
+    params.templateId,
+    params.companyId,
+    params.type
+  )
 
   return createDocumentWithAllocatedNumber(
     params.companyId,
@@ -129,6 +202,7 @@ export async function createEditableDocumentDraft(params: CreateEditableDraftPar
           hasUnpublishedChanges: true,
           projectId: params.projectId,
           parentDocumentId: params.parentDocumentId ?? null,
+          templateId: resolvedTemplateId ?? null,
           creatorId: params.creatorId,
           companyId: params.companyId,
         },

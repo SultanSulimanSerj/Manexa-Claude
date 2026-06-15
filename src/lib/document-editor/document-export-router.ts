@@ -4,6 +4,7 @@ import {
   isKs2Content,
   isKs3Content,
   isInvoiceContent,
+  isServiceActContent,
   isCommercialOfferContent,
   isContractContent,
 } from './types'
@@ -16,6 +17,7 @@ import {
   exportKs2Content,
   exportKs3Content,
   exportInvoiceContent,
+  exportServiceActContent,
   uploadDocumentFile,
 } from './export-fns'
 
@@ -33,7 +35,8 @@ export interface RoutedExportResult {
 
 export async function exportDocumentContent(
   content: DocumentContent,
-  format: ExportFormat = 'both'
+  format: ExportFormat = 'both',
+  templateFilePath?: string | null
 ): Promise<RoutedExportResult> {
   if (isUpdContent(content)) {
     const result = await exportUpdContent(content, format)
@@ -72,7 +75,7 @@ export async function exportDocumentContent(
   }
 
   if (isInvoiceContent(content)) {
-    const result = await exportInvoiceContent(content, format)
+    const result = await exportInvoiceContent(content, format, templateFilePath)
     return {
       primaryMimeType: result.docx?.mimeType ?? result.pdf?.mimeType ?? '',
       primaryFileName: result.docx?.fileName ?? result.pdf?.fileName ?? '',
@@ -83,8 +86,20 @@ export async function exportDocumentContent(
     }
   }
 
+  if (isServiceActContent(content)) {
+    const result = await exportServiceActContent(content, format, templateFilePath)
+    return {
+      primaryMimeType: result.docx?.mimeType ?? result.pdf?.mimeType ?? '',
+      primaryFileName: result.docx?.fileName ?? result.pdf?.fileName ?? '',
+      title: `Акт № ${result.data.documentNumber} от ${result.data.documentDate}`,
+      docx: result.docx,
+      pdf: result.pdf,
+      data: result.data,
+    }
+  }
+
   if (isCommercialOfferContent(content)) {
-    const result = await exportCommercialOfferContent(content, format)
+    const result = await exportCommercialOfferContent(content, format, templateFilePath)
     return {
       primaryMimeType: result.docx?.mimeType ?? result.pdf?.mimeType ?? '',
       primaryFileName: result.docx?.fileName ?? result.pdf?.fileName ?? '',
@@ -96,7 +111,7 @@ export async function exportDocumentContent(
   }
 
   if (isContractContent(content)) {
-    const result = await exportContractContent(content, format)
+    const result = await exportContractContent(content, format, templateFilePath)
     return {
       primaryMimeType: result.docx?.mimeType ?? result.pdf?.mimeType ?? '',
       primaryFileName: result.docx?.fileName ?? result.pdf?.fileName ?? '',

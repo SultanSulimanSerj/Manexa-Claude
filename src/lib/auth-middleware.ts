@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from './auth-api'
 import { prisma } from './prisma'
-import { UserRole, hasPermission, hasAllPermissions, hasAnyPermission, canAccessProject } from './permissions'
+import { UserRole, hasPermission, hasAllPermissions, hasAnyPermission, canAccessProject, isPlatformRole } from './permissions'
+import { getCompanyAccessStatus } from './subscription-guard'
+
+export const COMPANY_SUSPENDED_ERROR = 'COMPANY_SUSPENDED'
 
 // Интерфейс для контекста пользователя
 export interface UserContext {
@@ -81,6 +84,19 @@ export async function checkPermission(
     
     if (!user) {
       return { allowed: false, user: null, error: 'Пользователь не аутентифицирован' }
+    }
+
+    // Платформенные роли не работают с API компаний (изоляция уровней)
+    if (isPlatformRole(user.role)) {
+      return { allowed: false, user, error: 'Недостаточно прав для выполнения операции' }
+    }
+
+    // Блокировка компании (архив или приостановленная подписка)
+    if (user.companyId) {
+      const access = await getCompanyAccessStatus(user.companyId)
+      if (access.blocked) {
+        return { allowed: false, user, error: COMPANY_SUSPENDED_ERROR }
+      }
     }
 
     const hasAccess = hasPermission(user.role, permission, user.projectRole as any)

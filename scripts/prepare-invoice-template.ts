@@ -9,9 +9,18 @@ import PizZip from 'pizzip'
 const root = path.join(__dirname, '..')
 const source = path.join(root, 'assets/templates/invoice-outgoing.docx')
 const target = path.join(root, 'assets/templates/invoice-template.docx')
+const BRAND_TAG_SIGNATURE = '____"signature"_____'
+const BRAND_TAG_STAMP = '____"stamp"_____'
+const SIGNATURE_LINE = '___________________'
 
 function replaceAll(xml: string, from: string, to: string): string {
   return xml.split(from).join(to)
+}
+
+function replaceFirst(xml: string, from: string, to: string): string {
+  const idx = xml.indexOf(from)
+  if (idx === -1) return xml
+  return xml.slice(0, idx) + to + xml.slice(idx + from.length)
 }
 
 function escapeRegExp(value: string): string {
@@ -93,6 +102,16 @@ function main() {
   )
 
   xml = patchItemsTable(xml)
+
+  xml = replaceFirst(
+    xml,
+    '<w:t>______________________________</w:t>',
+    `<w:t>${SIGNATURE_LINE} ${BRAND_TAG_SIGNATURE}</w:t>`
+  )
+  xml = xml.replace(
+    /(<w:t[^>]*>Генеральный директор<\/w:t><\/w:r>)/,
+    `$1</w:p><w:p><w:r><w:t>М.П. ${BRAND_TAG_STAMP}</w:t></w:r>`
+  )
 
   zip.file('word/document.xml', xml)
   fs.writeFileSync(target, zip.generate({ type: 'nodebuffer' }))

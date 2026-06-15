@@ -29,6 +29,31 @@ export function computeDocumentContentHash(content: DocumentContent): string {
   return createHash('sha256').update(stableStringify(payload)).digest('hex')
 }
 
+export interface ExportBrandingFingerprint {
+  includeStamp?: boolean
+  includeSignature?: boolean
+  stampFilePath?: string | null
+  signatureFilePath?: string | null
+}
+
+/** Хеш выгрузки: контент + флаги печати/подписи и пути файлов компании. */
+export function computeDocumentExportHash(
+  content: DocumentContent,
+  branding?: ExportBrandingFingerprint
+): string {
+  const contentHash = computeDocumentContentHash(content)
+  if (!branding) return contentHash
+
+  const payload = {
+    contentHash,
+    includeStamp: Boolean(branding.includeStamp),
+    includeSignature: Boolean(branding.includeSignature),
+    stampFilePath: branding.stampFilePath ?? null,
+    signatureFilePath: branding.signatureFilePath ?? null,
+  }
+  return createHash('sha256').update(stableStringify(payload)).digest('hex')
+}
+
 /** @deprecated Используйте computeDocumentContentHash — format не входит в хеш */
 export function computeExportContentHash(
   content: DocumentContent,

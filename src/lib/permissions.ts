@@ -1,9 +1,18 @@
 // Система ролевого доступа (RBAC)
 export enum UserRole {
+  PLATFORM_ADMIN = 'PLATFORM_ADMIN',
+  PLATFORM_MANAGER = 'PLATFORM_MANAGER',
   OWNER = 'OWNER',
   ADMIN = 'ADMIN', 
   MANAGER = 'MANAGER',
   USER = 'USER'
+}
+
+// Платформенные роли: администрирование платформы, не принадлежат компаниям
+export const PLATFORM_ROLES: UserRole[] = [UserRole.PLATFORM_ADMIN, UserRole.PLATFORM_MANAGER]
+
+export function isPlatformRole(role: UserRole | string): boolean {
+  return role === UserRole.PLATFORM_ADMIN || role === UserRole.PLATFORM_MANAGER
 }
 
 export enum ProjectRole {
@@ -77,10 +86,80 @@ export interface Permissions {
   // Системные настройки
   canViewSystemSettings: boolean
   canEditSystemSettings: boolean
+
+  // Платформа (администрирование Manexa)
+  canManagePlatform: boolean
+  canManagePlatformManagers: boolean
+  canImpersonate: boolean
+}
+
+// Базовый набор: всё запрещено (используется для платформенных ролей)
+const NO_PERMISSIONS: Permissions = {
+  canManageUsers: false,
+  canCreateUsers: false,
+  canEditUsers: false,
+  canDeleteUsers: false,
+  canChangeUserRoles: false,
+  canManageCompany: false,
+  canViewCompanySettings: false,
+  canEditCompanySettings: false,
+  canCreateProjects: false,
+  canEditProjects: false,
+  canDeleteProjects: false,
+  canViewAllProjects: false,
+  canManageProjectMembers: false,
+  canViewProjects: false,
+  canEditProjectClientRequisites: false,
+  canCreateTasks: false,
+  canEditTasks: false,
+  canDeleteTasks: false,
+  canAssignTasks: false,
+  canViewAllTasks: false,
+  canCreateDocuments: false,
+  canEditDocuments: false,
+  canDeleteDocuments: false,
+  canViewAllDocuments: false,
+  canApproveDocuments: false,
+  canViewFinances: false,
+  canCreateFinances: false,
+  canEditFinances: false,
+  canDeleteFinances: false,
+  canViewFinancialReports: false,
+  canViewEstimates: false,
+  canCreateEstimates: false,
+  canEditEstimates: false,
+  canDeleteEstimates: false,
+  canCreateApprovals: false,
+  canEditApprovals: false,
+  canDeleteApprovals: false,
+  canRespondToApprovals: false,
+  canViewAllApprovals: false,
+  canViewReports: false,
+  canExportReports: false,
+  canViewSystemSettings: false,
+  canEditSystemSettings: false,
+  canManagePlatform: false,
+  canManagePlatformManagers: false,
+  canImpersonate: false,
 }
 
 // Определение прав для каждой роли
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
+  // Платформенные роли: доступ только к /platform, права компаний — все false
+  [UserRole.PLATFORM_ADMIN]: {
+    ...NO_PERMISSIONS,
+    canManagePlatform: true,
+    canManagePlatformManagers: true,
+    canImpersonate: true,
+  },
+
+  [UserRole.PLATFORM_MANAGER]: {
+    ...NO_PERMISSIONS,
+    canManagePlatform: true,
+    canManagePlatformManagers: false,
+    canImpersonate: false, // только PLATFORM_ADMIN
+  },
+
   [UserRole.OWNER]: {
     // Полные права
     canManageUsers: true,
@@ -134,7 +213,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canExportReports: true,
     
     canViewSystemSettings: true,
-    canEditSystemSettings: true
+    canEditSystemSettings: true,
+
+    canManagePlatform: false,
+    canManagePlatformManagers: false,
+    canImpersonate: false
   },
   
   [UserRole.ADMIN]: {
@@ -190,7 +273,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canExportReports: true,
     
     canViewSystemSettings: true,
-    canEditSystemSettings: false // Не может изменять системные настройки
+    canEditSystemSettings: false, // Не может изменять системные настройки
+
+    canManagePlatform: false,
+    canManagePlatformManagers: false,
+    canImpersonate: false
   },
   
   [UserRole.MANAGER]: {
@@ -246,7 +333,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canExportReports: true,
     
     canViewSystemSettings: false,
-    canEditSystemSettings: false
+    canEditSystemSettings: false,
+
+    canManagePlatform: false,
+    canManagePlatformManagers: false,
+    canImpersonate: false
   },
   
   [UserRole.USER]: {
@@ -302,7 +393,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canExportReports: false,
     
     canViewSystemSettings: false,
-    canEditSystemSettings: false
+    canEditSystemSettings: false,
+
+    canManagePlatform: false,
+    canManagePlatformManagers: false,
+    canImpersonate: false
   }
 }
 

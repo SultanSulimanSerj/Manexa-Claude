@@ -6,6 +6,9 @@ import {
   createInvoiceDraft,
   createCommercialOfferDraft,
   createContractDraft,
+  createKs2Draft,
+  createKs3Draft,
+  createServiceActDraft,
 } from '@/lib/document-editor/document-service'
 import type { DocumentContentType } from '@/lib/document-editor/types'
 
@@ -14,6 +17,9 @@ const ALLOWED_TYPES = new Set<DocumentContentType>([
   'INVOICE',
   'CONTRACT',
   'COMMERCIAL_OFFER',
+  'KS2',
+  'KS3',
+  'SERVICE_ACT',
 ])
 
 export async function POST(request: NextRequest) {
@@ -40,6 +46,7 @@ export async function POST(request: NextRequest) {
       parentDocumentId,
       documentNumber,
       updStatus,
+      templateId,
     } = body
 
     if (!type || !ALLOWED_TYPES.has(type)) {
@@ -71,6 +78,7 @@ export async function POST(request: NextRequest) {
       parentDocumentId: typeof parentDocumentId === 'string' ? parentDocumentId : undefined,
       documentNumber: typeof documentNumber === 'string' ? documentNumber : null,
       documentDate: new Date(),
+      templateId: typeof templateId === 'string' ? templateId : undefined,
     }
 
     let document
@@ -108,6 +116,26 @@ export async function POST(request: NextRequest) {
         break
       case 'CONTRACT':
         document = await createContractDraft(baseParams)
+        break
+      case 'KS2':
+      case 'KS3':
+        if (resolvedEstimateIds.length === 0) {
+          return NextResponse.json({ error: 'Выберите смету проекта' }, { status: 400 })
+        }
+        document =
+          type === 'KS2'
+            ? await createKs2Draft(baseParams)
+            : await createKs3Draft(baseParams)
+        break
+      case 'SERVICE_ACT':
+        if (resolvedEstimateIds.length === 0) {
+          return NextResponse.json({ error: 'Выберите смету проекта' }, { status: 400 })
+        }
+        document = await createServiceActDraft({
+          ...baseParams,
+          invoiceDocumentId:
+            typeof invoiceDocumentId === 'string' ? invoiceDocumentId : undefined,
+        })
         break
       default:
         return NextResponse.json({ error: 'Неподдерживаемый тип' }, { status: 400 })

@@ -40,3 +40,16 @@ export interface InvoiceDocumentData extends DocumentMeta {
   paymentPurpose?: string
   dueDate?: string
 }
+
+export interface ServiceActDocumentData extends DocumentMeta {
+  seller: DocumentParty
+  buyer: DocumentParty
+  items: DocumentLineItem[]
+  totals: {
+    totalWithoutVat: number
+    totalVat: number
+    totalWithVat: number
+    hasVat: boolean
+  }
+  basisText?: string
+}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { ErrorBanner } from '@/components/ui/error-banner'
-import { FileText, Search, Filter, Eye, FileType, ExternalLink } from 'lucide-react'
+import { FileText, Search, Filter, Eye, FileType, Pencil, Plus, Trash2, Star } from 'lucide-react'
 import Link from 'next/link'
 
 interface SystemTemplate {
@@ -19,6 +19,7 @@ interface SystemTemplate {
     custom?: string[]
   }
   isActive: boolean
+  isDefault?: boolean
   isPublic: boolean
   companyId: null
   creatorId: null
@@ -30,6 +31,9 @@ interface SystemTemplate {
 }
 
 const categoryLabels: Record<string, string> = {
+  CONTRACT: 'Договор',
+  COMMERCIAL_OFFER: 'Коммерческое предложение',
+  INVOICE: 'Счёт на оплату',
   COMMERCIAL: 'Коммерческие',
   FINANCIAL: 'Финансовые',
   REPORT: 'Отчетные',
@@ -53,6 +57,7 @@ export default function TemplatesPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTemplates()
@@ -84,24 +89,59 @@ export default function TemplatesPage() {
     template.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const handleDelete = async (template: SystemTemplate) => {
+    const used = template._count.documents
+    const message = used
+      ? `Шаблон «${template.name}» использован в ${used} документ(ах). Удаление невозможно.`
+      : `Удалить шаблон «${template.name}»? Это действие нельзя отменить.`
+
+    if (used) {
+      setLoadError(message)
+      return
+    }
+    if (!confirm(message)) return
+
+    setDeletingId(template.id)
+    setLoadError(null)
+    try {
+      const res = await fetch(`/api/templates/${template.id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Не удалось удалить шаблон')
+      setTemplates((prev) => prev.filter((t) => t.id !== template.id))
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Ошибка удаления шаблона')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <Layout>
       <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Системные шаблоны</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Шаблоны документов</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Готовые шаблоны документов с автоматическим заполнением данных. При создании документа выберите проект.
+              Загрузите DOCX-шаблоны для договоров, КП и счетов — они применяются автоматически при
+              создании документов.
             </p>
           </div>
-          <Link
-            href="/documents/new"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <FileText className="h-4 w-4" />
-            Создать документ
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/templates/guide"
+              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+            >
+              Справочник тегов
+            </Link>
+            <Link
+              href="/templates/new"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Добавить шаблон
+            </Link>
+          </div>
         </div>
 
         {/* Информационное сообщение */}
@@ -111,11 +151,17 @@ export default function TemplatesPage() {
               <FileText className="h-5 w-5 text-blue-400" />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">Системные шаблоны</h3>
+              <h3 className="text-sm font-medium text-blue-800">Как это работает</h3>
               <div className="mt-1 text-sm text-blue-700">
                 <p>
-                  Все шаблоны встроены в систему и автоматически заполняются данными из вашей компании и проектов. 
-                  Дополнительно можно указать только необходимые переменные.
+                  Скачайте образец, расставьте теги в Word, загрузите шаблон и отметьте «Использовать
+                  по умолчанию». Новые договоры, КП и счета в проектах будут формироваться по вашему
+                  шаблону.
+                </p>
+                <p className="mt-2">
+                  <Link href="/templates/guide" className="font-medium underline hover:text-blue-900">
+                    Открыть справочник тегов и инструкцию
+                  </Link>
                 </p>
               </div>
             </div>
@@ -141,11 +187,9 @@ export default function TemplatesPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">Все категории</option>
-            {Object.entries(categoryLabels).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
+            <option value="CONTRACT">Договор</option>
+            <option value="COMMERCIAL_OFFER">Коммерческое предложение</option>
+            <option value="INVOICE">Счёт на оплату</option>
           </select>
         </div>
 
@@ -164,8 +208,10 @@ export default function TemplatesPage() {
           <div className="bg-white rounded-lg p-4 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Системных</p>
-                <p className="text-2xl font-bold text-green-600">{templates.length}</p>
+                <p className="text-sm text-gray-600">Договоров</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {templates.filter((t) => t.category === 'CONTRACT').length}
+                </p>
               </div>
               <FileType className="h-8 w-8 text-green-500" />
             </div>
@@ -200,13 +246,22 @@ export default function TemplatesPage() {
       {/* Таблица шаблонов */}
       <div className="bg-white rounded-lg border border-gray-200">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Загрузка системных шаблонов...</div>
+          <div className="p-8 text-center text-gray-500">Загрузка шаблонов...</div>
         ) : filteredTemplates.length === 0 ? (
           <div className="p-8 text-center">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">
-              {searchQuery ? 'Шаблоны не найдены' : 'Нет доступных системных шаблонов'}
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'Шаблоны не найдены' : 'У компании пока нет шаблонов'}
             </p>
+            {!searchQuery && (
+              <Link
+                href="/templates/new"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                Добавить первый шаблон
+              </Link>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -241,7 +296,15 @@ export default function TemplatesPage() {
                   <tr key={template.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div>
-                        <div className="font-medium text-gray-900">{template.name}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-gray-900">{template.name}</span>
+                          {template.isDefault && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                              <Star className="h-3 w-3" />
+                              Базовый
+                            </span>
+                          )}
+                        </div>
                         {template.description && (
                           <div className="text-sm text-gray-500 truncate max-w-xs">
                             {template.description}
@@ -278,8 +341,14 @@ export default function TemplatesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                        Системный
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${
+                          template.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {template.isActive ? 'Активен' : 'Неактивен'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -292,12 +361,21 @@ export default function TemplatesPage() {
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
-                          href={`/documents/generate?templateId=${template.id}`}
+                          href={`/templates/${template.id}/edit`}
                           className="p-1 text-gray-600 hover:text-green-600"
-                          title="Создать документ"
+                          title="Редактировать"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(template)}
+                          disabled={deletingId === template.id}
+                          className="p-1 text-gray-600 hover:text-red-600 disabled:opacity-50"
+                          title="Удалить"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>

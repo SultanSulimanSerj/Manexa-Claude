@@ -3,7 +3,9 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
-  serverExternalPackages: ['pdfkit', '@pdf-lib/fontkit'],
+  experimental: {
+    serverComponentsExternalPackages: ['pdfkit', '@pdf-lib/fontkit'],
+  },
 }
 
 module.exports = nextConfig

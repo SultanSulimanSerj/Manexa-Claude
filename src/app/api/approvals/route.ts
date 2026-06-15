@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const limit = isNaN(rawLimit) || rawLimit < 1 ? 10 : Math.min(rawLimit, 100)
     const status = searchParams.get('status')
     const type = searchParams.get('type')
+    const documentIdFilter = searchParams.get('documentId')
 
     let where: any = {
       // Дополнительно проверяем, что согласование принадлежит компании пользователя
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
         companyId: user.companyId
       },
       ...(status && { status: status as any }),
-      ...(type && { type: type as any })
+      ...(type && { type: type as any }),
+      ...(documentIdFilter && { documentId: documentIdFilter })
     }
 
     // OWNER и ADMIN видят все согласования компании

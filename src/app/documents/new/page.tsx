@@ -8,13 +8,16 @@ import { ErrorBanner } from '@/components/ui/error-banner'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
-type DocType = 'COMMERCIAL_OFFER' | 'CONTRACT' | 'INVOICE' | 'UPD'
+type DocType = 'COMMERCIAL_OFFER' | 'CONTRACT' | 'INVOICE' | 'UPD' | 'KS2' | 'KS3' | 'SERVICE_ACT'
 
 const TYPE_LABELS: Record<DocType, string> = {
   COMMERCIAL_OFFER: 'Коммерческое предложение',
   CONTRACT: 'Договор подряда',
   INVOICE: 'Счёт на оплату',
   UPD: 'УПД',
+  KS2: 'КС-2',
+  KS3: 'КС-3',
+  SERVICE_ACT: 'Акт приёмки услуг',
 }
 
 interface ProjectOption {
@@ -62,6 +65,9 @@ function NewDocumentPageContent() {
   )
   const [docNumber, setDocNumber] = useState('')
   const [suggestedNumber, setSuggestedNumber] = useState<string | null>(null)
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; isDefault?: boolean }>>([])
+  const [hasDefaultTemplate, setHasDefaultTemplate] = useState(false)
+  const [templateId, setTemplateId] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -76,12 +82,59 @@ function NewDocumentPageContent() {
 
   useEffect(() => {
     const numberingType =
-      type === 'UPD' ? 'UPD' : type === 'INVOICE' ? 'INVOICE' : type === 'CONTRACT' ? 'CONTRACT' : 'COMMERCIAL'
+      type === 'UPD'
+        ? 'UPD'
+        : type === 'INVOICE'
+          ? 'INVOICE'
+          : type === 'CONTRACT'
+            ? 'CONTRACT'
+            : type === 'KS2'
+              ? 'KS2'
+              : type === 'KS3'
+                ? 'KS3'
+                : type === 'SERVICE_ACT'
+                  ? 'SERVICE_ACT'
+                  : 'COMMERCIAL'
     fetch(`/api/documents/next-number?type=${numberingType}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setSuggestedNumber(data?.nextNumber || null))
       .catch(() => setSuggestedNumber(null))
   }, [type])
+
+  const templateCategory =
+    type === 'CONTRACT'
+      ? 'CONTRACT'
+      : type === 'COMMERCIAL_OFFER'
+        ? 'COMMERCIAL_OFFER'
+        : type === 'INVOICE'
+          ? 'INVOICE'
+          : null
+
+  useEffect(() => {
+    if (!templateCategory) {
+      setTemplates([])
+      setTemplateId('')
+      return
+    }
+    fetch(`/api/templates?category=${templateCategory}&docxOnly=true`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        type TemplateOption = { id: string; name: string; isDefault?: boolean }
+        const list: TemplateOption[] = (data?.templates || []).map(
+          (t: TemplateOption) => ({
+            id: t.id,
+            name: t.name,
+            isDefault: t.isDefault,
+          })
+        )
+        setTemplates(list)
+        const defaultTpl = list.find((t: TemplateOption) => t.isDefault)
+        setHasDefaultTemplate(Boolean(defaultTpl))
+        if (defaultTpl) setTemplateId(defaultTpl.id)
+        else if (list.length === 1) setTemplateId(list[0].id)
+      })
+      .catch(() => setTemplates([]))
+  }, [templateCategory])
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -112,6 +165,9 @@ function NewDocumentPageContent() {
         setInvoices(inv)
         setContracts(ctr)
       })
+    }
+    if (type === 'SERVICE_ACT') {
+      loadDocs('INVOICE').then(setInvoices)
     }
   }, [selectedProjectId, type])
 
@@ -144,6 +200,12 @@ function NewDocumentPageContent() {
       if (type === 'CONTRACT' && selectedEstimateIds.length) {
         body.estimateIds = selectedEstimateIds
       }
+      if (type === 'KS2' || type === 'KS3' || type === 'SERVICE_ACT') {
+        body.estimateIds = selectedEstimateIds
+      }
+      if (type === 'SERVICE_ACT' && invoiceDocumentId) {
+        body.invoiceDocumentId = invoiceDocumentId
+      }
       if (type === 'UPD') {
         body.invoiceDocumentId = invoiceDocumentId
         if (contractDocumentId) body.contractDocumentId = contractDocumentId
@@ -152,13 +214,26 @@ function NewDocumentPageContent() {
       if (type === 'INVOICE' && commercialOfferIdFromUrl) {
         body.parentDocumentId = commercialOfferIdFromUrl
       }
+      if (templateCategory && templateId) {
+        body.templateId = templateId
+      }
 
       const res = await fetch('/api/documents/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const data = await res.json()
+      const raw = await res.text()
+      let data: { error?: string; redirectUrl?: string; documentId?: string } = {}
+      try {
+        data = raw ? JSON.parse(raw) : {}
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'Сервер вернул некорректный ответ'
+            : `Ошибка сервера (${res.status}). Попробуйте обновить страницу.`
+        )
+      }
       if (!res.ok) throw new Error(data.error || 'Ошибка создания')
       router.push(data.redirectUrl || `/documents/${data.documentId}/edit`)
     } catch (err) {
@@ -188,6 +263,8 @@ function NewDocumentPageContent() {
             {type === 'INVOICE' && 'Счёт можно заполнить из сметы или КП'}
             {type === 'COMMERCIAL_OFFER' && 'КП формируется по выбранной смете'}
             {type === 'CONTRACT' && 'Договор можно дополнить спецификацией из сметы'}
+            {(type === 'KS2' || type === 'KS3') && 'Форма заполняется по выбранной смете проекта'}
+            {type === 'SERVICE_ACT' && 'Акт формируется по смете, можно указать счёт-основание'}
           </p>
         </div>
 
@@ -212,10 +289,17 @@ function NewDocumentPageContent() {
             </label>
           )}
 
-          {(type === 'COMMERCIAL_OFFER' || type === 'CONTRACT' || (type === 'INVOICE' && invoiceSource === 'estimate')) && (
+          {(type === 'COMMERCIAL_OFFER' ||
+            type === 'CONTRACT' ||
+            type === 'KS2' ||
+            type === 'KS3' ||
+            type === 'SERVICE_ACT' ||
+            (type === 'INVOICE' && invoiceSource === 'estimate')) && (
             <div>
               <p className="text-sm font-medium text-gray-800 mb-2">
-                Смета{type === 'CONTRACT' ? ' (опционально)' : ''}
+                Смета
+                {type === 'CONTRACT' ? ' (опционально)' : ''}
+                {(type === 'KS2' || type === 'KS3' || type === 'SERVICE_ACT') && ' *'}
               </p>
               {estimates.length === 0 ? (
                 <p className="text-sm text-gray-500">В проекте нет смет</p>
@@ -280,6 +364,24 @@ function NewDocumentPageContent() {
             </div>
           )}
 
+          {type === 'SERVICE_ACT' && (
+            <label className="block text-sm">
+              <span className="text-gray-700 font-medium">Счёт-основание (опционально)</span>
+              <select
+                value={invoiceDocumentId}
+                onChange={(e) => setInvoiceDocumentId(e.target.value)}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+              >
+                <option value="">Не выбран</option>
+                {invoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           {type === 'UPD' && (
             <>
               <label className="block text-sm">
@@ -321,6 +423,38 @@ function NewDocumentPageContent() {
             </>
           )}
 
+          {templateCategory && (
+            <label className="block text-sm">
+              <span className="text-gray-700 font-medium">Шаблон Word</span>
+              <select
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+              >
+                {!hasDefaultTemplate && (
+                  <option value="">Стандартный (без шаблона)</option>
+                )}
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.isDefault ? ' (базовый)' : ''}
+                  </option>
+                ))}
+              </select>
+              {templates.length === 0 && (
+                <p className="mt-1 text-xs text-gray-500">
+                  <Link href="/templates/guide" className="text-blue-600 hover:underline">
+                    Справочник тегов
+                  </Link>
+                  {' · '}
+                  <Link href="/templates/new" className="text-blue-600 hover:underline">
+                    Загрузить шаблон
+                  </Link>
+                </p>
+              )}
+            </label>
+          )}
+
           <label className="block text-sm">
             <span className="text-gray-700 font-medium">Номер документа</span>
             <input
@@ -338,7 +472,7 @@ function NewDocumentPageContent() {
             disabled={loading}
             className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Создание…' : 'Открыть редактор'}
+            {loading ? 'Создание…' : type === 'KS2' || type === 'KS3' || type === 'SERVICE_ACT' ? 'Создать и открыть' : 'Открыть редактор'}
           </button>
         </div>
       </div>

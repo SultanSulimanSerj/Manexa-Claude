@@ -10,7 +10,18 @@ import {
   History,
   CheckCircle,
   AlertCircle,
+  ShieldCheck,
 } from 'lucide-react'
+
+export type DocumentApprovalStatus = 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+
+const APPROVAL_STATUS_LABELS: Record<DocumentApprovalStatus, { label: string; className: string }> = {
+  PENDING: { label: 'На согласовании', className: 'bg-blue-100 text-blue-800' },
+  IN_PROGRESS: { label: 'На согласовании', className: 'bg-blue-100 text-blue-800' },
+  APPROVED: { label: 'Согласован', className: 'bg-green-100 text-green-800' },
+  REJECTED: { label: 'Отклонён', className: 'bg-red-100 text-red-800' },
+  CANCELLED: { label: 'Согласование отменено', className: 'bg-gray-100 text-gray-600' },
+}
 
 interface DocumentEditorHeaderProps {
   title: string
@@ -33,6 +44,10 @@ interface DocumentEditorHeaderProps {
   chainAction?: { label: string; href: string }
   hasDocxExport?: boolean
   onDownloadDocx?: () => void
+  /** Статус активного согласования документа (если есть) */
+  approvalStatus?: DocumentApprovalStatus | null
+  /** Ссылка на создание согласования для документа */
+  approvalCreateHref?: string
 }
 
 export function DocumentEditorHeader({
@@ -56,7 +71,10 @@ export function DocumentEditorHeader({
   chainAction,
   hasDocxExport,
   onDownloadDocx,
+  approvalStatus,
+  approvalCreateHref,
 }: DocumentEditorHeaderProps) {
+  const approvalBadge = approvalStatus ? APPROVAL_STATUS_LABELS[approvalStatus] : null
   const statusLabel =
     editorStatus === 'PUBLISHED' && hasUnpublishedChanges
       ? 'Есть правки'
@@ -129,9 +147,26 @@ export function DocumentEditorHeader({
                 {exportStatusLabel}
               </span>
             )}
+            {approvalBadge && (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${approvalBadge.className}`}
+              >
+                <ShieldCheck className="h-3 w-3" />
+                {approvalBadge.label}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {!approvalBadge && approvalCreateHref && (
+              <Link
+                href={approvalCreateHref}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                На согласование
+              </Link>
+            )}
             {chainAction && (
               <Link
                 href={chainAction.href}

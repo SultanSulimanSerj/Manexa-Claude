@@ -21,6 +21,7 @@ export function FnsDraftPreview({ content }: FnsDraftPreviewProps) {
     buyer: { legalName?: string; name: string; inn: string }
     objectName?: string
     contractBasis?: string
+    basisText?: string
     items: Array<{
       lineNumber: number
       name: string
@@ -59,9 +60,9 @@ export function FnsDraftPreview({ content }: FnsDraftPreviewProps) {
           <span className="font-medium">Объект:</span> {data.objectName}
         </p>
       )}
-      {data.contractBasis && (
+      {(data.contractBasis || data.basisText) && (
         <p className="text-sm">
-          <span className="font-medium">Основание:</span> {data.contractBasis}
+          <span className="font-medium">Основание:</span> {data.basisText || data.contractBasis}
         </p>
       )}
       {data.paymentPurpose && (

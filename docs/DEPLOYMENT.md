@@ -4,6 +4,8 @@
 
 Этот файл — краткая навигация. Полная инструкция по VPS, PM2, Caddy, PgBouncer, Redis и бэкапам — в **PRODUCTION.md**.
 
+**Дорожная карта, баги и идеи:** [`docs/ROADMAP_AND_ISSUES.md`](ROADMAP_AND_ISSUES.md)
+
 ## Архитектура
 
 Manexa запускается как **Node.js-процесс** (`node server.js`), не serverless:

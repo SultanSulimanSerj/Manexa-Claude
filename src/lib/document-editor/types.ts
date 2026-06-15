@@ -1,5 +1,5 @@
 import type { UpdDocumentData } from '@/lib/upd-generator'
-import type { Ks2DocumentData, Ks3DocumentData, InvoiceDocumentData } from '@/lib/document-renderer/fns-form-types'
+import type { Ks2DocumentData, Ks3DocumentData, InvoiceDocumentData, ServiceActDocumentData } from '@/lib/document-renderer/fns-form-types'
 import type { CommercialOfferData } from '@/lib/commercial-offer-generator'
 import type { ContractData } from '@/lib/document-generator'
 
@@ -10,6 +10,7 @@ export type DocumentContentType =
   | 'KS2'
   | 'KS3'
   | 'INVOICE'
+  | 'SERVICE_ACT'
   | 'CONTRACT'
   | 'COMMERCIAL_OFFER'
 
@@ -50,6 +51,12 @@ export interface InvoiceDocumentContent {
   data: InvoiceDocumentData
 }
 
+export interface ServiceActDocumentContent {
+  type: 'SERVICE_ACT'
+  schemaVersion: number
+  data: ServiceActDocumentData
+}
+
 export interface CommercialOfferDocumentContent {
   type: 'COMMERCIAL_OFFER'
   schemaVersion: number
@@ -67,6 +74,7 @@ export type DocumentContent =
   | Ks2DocumentContent
   | Ks3DocumentContent
   | InvoiceDocumentContent
+  | ServiceActDocumentContent
   | CommercialOfferDocumentContent
   | ContractDocumentContent
 
@@ -134,6 +142,15 @@ export function isInvoiceContent(content: unknown): content is InvoiceDocumentCo
   )
 }
 
+export function isServiceActContent(content: unknown): content is ServiceActDocumentContent {
+  return (
+    typeof content === 'object' &&
+    content !== null &&
+    (content as ServiceActDocumentContent).type === 'SERVICE_ACT' &&
+    typeof (content as ServiceActDocumentContent).data === 'object'
+  )
+}
+
 export function isCommercialOfferContent(
   content: unknown
 ): content is CommercialOfferDocumentContent {
@@ -164,6 +181,7 @@ export function parseDocumentContent(raw: unknown): DocumentContent | null {
   if (isKs2Content(raw)) return raw
   if (isKs3Content(raw)) return raw
   if (isInvoiceContent(raw)) return raw
+  if (isServiceActContent(raw)) return raw
   if (isCommercialOfferContent(raw)) return raw
   if (isContractContent(raw)) return raw
   return null
@@ -175,6 +193,7 @@ export function isEditableDocumentContent(content: unknown): content is Document
     isKs2Content(content) ||
     isKs3Content(content) ||
     isInvoiceContent(content) ||
+    isServiceActContent(content) ||
     isCommercialOfferContent(content) ||
     isContractContent(content)
   )

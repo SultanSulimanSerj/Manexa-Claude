@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { checkPermission } from '@/lib/auth-middleware'
 import {
   executeDocumentExport,
@@ -16,7 +17,7 @@ import {
   isDocxEditorType,
 } from '@/lib/document-editor/registry'
 import { enqueueDocumentExport } from '@/lib/document-export/export-job-service'
-import { computeDocumentContentHash } from '@/lib/document-export/content-hash'
+import { computeDocumentExportHash } from '@/lib/document-export/content-hash'
 
 export async function POST(
   request: NextRequest,
@@ -41,6 +42,9 @@ export async function POST(
       body.format === 'xlsx' || body.format === 'pdf' || body.format === 'both'
         ? body.format
         : 'both'
+    const includeStamp = typeof body.includeStamp === 'boolean' ? body.includeStamp : undefined
+    const includeSignature =
+      typeof body.includeSignature === 'boolean' ? body.includeSignature : undefined
 
     if (body.content && isEditableDocumentContent(body.content)) {
       await saveDocumentContent(params.id, user.companyId, body.content)
@@ -77,13 +81,39 @@ export async function POST(
       getDocumentContentType(content) ?? categoryToContentType(existing.category)
     const syncDocxExport = contentType && isDocxEditorType(contentType)
 
+    const resolvedIncludeStamp = includeStamp ?? existing.includeStampOnExport
+    const resolvedIncludeSignature = includeSignature ?? existing.includeSignatureOnExport
+
+    if (includeStamp !== undefined || includeSignature !== undefined) {
+      await prisma.document.update({
+        where: { id: params.id },
+        data: {
+          includeStampOnExport: resolvedIncludeStamp,
+          includeSignatureOnExport: resolvedIncludeSignature,
+        },
+      })
+    }
+
+    const companyBranding = await prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { stampFilePath: true, signatureFilePath: true },
+    })
+
+    const contentHash = computeDocumentExportHash(content, {
+      includeStamp: resolvedIncludeStamp,
+      includeSignature: resolvedIncludeSignature,
+      stampFilePath: companyBranding?.stampFilePath,
+      signatureFilePath: companyBranding?.signatureFilePath,
+    })
+
     if (syncDocxExport) {
-      const contentHash = computeDocumentContentHash(content)
       const result = await executeDocumentExport(params.id, user.companyId, {
         publish,
         comment,
         format,
         contentHash,
+        includeStamp: resolvedIncludeStamp,
+        includeSignature: resolvedIncludeSignature,
       })
 
       return NextResponse.json({

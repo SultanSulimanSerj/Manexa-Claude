@@ -38,12 +38,12 @@ export const DOCUMENT_TYPE_REGISTRY: Record<DocumentContentType, DocumentTypeDef
     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     fileExtension: 'xlsx',
     printRenderer: 'xlsx',
-    supportsEditor: false,
+    supportsEditor: true,
     validate: (content) => {
       const data = (content as { data?: unknown })?.data as Parameters<
         typeof validateFnsFormDocument
       >[0]
-      return validateFnsFormDocument(data, 'КС-2')
+      return validateFnsFormDocument(data, 'КС-2', 3)
     },
   },
   KS3: {
@@ -53,12 +53,12 @@ export const DOCUMENT_TYPE_REGISTRY: Record<DocumentContentType, DocumentTypeDef
     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     fileExtension: 'xlsx',
     printRenderer: 'xlsx',
-    supportsEditor: false,
+    supportsEditor: true,
     validate: (content) => {
       const data = (content as { data?: unknown })?.data as Parameters<
         typeof validateFnsFormDocument
       >[0]
-      return validateFnsFormDocument(data, 'КС-3')
+      return validateFnsFormDocument(data, 'КС-3', 3)
     },
   },
   INVOICE: {
@@ -74,6 +74,21 @@ export const DOCUMENT_TYPE_REGISTRY: Record<DocumentContentType, DocumentTypeDef
         typeof validateFnsFormDocument
       >[0]
       return validateFnsFormDocument(data, 'Счёт')
+    },
+  },
+  SERVICE_ACT: {
+    type: 'SERVICE_ACT',
+    category: 'SERVICE_ACT',
+    label: 'Акт приёмки услуг',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    fileExtension: 'docx',
+    printRenderer: 'docx',
+    supportsEditor: true,
+    validate: (content) => {
+      const data = (content as { data?: unknown })?.data as Parameters<
+        typeof validateFnsFormDocument
+      >[0]
+      return validateFnsFormDocument(data, 'Акт')
     },
   },
   CONTRACT: {
@@ -113,6 +128,7 @@ const LEGACY_CATEGORY_MAP: Record<string, DocumentContentType> = {
   KS2: 'KS2',
   KS3: 'KS3',
   INVOICE: 'INVOICE',
+  SERVICE_ACT: 'SERVICE_ACT',
   CONTRACT: 'CONTRACT',
   COMMERCIAL: 'COMMERCIAL_OFFER',
 }
@@ -122,6 +138,7 @@ const API_TYPE_MAP: Record<string, DocumentContentType | null> = {
   ks2: 'KS2',
   ks3: 'KS3',
   invoice: 'INVOICE',
+  'service-act': 'SERVICE_ACT',
   contract: 'CONTRACT',
   'commercial-offer': 'COMMERCIAL_OFFER',
 }

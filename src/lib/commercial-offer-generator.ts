@@ -18,8 +18,11 @@ export interface CommercialOfferData {
   city: string
   executorName: string
   executorLegalName: string
+  executorInn?: string
+  executorKpp?: string
   executorPhone: string
   executorEmail: string
+  executorDirector?: string
   clientName: string
   clientLegalName: string
   projectName: string

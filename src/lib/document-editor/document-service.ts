@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
-import type { DocumentEditorStatus } from '@prisma/client'
 import type { DocumentContent, DocumentSourceMeta } from './types'
 import {
   isUpdContent,
@@ -21,8 +20,10 @@ import {
 } from './document-export-router'
 import { getDocumentTypeDefinition } from './registry'
 import { computeHasUnpublishedChangesAfterExport } from '@/lib/document-export/format-utils'
+import { computeDocumentExportHash } from '@/lib/document-export/content-hash'
 import { allocateDocumentNumber, isDocumentNumberTaken } from '@/lib/document-numbering'
 import { deleteFile } from '@/lib/storage'
+import type { DocumentEditorStatus } from '@prisma/client'
 
 const PLACEHOLDER_FILE = 'draft-placeholder.txt'
 
@@ -70,6 +71,18 @@ export async function createCommercialOfferDraft(
 
 export async function createContractDraft(params: Omit<CreateEditableDraftParams, 'type'>) {
   return createEditableDocumentDraft({ type: 'CONTRACT', ...params })
+}
+
+export async function createKs2Draft(params: Omit<CreateEditableDraftParams, 'type'>) {
+  return createEditableDocumentDraft({ type: 'KS2', ...params })
+}
+
+export async function createKs3Draft(params: Omit<CreateEditableDraftParams, 'type'>) {
+  return createEditableDocumentDraft({ type: 'KS3', ...params })
+}
+
+export async function createServiceActDraft(params: Omit<CreateEditableDraftParams, 'type'>) {
+  return createEditableDocumentDraft({ type: 'SERVICE_ACT', ...params })
 }
 
 export async function getDocumentForCompany(documentId: string, companyId: string) {
@@ -230,6 +243,8 @@ export async function executeDocumentExport(
     comment?: string
     format?: ExportFormat
     contentHash?: string
+    includeStamp?: boolean
+    includeSignature?: boolean
   }
 ) {
   const document = await getDocumentForCompany(documentId, companyId)
@@ -245,7 +260,67 @@ export async function executeDocumentExport(
   content = await ensureDocumentNumberAllocated(document, content)
 
   const format = options?.format ?? 'both'
-  const exportResult = await exportDocumentContent(content, format)
+  const includeStamp = options?.includeStamp ?? document.includeStampOnExport
+  const includeSignature = options?.includeSignature ?? document.includeSignatureOnExport
+
+  if (
+    options?.includeStamp !== undefined ||
+    options?.includeSignature !== undefined
+  ) {
+    await prisma.document.update({
+      where: { id: documentId },
+      data: {
+        includeStampOnExport: includeStamp,
+        includeSignatureOnExport: includeSignature,
+      },
+    })
+  }
+
+  const companyBrandingMeta = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: {
+      stampFilePath: true,
+      stampMimeType: true,
+      signatureFilePath: true,
+      signatureMimeType: true,
+    },
+  })
+
+  const exportContentHash =
+    options?.contentHash ??
+    computeDocumentExportHash(content, {
+      includeStamp,
+      includeSignature,
+      stampFilePath: companyBrandingMeta?.stampFilePath,
+      signatureFilePath: companyBrandingMeta?.signatureFilePath,
+    })
+
+  let templateFilePath: string | null = null
+  if (document.templateId) {
+    const template = await prisma.documentTemplate.findFirst({
+      where: { id: document.templateId, companyId },
+    })
+    if (template?.filePath && template.fileType === 'DOCX') {
+      templateFilePath = template.filePath
+    }
+  }
+
+  let exportResult = await exportDocumentContent(content, format, templateFilePath)
+
+  if (includeStamp || includeSignature) {
+    if (companyBrandingMeta) {
+      const { loadCompanyBrandingAssets } = await import('@/lib/document-branding/apply-branding')
+      const { finalizeExportWithBranding } = await import('@/lib/document-branding/finalize-export')
+      const branding = await loadCompanyBrandingAssets(companyBrandingMeta)
+      exportResult = await finalizeExportWithBranding(exportResult, {
+        documentCategory: document.category,
+        branding,
+        includeStamp,
+        includeSignature,
+        format,
+      })
+    }
+  }
 
   let xlsxPath = document.filePath
   let xlsxFileName = document.fileName
@@ -347,7 +422,9 @@ export async function executeDocumentExport(
         documentNumber: exportedNumber || document.documentNumber,
         lastExportedAt: new Date(),
         hasUnpublishedChanges: computeHasUnpublishedChangesAfterExport(format, document),
-        exportContentHash: options?.contentHash ?? document.exportContentHash,
+        exportContentHash,
+        includeStampOnExport: includeStamp,
+        includeSignatureOnExport: includeSignature,
         numberAllocated: true,
         editorStatus: options?.publish ? 'PUBLISHED' : document.editorStatus,
         isPublished: options?.publish ? true : document.isPublished,

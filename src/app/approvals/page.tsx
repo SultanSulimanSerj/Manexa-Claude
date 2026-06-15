@@ -122,7 +122,34 @@ export default function ApprovalsPage() {
     fetchProjects()
     fetchDocuments()
     fetchUsers()
+
+    // Открытие модалки создания из редактора документа: /approvals?create=1&documentId=...
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('create') === '1') {
+      const documentId = params.get('documentId') || ''
+      const title = params.get('title') || ''
+      setCreateForm((prev) => ({
+        ...prev,
+        type: 'DOCUMENT',
+        documentId,
+        title: title ? `Согласование: ${title}` : prev.title,
+      }))
+      setShowCreateModal(true)
+      // Чистим query, чтобы модалка не открывалась повторно при обновлении
+      window.history.replaceState({}, '', '/approvals')
+    }
   }, [])
+
+  // Когда документы загрузились, подставляем проект предвыбранного документа
+  useEffect(() => {
+    if (!createForm.documentId || createForm.projectId) return
+    const doc = documents.find((d) => d.id === createForm.documentId)
+    const projectId = doc?.projectId || doc?.project?.id
+    if (projectId) {
+      setCreateForm((prev) => ({ ...prev, projectId }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documents, createForm.documentId])
 
   useEffect(() => {
     if (!toast) return

@@ -189,7 +189,10 @@ export async function POST(request: NextRequest) {
       data: {
         name: 'Договор подряда',
         description: 'Стандартный договор на выполнение строительно-монтажных работ',
+        category: 'CONTRACT',
+        fileType: 'HTML',
         content: CONTRACT_TEMPLATE,
+        creatorId: user.id,
         variables: {
           contract: ['number', 'date', 'day', 'month', 'year'],
           city: 'string',
