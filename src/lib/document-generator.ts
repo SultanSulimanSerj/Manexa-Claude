@@ -13,6 +13,7 @@ export interface ContractData {
   executorDirector: string
   executorDirectorPosition: string
   executorInn: string
+  executorKpp: string
   executorOgrn: string
   executorAddress: string
   executorPhone: string

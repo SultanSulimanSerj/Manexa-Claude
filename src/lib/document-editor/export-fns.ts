@@ -4,7 +4,13 @@ import { XLSX_MIME, PDF_MIME } from '@/lib/upd-generator'
 import { renderKs2Xlsx } from '@/lib/document-renderer/ks2/ks2-xlsx-renderer'
 import { renderKs3Xlsx } from '@/lib/document-renderer/ks3/ks3-xlsx-renderer'
 import { renderInvoiceDocx } from '@/lib/document-renderer/invoice/invoice-docx-renderer'
-import type { Ks2DocumentContent, Ks3DocumentContent, InvoiceDocumentContent } from './types'
+import { renderServiceActDocx } from '@/lib/document-renderer/service-act/service-act-docx-renderer'
+import type {
+  Ks2DocumentContent,
+  Ks3DocumentContent,
+  InvoiceDocumentContent,
+  ServiceActDocumentContent,
+} from './types'
 import { validateFnsFormDocument } from './fns-validator'
 import { convertDocxBufferToPdf, convertXlsxBufferToPdf } from './xlsx-to-pdf'
 import type { ExportFormat } from './export-upd'
@@ -123,9 +129,14 @@ export async function exportKs3Content(
   return { ...result, data }
 }
 
+export function buildServiceActFileName(documentNumber: string, documentDate: string): string {
+  return `Исходящий акт приемки услуг № ${documentNumber} от ${documentDate}.docx`
+}
+
 export async function exportInvoiceContent(
   content: InvoiceDocumentContent,
-  format: ExportFormat = 'both'
+  format: ExportFormat = 'both',
+  templateFilePath?: string | null
 ): Promise<FnsExportResult & { data: InvoiceDocumentContent['data'] }> {
   const data = content.data
   assertValid(data, 'Счёт')
@@ -133,12 +144,49 @@ export async function exportInvoiceContent(
   const docxFileName = buildInvoiceFileName(data.documentNumber, data.documentDate)
 
   if (format === 'xlsx' || format === 'pdf' || format === 'both') {
-    const buffer = await renderInvoiceDocx(data)
+    const buffer = await renderInvoiceDocx(data, templateFilePath)
     result.docx = { buffer, fileName: docxFileName, fileSize: buffer.length, mimeType: DOCX_MIME }
   }
 
   if (format === 'pdf' || format === 'both') {
-    const docxBuffer = result.docx?.buffer ?? (await renderInvoiceDocx(data))
+    const docxBuffer = result.docx?.buffer ?? (await renderInvoiceDocx(data, templateFilePath))
+    if (!result.docx) {
+      result.docx = {
+        buffer: docxBuffer,
+        fileName: docxFileName,
+        fileSize: docxBuffer.length,
+        mimeType: DOCX_MIME,
+      }
+    }
+    const pdfBuffer = await convertDocxBufferToPdf(docxBuffer, docxFileName)
+    result.pdf = {
+      buffer: pdfBuffer,
+      fileName: docxFileName.replace(/\.docx$/i, '.pdf'),
+      fileSize: pdfBuffer.length,
+      mimeType: PDF_MIME,
+    }
+  }
+
+  return { ...result, data }
+}
+
+export async function exportServiceActContent(
+  content: ServiceActDocumentContent,
+  format: ExportFormat = 'both',
+  templateFilePath?: string | null
+): Promise<FnsExportResult & { data: ServiceActDocumentContent['data'] }> {
+  const data = content.data
+  assertValid(data, 'Акт')
+  const result: FnsExportResult = {}
+  const docxFileName = buildServiceActFileName(data.documentNumber, data.documentDate)
+
+  if (format === 'xlsx' || format === 'pdf' || format === 'both') {
+    const buffer = await renderServiceActDocx(data, templateFilePath)
+    result.docx = { buffer, fileName: docxFileName, fileSize: buffer.length, mimeType: DOCX_MIME }
+  }
+
+  if (format === 'pdf' || format === 'both') {
+    const docxBuffer = result.docx?.buffer ?? (await renderServiceActDocx(data, templateFilePath))
     if (!result.docx) {
       result.docx = {
         buffer: docxBuffer,

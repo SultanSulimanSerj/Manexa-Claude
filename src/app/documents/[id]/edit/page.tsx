@@ -4,17 +4,26 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Layout from '@/components/layout'
 import { ErrorBanner } from '@/components/ui/error-banner'
-import { DocumentEditorHeader } from '@/components/document-editor/DocumentEditorHeader'
+import {
+  DocumentEditorHeader,
+  type DocumentApprovalStatus,
+} from '@/components/document-editor/DocumentEditorHeader'
 import { UpdEditor } from '@/components/document-editor/UpdEditor'
 import { InvoiceEditor } from '@/components/document-editor/InvoiceEditor'
 import { CommercialOfferEditor } from '@/components/document-editor/CommercialOfferEditor'
 import { ContractEditor } from '@/components/document-editor/ContractEditor'
 import { DocumentVersionHistory } from '@/components/document-editor/DocumentVersionHistory'
+import { DocumentBrandingPanel } from '@/components/document-editor/DocumentBrandingPanel'
+import { useSession } from 'next-auth/react'
 import { LegacyDocumentNotice } from '@/components/document-editor/LegacyDocumentNotice'
+import { FnsDraftPreview } from '@/components/document-editor/FnsDraftPreview'
 import type { DocumentContent, UpdDocumentContent } from '@/lib/document-editor/types'
 import {
   isUpdContent,
   isInvoiceContent,
+  isKs2Content,
+  isKs3Content,
+  isServiceActContent,
   isCommercialOfferContent,
   isContractContent,
   isEditableDocumentContent,
@@ -51,11 +60,14 @@ interface DocumentRecord {
   project?: { id: string; name: string } | null
   sourceMeta?: DocumentSourceMeta | null
   category?: string | null
+  includeStampOnExport?: boolean
+  includeSignatureOnExport?: boolean
 }
 
 export default function DocumentEditPage() {
   const params = useParams()
   const documentId = params?.id as string
+  const { data: session } = useSession()
 
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [content, setContent] = useState<DocumentContent | null>(null)
@@ -73,10 +85,13 @@ export default function DocumentEditPage() {
   const [exportError, setExportError] = useState<string | null>(null)
   const [canEdit, setCanEdit] = useState(true)
   const [sourceInvoice, setSourceInvoice] = useState<{ id: string; title: string } | null>(null)
+  const [approvalStatus, setApprovalStatus] = useState<DocumentApprovalStatus | null>(null)
   const [pendingExportJob, setPendingExportJob] = useState<{
     id: string
     status: ExportJobStatus
   } | null>(null)
+  const [includeStamp, setIncludeStamp] = useState(false)
+  const [includeSignature, setIncludeSignature] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contentRef = useRef<DocumentContent | null>(null)
@@ -120,6 +135,8 @@ export default function DocumentEditPage() {
       }
       const data = await res.json()
       setDocument(data.document)
+      setIncludeStamp(Boolean(data.document.includeStampOnExport))
+      setIncludeSignature(Boolean(data.document.includeSignatureOnExport))
       setCanEdit(data.canEdit !== false)
 
       const activeJob = data.activeExportJob
@@ -147,6 +164,24 @@ export default function DocumentEditPage() {
   useEffect(() => {
     fetchDocument()
   }, [fetchDocument])
+
+  // Статус согласования документа для бейджа в шапке
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/approvals?documentId=${documentId}&limit=1`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const approval = data?.approvals?.[0]
+        setApprovalStatus(approval?.status ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setApprovalStatus(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [documentId])
 
   useEffect(() => {
     return () => cancelPoll()
@@ -293,6 +328,8 @@ export default function DocumentEditPage() {
           publish: false,
           format,
           content: current,
+          includeStamp,
+          includeSignature,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -440,9 +477,13 @@ export default function DocumentEditPage() {
   const isLegacy = !content || !isEditableDocumentContent(document.contentJson)
   const isUpd = content && isUpdContent(content)
   const isInvoice = content && isInvoiceContent(content)
+  const isKs2 = content && isKs2Content(content)
+  const isKs3 = content && isKs3Content(content)
+  const isServiceAct = content && isServiceActContent(content)
+  const isFnsPreview = isKs2 || isKs3 || isServiceAct
   const isCommercialOffer = content && isCommercialOfferContent(content)
   const isContract = content && isContractContent(content)
-  const isDocxType = isInvoice || isCommercialOffer || isContract
+  const isDocxType = isInvoice || isCommercialOffer || isContract || isServiceAct
   const sourceMeta = document.sourceMeta as DocumentSourceMeta | null | undefined
   const projectId = document.project?.id
   const updSourceMetaWarning =
@@ -461,7 +502,12 @@ export default function DocumentEditPage() {
             label: 'Создать УПД',
             href: `/documents/new?type=UPD&projectId=${projectId}&invoiceDocumentId=${documentId}`,
           }
-        : undefined
+        : isKs2 && projectId
+          ? {
+              label: 'Создать КС-3',
+              href: `/documents/new?type=KS3&projectId=${projectId}`,
+            }
+          : undefined
 
   const handleDownloadDocx = () => {
     window.open(
@@ -494,11 +540,28 @@ export default function DocumentEditPage() {
           chainAction={chainAction}
           hasDocxExport={Boolean(isDocxType && hasXlsxExport)}
           onDownloadDocx={isDocxType ? handleDownloadDocx : undefined}
+          approvalStatus={approvalStatus === 'CANCELLED' ? null : approvalStatus}
+          approvalCreateHref={`/approvals?create=1&documentId=${documentId}&title=${encodeURIComponent(document.title)}`}
         />
 
         <div className="max-w-7xl mx-auto px-4 py-6">
           <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
           <ErrorBanner message={exportError} onDismiss={() => setExportError(null)} />
+
+          {!isLegacy && (
+            <div className="mb-6">
+              <DocumentBrandingPanel
+                companyId={session?.user?.companyId}
+                includeStamp={includeStamp}
+                includeSignature={includeSignature}
+                onChange={({ includeStamp: stamp, includeSignature: signature }) => {
+                  setIncludeStamp(stamp)
+                  setIncludeSignature(signature)
+                }}
+                readOnly={!canEdit}
+              />
+            </div>
+          )}
 
           {isLegacy ? (
             <LegacyDocumentNotice
@@ -534,6 +597,8 @@ export default function DocumentEditPage() {
               onChange={handleContentChange}
               readOnly={!canEdit}
             />
+          ) : isFnsPreview && content ? (
+            <FnsDraftPreview content={content} />
           ) : content ? (
             <div className="bg-white rounded-lg border p-6 text-sm text-gray-600">
               Редактор для этого типа документа пока недоступен. Используйте «Сформировать» для

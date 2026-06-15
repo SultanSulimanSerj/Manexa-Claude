@@ -110,7 +110,11 @@ export async function getFileBuffer(filePath: string): Promise<Buffer> {
     throw new Error(`Файл не найден: ${filePath}`)
   }
   const bytes = await body.transformToByteArray()
-  return Buffer.from(bytes)
+  const buffer = Buffer.from(bytes)
+  if (buffer.length === 0) {
+    throw new Error(`Файл в хранилище пустой: ${filePath}`)
+  }
+  return buffer
 }
 
 export async function getSignedUrl(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission, filterDataByPermissions } from '@/lib/auth-middleware'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@/lib/permissions'
+import { checkPlanLimit, PLAN_LIMIT_MESSAGES } from '@/lib/subscription-guard'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,6 +78,15 @@ export async function POST(request: NextRequest) {
     // Проверяем права на создание пользователей с определенной ролью
     if (role === UserRole.OWNER && user.role !== UserRole.OWNER) {
       return NextResponse.json({ error: 'Недостаточно прав для создания владельца' }, { status: 403 })
+    }
+
+    // Лимит пользователей по тарифу
+    const planLimit = await checkPlanLimit(user.companyId, 'users')
+    if (!planLimit.allowed) {
+      return NextResponse.json(
+        { error: `${PLAN_LIMIT_MESSAGES.users} (${planLimit.current}/${planLimit.limit})` },
+        { status: 403 }
+      )
     }
 
     // Hash password

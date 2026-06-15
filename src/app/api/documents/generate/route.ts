@@ -10,6 +10,9 @@ import {
   createUpdDraft,
   createInvoiceDraft,
   createCommercialOfferDraft,
+  createKs2Draft,
+  createKs3Draft,
+  createServiceActDraft,
 } from '@/lib/document-editor/document-service'
 import {
   renderContractDocx,
@@ -69,6 +72,7 @@ function buildContractData(
     executorDirector: project.company?.directorName || '',
     executorDirectorPosition: project.company?.directorPosition || 'Генеральный директор',
     executorInn: project.company?.inn || '',
+    executorKpp: project.company?.kpp || '',
     executorOgrn: project.company?.ogrn || '',
     executorAddress: project.company?.legalAddress || project.company?.address || '',
     executorPhone: project.company?.phone || project.company?.contactPhone || '',
@@ -215,11 +219,37 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now()
     const mimeType = DOCX_MIME
 
-    if (resolvedType === 'ks2' || resolvedType === 'ks3') {
-      return NextResponse.json(
-        { error: 'КС-2 и КС-3 пока не поддерживаются' },
-        { status: 400 }
-      )
+    if (resolvedType === 'ks2' || resolvedType === 'ks3' || resolvedType === 'service-act') {
+      if (!user.companyId) {
+        return NextResponse.json({ error: 'Компания не найдена' }, { status: 400 })
+      }
+      if (estimateIds.length === 0) {
+        return NextResponse.json({ error: 'Выберите смету проекта' }, { status: 400 })
+      }
+
+      const draftParams = {
+        projectId,
+        companyId: user.companyId,
+        creatorId: user.id,
+        estimateIds,
+        documentNumber: typeof customDocNumber === 'string' ? customDocNumber : null,
+        documentDate: today,
+        invoiceDocumentId:
+          typeof body.invoiceDocumentId === 'string' ? body.invoiceDocumentId : undefined,
+      }
+
+      const document =
+        resolvedType === 'ks2'
+          ? await createKs2Draft(draftParams)
+          : resolvedType === 'ks3'
+            ? await createKs3Draft(draftParams)
+            : await createServiceActDraft(draftParams)
+
+      return NextResponse.json({
+        documentId: document.id,
+        redirectUrl: `/documents/${document.id}/edit`,
+        document,
+      })
     }
 
     const editableDraftTypes = new Set(['upd', 'invoice'])

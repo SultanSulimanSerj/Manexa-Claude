@@ -68,3 +68,9 @@ backups/
 
 # Docker
 .dockerignore
+
+# Generated document outputs and temp artifacts
+/*.xlsx
+/*.docx
+/*.pdf
+tmp/

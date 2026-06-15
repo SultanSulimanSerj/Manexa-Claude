@@ -14,6 +14,8 @@ import Link from 'next/link'
 function SignInPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [totpRequired, setTotpRequired] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,16 +42,28 @@ function SignInPageContent() {
       const result = await signIn('credentials', {
         email,
         password,
+        ...(totpCode && { totpCode }),
         redirect: false
       })
 
       if (result?.error) {
-        setError('Неверные учетные данные')
+        // Двухфакторная аутентификация
+        if (result.error === 'TOTP_REQUIRED') {
+          setTotpRequired(true)
+          setError('Введите код из приложения-аутентификатора')
+        } else if (result.error === 'TOTP_INVALID') {
+          setTotpRequired(true)
+          setError('Неверный код подтверждения')
+        } else {
+          setError('Неверные учетные данные')
+        }
       } else {
         // Проверяем сессию
         const session = await getSession()
         if (session) {
-          router.push('/')
+          const role = (session.user as { role?: string } | undefined)?.role
+          const isPlatform = role === 'PLATFORM_ADMIN' || role === 'PLATFORM_MANAGER'
+          router.push(isPlatform ? '/platform' : '/')
         } else {
           setError('Ошибка создания сессии')
         }
@@ -126,6 +140,24 @@ function SignInPageContent() {
                 </button>
               </div>
             </div>
+
+            {totpRequired && (
+              <div>
+                <Label htmlFor="totpCode">Код подтверждения (2FA)</Label>
+                <Input
+                  id="totpCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  placeholder="6 цифр из приложения"
+                  maxLength={6}
+                  required
+                  className="mt-1"
+                />
+              </div>
+            )}
 
             <Button 
               type="submit" 

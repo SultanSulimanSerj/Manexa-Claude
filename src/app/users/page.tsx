@@ -164,7 +164,31 @@ export default function UsersPage() {
       if (response.ok) {
         setUsers(users.filter(u => u.id !== userId))
         setSuccess('Пользователь успешно удален')
+        return
       }
+
+      const data = await response.json().catch(() => ({}))
+
+      // Пользователь создал данные — предлагаем деактивацию вместо удаления
+      if (response.status === 409 && data.canDeactivate) {
+        if (confirm(`${data.error}\n\nДеактивировать пользователя сейчас?`)) {
+          const deactivate = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: false }),
+          })
+          if (deactivate.ok) {
+            setSuccess('Пользователь деактивирован — доступ закрыт, данные сохранены')
+            fetchUsers()
+          } else {
+            const d = await deactivate.json().catch(() => ({}))
+            setError(d.error || 'Не удалось деактивировать пользователя')
+          }
+        }
+        return
+      }
+
+      setError(data.error || 'Ошибка удаления пользователя')
     } catch (err) {
       setError('Ошибка удаления пользователя')
     }

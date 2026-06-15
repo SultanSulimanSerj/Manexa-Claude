@@ -5,6 +5,7 @@ import { notifyProjectUpdate } from '@/lib/notifications'
 import { UserRole } from '@/lib/permissions'
 import { generateId } from '@/lib/id-generator'
 import { FinanceType } from '@prisma/client'
+import { checkPlanLimit, PLAN_LIMIT_MESSAGES } from '@/lib/subscription-guard'
 
 export async function GET(request: NextRequest) {
   try {
@@ -157,6 +158,15 @@ export async function POST(request: NextRequest) {
     if (!user.companyId) {
       console.error('User has no companyId:', { userId: user.id, email: user.email })
       return NextResponse.json({ error: 'Пользователь не привязан к компании' }, { status: 400 })
+    }
+
+    // Лимит проектов по тарифу
+    const planLimit = await checkPlanLimit(user.companyId, 'projects')
+    if (!planLimit.allowed) {
+      return NextResponse.json(
+        { error: `${PLAN_LIMIT_MESSAGES.projects} (${planLimit.current}/${planLimit.limit})` },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()

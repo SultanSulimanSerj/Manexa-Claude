@@ -8,7 +8,7 @@ import { ErrorBanner } from '@/components/ui/error-banner'
 import { Plus, Search, Download, Trash2, Pencil, X, Upload, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { CreateDocumentMenu } from '@/components/documents/CreateDocumentMenu'
-import { getCategoryLabel, getCategoryColor, EDITABLE_CATEGORIES } from '@/lib/document-category-labels'
+import { EDITABLE_CATEGORIES } from '@/lib/document-category-labels'
 
 interface Document {
   id: string
@@ -169,7 +169,14 @@ function DocumentsPageContent() {
         fetchDocuments()
         setDeleteConfirmId(null)
       } else {
-        const data = await response.json().catch(() => ({}))
+        const raw = await response.text()
+        let data: { error?: string } = {}
+        try {
+          data = raw ? JSON.parse(raw) : {}
+        } catch {
+          setErrorMessage(`Ошибка сервера (${response.status})`)
+          return
+        }
         setErrorMessage(data.error || 'Ошибка при удалении документа')
       }
     } catch (err) {
@@ -215,41 +222,16 @@ function DocumentsPageContent() {
     return 'bg-gray-50 text-gray-700 border-gray-200'
   }
 
-  const getCategoryBadge = (doc: Document) => (
-    <span
-      className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${getCategoryColor(doc.category)}`}
-    >
-      {getCategoryLabel(doc.category)}
-    </span>
-  )
+  const isEditableDocument = (doc: Document) => EDITABLE_CATEGORIES.has(doc.category || '')
 
-  const getEditorStatusBadge = (doc: Document) => {
-    if (!EDITABLE_CATEGORIES.has(doc.category || '')) return null
-    const status =
-      doc.editorStatus === 'PUBLISHED' && doc.hasUnpublishedChanges
-        ? 'CHANGES'
-        : doc.editorStatus || 'DRAFT'
-    const labels: Record<string, string> = {
-      DRAFT: 'Черновик',
-      PUBLISHED: 'Опубликован',
-      CHANGES: 'Есть правки',
-      ARCHIVED: 'Архив',
-    }
-    const colors: Record<string, string> = {
-      DRAFT: 'bg-amber-100 text-amber-800',
-      PUBLISHED: 'bg-green-100 text-green-800',
-      CHANGES: 'bg-orange-100 text-orange-800',
-      ARCHIVED: 'bg-gray-100 text-gray-600',
-    }
-    return (
-      <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${colors[status] || colors.DRAFT}`}>
-        {labels[status] || status}
-      </span>
-    )
-  }
+  const editorHref = (doc: Document) =>
+    isEditableDocument(doc) ? `/documents/${doc.id}/edit` : null
 
-  const canEditDocument = (doc: Document) =>
-    EDITABLE_CATEGORIES.has(doc.category || '') && Boolean(doc.hasEditableContent)
+  /** Файл ещё не сформирован (только черновик в редакторе). */
+  const isUnformedFile = (doc: Document) =>
+    isEditableDocument(doc) &&
+    !doc.lastExportedAt &&
+    (doc.fileSize === 0 || doc.fileName === 'draft-placeholder.txt')
 
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -395,18 +377,43 @@ function DocumentsPageContent() {
                     </td>
                     <td className="px-4 py-3">
                       <div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        {editorHref(doc) ? (
+                          <Link
+                            href={editorHref(doc)!}
+                            className="text-sm font-semibold text-gray-900 visited:text-gray-900 hover:underline"
+                          >
+                            {doc.title}
+                          </Link>
+                        ) : (
                           <span className="text-sm font-semibold text-gray-900">{doc.title}</span>
-                          {getCategoryBadge(doc)}
-                          {getEditorStatusBadge(doc)}
-                        </div>
+                        )}
                         {doc.description && (
                           <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{doc.description}</div>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-gray-700">{doc.fileName}</div>
+                      {isUnformedFile(doc) ? (
+                        editorHref(doc) ? (
+                          <Link
+                            href={editorHref(doc)!}
+                            className="text-sm text-gray-700 visited:text-gray-700 hover:underline"
+                          >
+                            Черновик
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-amber-700">Черновик</span>
+                        )
+                      ) : editorHref(doc) ? (
+                        <Link
+                          href={editorHref(doc)!}
+                          className="text-sm text-gray-700 visited:text-gray-700 hover:underline"
+                        >
+                          {doc.fileName}
+                        </Link>
+                      ) : (
+                        <div className="text-sm text-gray-700">{doc.fileName}</div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-700">{formatFileSize(doc.fileSize)}</div>
@@ -430,11 +437,11 @@ function DocumentsPageContent() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {EDITABLE_CATEGORIES.has(doc.category || '') && (
+                        {isEditableDocument(doc) && (
                           <Link
                             href={`/documents/${doc.id}/edit`}
                             className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-                            title={canEditDocument(doc) ? 'Редактировать' : 'Открыть'}
+                            title="Редактировать"
                           >
                             <Pencil className="h-4 w-4" />
                           </Link>

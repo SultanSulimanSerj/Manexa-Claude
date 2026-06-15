@@ -49,6 +49,11 @@ model User {
   phone         String?
   address       String?
   isActive      Boolean   @default(true)
+  // Принудительная смена пароля при следующем входе (выдача временного пароля)
+  mustChangePassword Boolean @default(false)
+  // 2FA (TOTP) — обязательна для платформенных ролей
+  totpSecret    String?
+  totpEnabled   Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -115,6 +120,10 @@ model Company {
   legalAddress         String?
   legalName            String?
   ogrn                 String?
+  stampFilePath        String?
+  stampMimeType        String?
+  signatureFilePath    String?
+  signatureMimeType    String?
   isActive             Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -144,6 +153,109 @@ model Company {
   estimates            Estimate[]
   estimateItems        EstimateItem[]
   workStages           WorkStage[]
+  subscription         Subscription?
+}
+
+// ============ Платформенное администрирование ============
+
+model Plan {
+  id            String   @id @default(cuid())
+  code          String   @unique // TRIAL, BASIC, STANDARD, PREMIUM
+  name          String
+  description   String?
+  priceMonthly  Decimal  @db.Decimal(10, 2)
+  currency      String   @default("RUB")
+  maxUsers      Int? // null = безлимит
+  maxProjects   Int?
+  maxStorageMb  Int?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  companyId          String             @unique
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               Plan               @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus @default(TRIAL)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime
+  canceledAt         DateTime?
+  notes              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  payments Payment[]
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount         Decimal       @db.Decimal(10, 2)
+  currency       String        @default("RUB")
+  status         PaymentStatus @default(COMPLETED)
+  method         String? // bank_transfer, card, cash
+  invoiceNumber  String?
+  comment        String?
+  // Период, который оплачен этим платежом
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  recordedById   String? // платформенный пользователь, зафиксировавший оплату
+  paidAt         DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+
+  @@index([subscriptionId])
+}
+
+model PlatformAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String?
+  action     String // COMPANY_CREATE, COMPANY_ARCHIVE, PASSWORD_RESET, IMPERSONATE_START, ...
+  targetType String? // Company, User, Subscription, Plan
+  targetId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model ImpersonationToken {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  targetUserId String
+  issuedById   String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([targetUserId])
 }
 
 model Project {
@@ -360,6 +472,8 @@ model Document {
   pdfFilePath           String?
   pdfFileSize           Int?
   exportContentHash     String?
+  includeStampOnExport      Boolean              @default(false)
+  includeSignatureOnExport  Boolean              @default(false)
   edoStatus             DocumentEdoStatus    @default(NONE)
   edoXmlPath            String?
   edoXmlFileName        String?
@@ -423,19 +537,38 @@ model DocumentVersion {
   @@index([companyId])
 }
 
+enum TemplateCategory {
+  CONTRACT
+  COMMERCIAL_OFFER
+  INVOICE
+}
+
+enum TemplateFileType {
+  DOCX
+  HTML
+}
+
 model DocumentTemplate {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   name        String
   description String?
-  content     String   @db.Text
+  category    TemplateCategory @default(CONTRACT)
+  fileType    TemplateFileType @default(DOCX)
+  filePath    String?
+  content     String?          @db.Text
   variables   Json?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean          @default(true)
+  isDefault   Boolean          @default(false)
+  creatorId   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   companyId String
   company   Company    @relation(fields: [companyId], references: [id])
   documents Document[]
+
+  @@index([companyId, category])
+  @@index([companyId, category, isDefault])
 }
 
 model Approval {
@@ -740,6 +873,8 @@ model NumberingRule {
 
 // Enums
 enum UserRole {
+  PLATFORM_ADMIN
+  PLATFORM_MANAGER
   OWNER
   ADMIN
   MANAGER

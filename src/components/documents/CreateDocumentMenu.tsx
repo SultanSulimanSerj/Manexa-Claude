@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, ChevronDown, FileText, FileSpreadsheet, Receipt, ScrollText } from 'lucide-react'
+import { Plus, ChevronDown, FileText, FileSpreadsheet, Receipt, ScrollText, ClipboardList } from 'lucide-react'
 
 const DOCUMENT_TYPES = [
   {
@@ -28,6 +28,24 @@ const DOCUMENT_TYPES = [
     label: 'УПД',
     icon: FileSpreadsheet,
     description: 'На основании счёта',
+  },
+  {
+    type: 'KS2',
+    label: 'КС-2',
+    icon: ClipboardList,
+    description: 'Акт приёмки работ по смете',
+  },
+  {
+    type: 'KS3',
+    label: 'КС-3',
+    icon: ClipboardList,
+    description: 'Справка о стоимости работ',
+  },
+  {
+    type: 'SERVICE_ACT',
+    label: 'Акт приёмки услуг',
+    icon: FileText,
+    description: 'Закрывающий акт по смете',
   },
 ] as const
 

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Settings, Save, User, Bell, Shield, Database, Globe, LogOut, Clock, AlertTriangle, Wallet, FileText, Loader2 } from 'lucide-react'
 import Layout from '@/components/layout'
+import { CompanyBrandingSettings } from '@/components/settings/CompanyBrandingSettings'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 
@@ -893,6 +894,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <CompanyBrandingSettings companyId={session?.user?.companyId} />
 
             {/* Система */}
             <Card className="animate-fade-in">

@@ -5,7 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { getDocumentForCompany } from '@/lib/document-editor/document-service'
 import type { ExportFormat } from '@/lib/document-editor/export-upd'
 import { isEditableDocumentContent, parseDocumentContent } from '@/lib/document-editor/types'
-import { computeDocumentContentHash } from './content-hash'
+import { computeDocumentExportHash } from './content-hash'
 import { exportJobCoversFormat } from './format-utils'
 import { addDocumentExportToQueue, isExportQueueConfigured } from './queue'
 import type {
@@ -163,7 +163,17 @@ export async function enqueueDocumentExport(
     throw new Error('Документ не содержит редактируемых данных')
   }
 
-  const contentHash = computeDocumentContentHash(content)
+  const companyBranding = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { stampFilePath: true, signatureFilePath: true },
+  })
+
+  const contentHash = computeDocumentExportHash(content, {
+    includeStamp: document.includeStampOnExport,
+    includeSignature: document.includeSignatureOnExport,
+    stampFilePath: companyBranding?.stampFilePath,
+    signatureFilePath: companyBranding?.signatureFilePath,
+  })
 
   const activeJob = await findActiveExportJob(documentId)
   if (activeJob) {

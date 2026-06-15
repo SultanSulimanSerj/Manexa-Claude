@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
-import { ArrowLeft, FileText, ExternalLink } from 'lucide-react'
+import { ErrorBanner } from '@/components/ui/error-banner'
+import { ArrowLeft, Download, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface TemplateDetail {
@@ -21,9 +22,14 @@ interface TemplateDetail {
   variables?: Record<string, unknown>
   isPublic?: boolean
   isActive?: boolean
+  isSystem?: boolean
+  hasFile?: boolean
+  _count?: { documents: number }
 }
 
 const categoryLabels: Record<string, string> = {
+  CONTRACT: 'Договор',
+  COMMERCIAL_OFFER: 'Коммерческое предложение',
   COMMERCIAL: 'Коммерческие',
   FINANCIAL: 'Финансовые',
   REPORT: 'Отчетные',
@@ -35,10 +41,12 @@ const categoryLabels: Record<string, string> = {
 
 export default function TemplateDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const templateId = Array.isArray(params?.id) ? params.id[0] : params?.id
   const [template, setTemplate] = useState<TemplateDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!templateId) return
@@ -60,6 +68,28 @@ export default function TemplateDetailPage() {
     }
     fetchTemplate()
   }, [templateId])
+
+  const handleDelete = async () => {
+    if (!template) return
+    const used = template._count?.documents ?? 0
+    if (used > 0) {
+      setError(`Невозможно удалить: шаблон использован в ${used} документ(ах)`)
+      return
+    }
+    if (!confirm(`Удалить шаблон «${template.name}»? Это действие нельзя отменить.`)) return
+
+    setDeleting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/templates/${template.id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Не удалось удалить шаблон')
+      router.push('/templates')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка удаления шаблона')
+      setDeleting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -88,6 +118,7 @@ export default function TemplateDetailPage() {
 
   return (
     <Layout>
+      <ErrorBanner message={error} onDismiss={() => setError(null)} />
       <div className="mx-auto max-w-3xl space-y-6">
         <Link
           href="/templates"
@@ -105,8 +136,16 @@ export default function TemplateDetailPage() {
                 <p className="mt-2 text-gray-600">{template.description}</p>
               )}
             </div>
-            <span className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-              Системный
+            <span
+              className={`rounded px-2 py-1 text-xs font-medium ${
+                template.isSystem
+                  ? 'bg-gray-100 text-gray-700'
+                  : template.isActive
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {template.isSystem ? 'Системный' : template.isActive ? 'Активен' : 'Неактивен'}
             </span>
           </div>
 
@@ -168,13 +207,37 @@ export default function TemplateDetailPage() {
             </div>
           )}
 
-          <Link
-            href={`/documents/generate?templateId=${template.id}&documentType=${template.type}`}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Создать документ из шаблона
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            {!template.isSystem && (
+              <Link
+                href={`/templates/${template.id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                <Pencil className="h-4 w-4" />
+                Редактировать шаблон
+              </Link>
+            )}
+            {template.hasFile && (
+              <a
+                href={`/api/templates/${template.id}/download`}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4" />
+                Скачать DOCX
+              </a>
+            )}
+            {!template.isSystem && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deleting ? 'Удаление...' : 'Удалить шаблон'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </Layout>

@@ -6,6 +6,7 @@ const RULE_NAMES: Record<string, string> = {
   KS2: 'doc:KS2',
   KS3: 'doc:KS3',
   INVOICE: 'doc:INVOICE',
+  SERVICE_ACT: 'doc:SERVICE_ACT',
   CONTRACT: 'doc:CONTRACT',
   COMMERCIAL: 'doc:COMMERCIAL',
 }

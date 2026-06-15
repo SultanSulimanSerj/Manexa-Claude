@@ -5,6 +5,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   COMMERCIAL: 'КП',
   KS2: 'КС-2',
   KS3: 'КС-3',
+  SERVICE_ACT: 'АВР',
   GENERAL: 'Файл',
 }
 
@@ -24,4 +25,12 @@ export function getCategoryColor(category: string | null | undefined): string {
   return CATEGORY_COLORS[category || ''] || 'bg-gray-100 text-gray-700'
 }
 
-export const EDITABLE_CATEGORIES = new Set(['UPD', 'INVOICE', 'CONTRACT', 'COMMERCIAL'])
+export const EDITABLE_CATEGORIES = new Set([
+  'UPD',
+  'INVOICE',
+  'CONTRACT',
+  'COMMERCIAL',
+  'KS2',
+  'KS3',
+  'SERVICE_ACT',
+])

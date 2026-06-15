@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs'
 import type { Ks2DocumentData } from '../fns-form-types'
 import { patchXlsxTemplate } from '../xlsx-patcher'
-import { buildKs2CellAssignments } from './ks2-cell-map'
+import { buildKs2XlsxPatchPlan } from './ks2-cell-map'
 
 const TEMPLATE_PATH = path.join(process.cwd(), 'templates/documents/ks2-template.xlsx')
 
@@ -13,8 +13,9 @@ export async function renderKs2Xlsx(data: Ks2DocumentData): Promise<Buffer> {
     )
   }
 
+  const plan = buildKs2XlsxPatchPlan(data)
   return patchXlsxTemplate({
     templatePath: TEMPLATE_PATH,
-    assignments: buildKs2CellAssignments(data),
+    assignments: plan.assignments,
   })
 }

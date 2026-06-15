@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { executeDocumentExport } from '@/lib/document-editor/document-service'
 import type { ExportFormat } from '@/lib/document-editor/export-upd'
-import { computeDocumentContentHash } from './content-hash'
+import { computeDocumentExportHash } from './content-hash'
 import { isEditableDocumentContent, parseDocumentContent } from '@/lib/document-editor/types'
 
 export async function processDocumentExportJob(
@@ -32,12 +32,25 @@ export async function processDocumentExportJob(
   try {
     const document = await prisma.document.findFirst({
       where: { id: job.documentId, companyId: job.companyId },
-      select: { contentJson: true },
+      select: {
+        contentJson: true,
+        includeStampOnExport: true,
+        includeSignatureOnExport: true,
+      },
+    })
+    const companyBranding = await prisma.company.findUnique({
+      where: { id: job.companyId },
+      select: { stampFilePath: true, signatureFilePath: true },
     })
     const content = parseDocumentContent(document?.contentJson)
     const contentHash =
       content && isEditableDocumentContent(content)
-        ? computeDocumentContentHash(content)
+        ? computeDocumentExportHash(content, {
+            includeStamp: document?.includeStampOnExport,
+            includeSignature: document?.includeSignatureOnExport,
+            stampFilePath: companyBranding?.stampFilePath,
+            signatureFilePath: companyBranding?.signatureFilePath,
+          })
         : job.contentHash
 
     const exportResult = await executeDocumentExport(job.documentId, job.companyId, {

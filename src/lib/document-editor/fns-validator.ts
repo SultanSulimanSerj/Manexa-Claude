@@ -14,7 +14,8 @@ export function validateFnsFormDocument(
     items?: unknown[]
     objectName?: string
   } | null | undefined,
-  label: string
+  label: string,
+  maxItems = 9
 ): ValidationResult {
   const issues: ValidationIssue[] = []
 
@@ -46,10 +47,10 @@ export function validateFnsFormDocument(
       severity: 'error',
     })
   }
-  if (items.length > 9) {
+  if (items.length > maxItems) {
     issues.push({
       field: 'items',
-      message: `В ${label} допускается не более 9 позиций на одном листе`,
+      message: `В ${label} допускается не более ${maxItems} позиций на одном листе`,
       severity: 'error',
     })
   }

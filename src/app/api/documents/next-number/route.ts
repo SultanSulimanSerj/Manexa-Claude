@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission } from '@/lib/auth-middleware'
 import { peekNextDocumentNumber } from '@/lib/document-numbering'
 
-const ALLOWED_TYPES = new Set(['UPD', 'INVOICE', 'CONTRACT', 'COMMERCIAL'])
+const ALLOWED_TYPES = new Set(['UPD', 'INVOICE', 'CONTRACT', 'COMMERCIAL', 'KS2', 'KS3', 'SERVICE_ACT'])
 
 export async function GET(request: NextRequest) {
   try {
