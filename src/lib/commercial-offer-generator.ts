@@ -10,6 +10,12 @@ import {
   WidthType,
   BorderStyle,
 } from 'docx'
+import {
+  BRAND_TAG_SIGNATURE,
+  BRAND_TAG_STAMP,
+  SIGNATURE_LINE,
+} from './document-branding/brand-tags'
+import { directorShortName } from './number-to-words-ru'
 import type { SpecificationData, SpecificationItem } from './specification-appendix'
 
 export interface CommercialOfferData {
@@ -136,7 +142,10 @@ export function generateCommercialOfferDocument(data: CommercialOfferData): Docu
             spacing: { after: 400 },
           }),
           new Paragraph({ text: data.executorLegalName || data.executorName, spacing: { after: 100 } }),
-          new Paragraph({ text: '___________________ / Подпись' }),
+          new Paragraph({
+            text: `${SIGNATURE_LINE} ${BRAND_TAG_SIGNATURE} / ${directorShortName(data.executorDirector)} /`,
+          }),
+          new Paragraph({ text: `М.П. ${BRAND_TAG_STAMP}` }),
         ],
       },
     ],

@@ -1,13 +1,19 @@
 import PizZip from 'pizzip'
 import {
   expandXmlTagVariants,
-  SIGNATURE_LINE,
   SIGNATURE_TAG_VARIANTS,
   STAMP_TAG_VARIANTS,
 } from './brand-tags'
 
-const SIGNATURE_SCALE = 1.5
+const SIGNATURE_SCALE = 1.35
 const STAMP_EMU = 1_100_000
+
+// Геометрия линии подписи (EMU). Ширина одного «_» в шрифте шаблона и низ
+// строки — калибровано по рендеру; от размеров картинки тенанта не зависит.
+const UNDERSCORE_EMU = 72_000
+const LINE_BOTTOM_EMU = 170_000 // низ строки с линией (CASE A)
+const CELL_BOTTOM_EMU = 190_000 // низ абзаца-ячейки с нижней границей (CASE B)
+const CASE_B_MAX_CY = 360_000 // макс. высота подписи в компактной ячейке (~28pt)
 
 function detectImageExt(buffer: Buffer, mimeType: string): 'png' | 'jpeg' {
   if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpeg'
@@ -111,6 +117,26 @@ function addImageToZip(zip: PizZip, buffer: Buffer, mimeType: string, label: str
   return rId
 }
 
+interface ImageRef {
+  rId: string
+  name: string
+  cx: number
+  cy: number
+  docPrId: number
+}
+
+function picGraphic(rId: string, name: string, cx: number, cy: number): string {
+  return (
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+    `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:nvPicPr><pic:cNvPr id="0" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic>`
+  )
+}
+
 function buildImageRun(
   rId: string,
   name: string,
@@ -124,7 +150,43 @@ function buildImageRun(
     const offset = signatureLineOffsetHalfPoints(cy)
     rPr = `<w:rPr><w:position w:val="-${offset}"/></w:rPr>`
   }
-  return `<w:r>${rPr}<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${docPrId}" name="${name}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`
+  return `<w:r>${rPr}<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${docPrId}" name="${name}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>${picGraphic(rId, name, cx, cy)}</wp:inline></w:drawing></w:r>`
+}
+
+/**
+ * Плавающее (anchored) изображение — не участвует в потоке текста, поэтому не
+ * «уезжает» и не раздвигает строку. Центрируется либо смещением по горизонтали
+ * (от позиции символа — для линии «_____»), либо выравниванием по центру колонки
+ * (для центрированной ячейки с нижней границей). По вертикали садится на линию.
+ */
+function buildFloatingImageRun(
+  img: ImageRef,
+  opts: {
+    hFrom: string
+    hAlign?: 'center'
+    hOffset?: number
+    vFrom: string
+    vOffset: number
+  }
+): string {
+  const h = opts.hAlign
+    ? `<wp:align>${opts.hAlign}</wp:align>`
+    : `<wp:posOffset>${Math.round(opts.hOffset ?? 0)}</wp:posOffset>`
+  return (
+    `<w:r><w:drawing>` +
+    `<wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="251658240" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="${opts.hFrom}">${h}</wp:positionH>` +
+    `<wp:positionV relativeFrom="${opts.vFrom}"><wp:posOffset>${Math.round(opts.vOffset)}</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="${img.cx}" cy="${img.cy}"/>` +
+    `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:wrapNone/>` +
+    `<wp:docPr id="${img.docPrId}" name="${img.name}"/>` +
+    `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+    picGraphic(img.rId, img.name, img.cx, img.cy) +
+    `</wp:anchor>` +
+    `</w:drawing></w:r>`
+  )
 }
 
 function escapeXmlText(value: string): string {
@@ -221,45 +283,6 @@ function replaceAnyMarkerInRuns(
 ): string {
   for (const marker of expandXmlTagVariants(markers)) {
     const next = replaceMarkerInRun(xml, marker, imageRunXml)
-    if (next) return next
-  }
-  return xml
-}
-
-/** Заменяет тег подписи на линию ____________ (отдельный run) + картинку */
-function replaceSignatureMarkerInRun(
-  xml: string,
-  marker: string,
-  imageRunXml: string
-): string | null {
-  const idx = xml.indexOf(marker)
-  if (idx === -1) return null
-
-  const rStart = findRunStart(xml, idx)
-  const runEnd = findRunEnd(xml, idx)
-  if (rStart === -1 || runEnd === -1) return null
-  const runBlock = xml.slice(rStart, runEnd)
-  const text = extractRunText(runBlock)
-  const markerPlain = decodeXmlText(marker)
-  const pos = text.indexOf(markerPlain)
-  if (pos === -1) return null
-
-  const before = text.slice(0, pos)
-  const after = text.slice(pos + markerPlain.length)
-  const hasUnderscoreLine = /_{5,}/.test(before)
-
-  let replacement = ''
-  if (before) replacement += buildTextRun(runBlock, before)
-  if (!hasUnderscoreLine) replacement += buildTextRun(runBlock, SIGNATURE_LINE)
-  replacement += imageRunXml
-  if (after) replacement += buildTextRun(runBlock, after)
-
-  return xml.slice(0, rStart) + replacement + xml.slice(runEnd)
-}
-
-function replaceAnySignatureMarkers(xml: string, imageRunXml: string): string {
-  for (const marker of expandXmlTagVariants(SIGNATURE_TAG_VARIANTS)) {
-    const next = replaceSignatureMarkerInRun(xml, marker, imageRunXml)
     if (next) return next
   }
   return xml
@@ -414,11 +437,84 @@ function insertImageInNewParagraphAfterTableRow(xml: string, anchorText: string,
   return xml.slice(0, insertAt) + newPara + xml.slice(insertAt)
 }
 
-function placeSignature(xml: string, imageRunXml: string): string {
-  let next = replaceAnySignatureMarkers(xml, imageRunXml)
-  if (next !== xml) return next
+/**
+ * Заменяет маркер подписи на плавающее изображение, центрированное по подписной
+ * линии. Два случая:
+ *  CASE A — в run перед маркером есть линия «_____»: центр картинки над линией,
+ *           низ — на линии (смещение от позиции символа, линия остаётся видна);
+ *  CASE B — маркер один в центрированной ячейке с нижней границей: центр по
+ *           колонке, низ — на нижней границе ячейки.
+ */
+function placeSignatureMarkerFloating(xml: string, img: ImageRef): string | null {
+  for (const marker of expandXmlTagVariants(SIGNATURE_TAG_VARIANTS)) {
+    const idx = xml.indexOf(marker)
+    if (idx === -1) continue
 
-  next = replaceUnderscoreRunNearPodpis(xml, imageRunXml)
+    const rStart = findRunStart(xml, idx)
+    const runEnd = findRunEnd(xml, idx)
+    if (rStart === -1 || runEnd === -1) continue
+    const runBlock = xml.slice(rStart, runEnd)
+    const text = extractRunText(runBlock)
+    const markerPlain = decodeXmlText(marker)
+    const pos = text.indexOf(markerPlain)
+    if (pos === -1) continue
+
+    const before = text.slice(0, pos)
+    const after = text.slice(pos + markerPlain.length)
+    const underscores = before.match(/_{5,}/)
+
+    let floatRun: string
+    let replacement = ''
+    if (underscores) {
+      // CASE A: центр над линией «_____», низ картинки — на линии
+      const lineW = underscores[0].length * UNDERSCORE_EMU
+      const offX = -(lineW / 2 + img.cx / 2)
+      // подпись пересекает линию (центр на линии): подъём ~cy/2, без наезда на текст выше
+      const offY = LINE_BOTTOM_EMU - img.cy / 2
+      floatRun = buildFloatingImageRun(img, {
+        hFrom: 'character',
+        hOffset: offX,
+        vFrom: 'line',
+        vOffset: offY,
+      })
+      if (before) replacement += buildTextRun(runBlock, before) // линия видна
+      replacement += floatRun
+      if (after) replacement += buildTextRun(runBlock, after)
+    } else {
+      // CASE B: компактная центрированная ячейка с нижней границей.
+      // Уменьшаем подпись под высоту ячейки, центр по колонке, низ — на границе.
+      const scale = img.cy > CASE_B_MAX_CY ? CASE_B_MAX_CY / img.cy : 1
+      const bImg: ImageRef = {
+        ...img,
+        cx: Math.round(img.cx * scale),
+        cy: Math.round(img.cy * scale),
+      }
+      const offY = CELL_BOTTOM_EMU - bImg.cy
+      floatRun = buildFloatingImageRun(bImg, {
+        hFrom: 'column',
+        hAlign: 'center',
+        vFrom: 'paragraph',
+        vOffset: offY,
+      })
+      if (before) replacement += buildTextRun(runBlock, before)
+      replacement += floatRun
+      if (after) replacement += buildTextRun(runBlock, after)
+    }
+
+    return xml.slice(0, rStart) + replacement + xml.slice(runEnd)
+  }
+  return null
+}
+
+function placeSignature(xml: string, img: ImageRef): string {
+  const floated = placeSignatureMarkerFloating(xml, img)
+  if (floated) return floated
+
+  // запасные пути для шаблонов без маркера — обычная inline-вставка у линии
+  const imageRunXml = buildImageRun(img.rId, img.name, img.cx, img.cy, img.docPrId, {
+    verticalAlign: 'signatureLine',
+  })
+  let next = replaceUnderscoreRunNearPodpis(xml, imageRunXml)
   if (next !== xml) return next
 
   next = replaceUnderscoreNearText(xml, imageRunXml, ['директор', 'руководитель'], 'tableRow')
@@ -465,10 +561,7 @@ export async function applyBrandingToDocx(
   if (options.signature?.buffer) {
     const { cx, cy } = imageExtentEmu(options.signature.buffer, 'signature')
     const rId = addImageToZip(zip, options.signature.buffer, options.signature.mimeType, 'sign')
-    const run = buildImageRun(rId, 'Signature', cx, cy, docPrId++, {
-      verticalAlign: 'signatureLine',
-    })
-    xml = placeSignature(xml, run)
+    xml = placeSignature(xml, { rId, name: 'Signature', cx, cy, docPrId: docPrId++ })
   }
 
   if (options.stamp?.buffer) {

@@ -11,25 +11,6 @@ const target = path.join(root, 'assets/templates/service-act-template.docx')
 const BRAND_TAG_SIGNATURE = '____"signature"_____'
 const BRAND_TAG_STAMP = '____"stamp"_____'
 
-/** Ставит маркер подписи в пустую ячейку подписной линии Исполнителя
- *  (col0 строки с именем, над подписью «(подпись)») — детерминированно. */
-function placeExecutorSignatureMarker(xml: string): string {
-  const captionIdx = xml.indexOf('<w:t>подпись</w:t>')
-  if (captionIdx < 0) return xml
-  const captionRowStart = xml.lastIndexOf('<w:tr', captionIdx)
-  if (captionRowStart < 0) return xml
-  const prevRowStart = xml.lastIndexOf('<w:tr', captionRowStart - 1)
-  if (prevRowStart < 0) return xml
-  const tcStart = xml.indexOf('<w:tc', prevRowStart)
-  if (tcStart < 0 || tcStart > captionRowStart) return xml
-  const pStart = xml.indexOf('<w:p', tcStart)
-  if (pStart < 0) return xml
-  const pTagEnd = xml.indexOf('>', pStart) + 1
-  const run = '<w:r><w:t xml:space="preserve">' + BRAND_TAG_SIGNATURE + '</w:t></w:r>'
-  return xml.slice(0, pTagEnd) + run + xml.slice(pTagEnd)
-}
-
-
 function replaceAll(xml: string, from: string, to: string): string {
   return xml.split(from).join(to)
 }
@@ -113,7 +94,7 @@ function main() {
 
   xml = patchItemsTable(xml)
 
-  xml = placeExecutorSignatureMarker(xml)
+  xml = replaceFirst(xml, 'расшифровка подписи', BRAND_TAG_SIGNATURE)
   xml = replaceFirst(xml, '<w:t>М.П.</w:t>', `<w:t>М.П. ${BRAND_TAG_STAMP}</w:t>`)
 
   zip.file('word/document.xml', xml)

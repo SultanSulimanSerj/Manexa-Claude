@@ -1,22 +1,19 @@
 import PizZip from 'pizzip'
-import { parseCellAddress, columnLettersToIndex } from '@/lib/document-renderer/xlsx-patcher/cell-address'
-import { XLSX_BRANDING_ANCHORS, type ImagePlacement } from './anchors'
+import { XLSX_BRANDING_ANCHORS, type BrandPlacement } from './anchors'
+import { cellRectEmu } from './xlsx-geometry'
 
 /**
  * Вставка печати/подписи в XLSX-формы (УПД, КС-2, КС-3) прямой инъекцией
  * DrawingML в zip — БЕЗ перезаписи книги через ExcelJS.
  *
- * Почему не ExcelJS: формы собираются xlsx-патчером, который точно сохраняет
- * merge-ячейки, ширины/высоты и масштаб печати. Полный round-trip ExcelJS
- * (load → writeBuffer) пересобирает книгу и ломает геометрию — изображение
- * «уезжает». Здесь шаблон остаётся нетронутым: добавляются только media,
- * drawing и ссылки. Картинка крепится oneCellAnchor к ячейке подписи —
- * следует за ячейкой даже при скрытых строках, но не масштабируется.
+ * Позиционирование image-agnostic: изображение нормализуется в бокс
+ * (maxWidth×maxHeight, пропорции сохраняются) и центрируется по геометрии
+ * шаблона (absoluteAnchor с EMU-координатами, вычисленными из ширин колонок
+ * и высот строк). Так печать/подпись любой компании любых размеров встают
+ * по центру подписной линии / ячейки «М.П.», а шаблон остаётся нетронутым.
  */
 
 const EMU_PER_PX = 9525
-const DEFAULT_COL_WIDTH_EMU = 64 * EMU_PER_PX
-const DEFAULT_ROW_HEIGHT_EMU = 20 * EMU_PER_PX
 
 const DRAWING_PATH = 'xl/drawings/drawing1.xml'
 const DRAWING_RELS_PATH = 'xl/drawings/_rels/drawing1.xml.rels'
@@ -66,13 +63,6 @@ function fitImagePixels(buffer: Buffer, maxWidth: number, maxHeight: number): { 
   return { width, height }
 }
 
-/** col/row в anchors.ts — 0-based (как в ExcelJS), допускают дробную часть (смещение в ячейке). */
-function splitCell(value: number, fullEmu: number): { index: number; offset: number } {
-  const index = Math.max(0, Math.floor(value))
-  const offset = Math.max(0, Math.round((value - index) * fullEmu))
-  return { index, offset }
-}
-
 function nextRelId(relsXml: string): number {
   let max = 0
   const re = /Id="rId(\d+)"/g
@@ -87,23 +77,18 @@ interface PreparedImage {
   mediaName: string
   buffer: Buffer
   relId: string
-  col: number
-  row: number
+  posX: number
+  posY: number
   cx: number
   cy: number
   picId: number
   name: string
 }
 
-function buildOneCellAnchor(img: PreparedImage): string {
-  const from = splitCell(img.col, DEFAULT_COL_WIDTH_EMU)
-  const fromRow = splitCell(img.row, DEFAULT_ROW_HEIGHT_EMU)
+function buildAbsoluteAnchor(img: PreparedImage): string {
   return (
-    `<xdr:oneCellAnchor>` +
-    `<xdr:from>` +
-    `<xdr:col>${from.index}</xdr:col><xdr:colOff>${from.offset}</xdr:colOff>` +
-    `<xdr:row>${fromRow.index}</xdr:row><xdr:rowOff>${fromRow.offset}</xdr:rowOff>` +
-    `</xdr:from>` +
+    `<xdr:absoluteAnchor>` +
+    `<xdr:pos x="${img.posX}" y="${img.posY}"/>` +
     `<xdr:ext cx="${img.cx}" cy="${img.cy}"/>` +
     `<xdr:pic>` +
     `<xdr:nvPicPr>` +
@@ -120,7 +105,7 @@ function buildOneCellAnchor(img: PreparedImage): string {
     `</xdr:spPr>` +
     `</xdr:pic>` +
     `<xdr:clientData/>` +
-    `</xdr:oneCellAnchor>`
+    `</xdr:absoluteAnchor>`
   )
 }
 
@@ -129,7 +114,7 @@ function buildDrawingXml(images: PreparedImage[]): string {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ` +
     `xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
-    images.map(buildOneCellAnchor).join('') +
+    images.map(buildAbsoluteAnchor).join('') +
     `</xdr:wsDr>`
   )
 }
@@ -148,23 +133,39 @@ function buildDrawingRels(images: PreparedImage[]): string {
 }
 
 function prepareImage(
-  placement: ImagePlacement,
+  sheetXml: string,
+  placement: BrandPlacement,
   asset: { buffer: Buffer; mimeType: string },
   ordinal: number,
   name: string
 ): PreparedImage {
-  const maxWidth = placement.maxWidth ?? placement.width
-  const maxHeight = placement.maxHeight ?? placement.height
-  const { width, height } = fitImagePixels(asset.buffer, maxWidth, maxHeight)
+  const { width, height } = fitImagePixels(asset.buffer, placement.maxWidth, placement.maxHeight)
+  const cx = Math.round(width * EMU_PER_PX)
+  const cy = Math.round(height * EMU_PER_PX)
   const ext = imageExtension(asset.mimeType)
+
+  const rect = cellRectEmu(sheetXml, placement.cell)
+  const centerX = rect.x + rect.w / 2
+  let posX = Math.round(centerX - cx / 2)
+  let posY: number
+  if (placement.mode === 'signature') {
+    // низ картинки на подписной линии (верхняя граница ячейки-caption «(подпись)»)
+    posY = Math.round(rect.y - cy)
+  } else {
+    // печать по центру ячейки «М.П.»
+    posY = Math.round(rect.y + rect.h / 2 - cy / 2)
+  }
+  if (posX < 0) posX = 0
+  if (posY < 0) posY = 0
+
   return {
     mediaName: `brand-${ordinal}.${ext}`,
     buffer: asset.buffer,
     relId: `rId${ordinal}`,
-    col: placement.col,
-    row: placement.row,
-    cx: Math.round(width * EMU_PER_PX),
-    cy: Math.round(height * EMU_PER_PX),
+    posX,
+    posY,
+    cx,
+    cy,
     picId: ordinal + 1,
     name: `${name}-${ordinal}`,
   }
@@ -181,23 +182,25 @@ export async function applyBrandingToXlsx(
   const anchors = XLSX_BRANDING_ANCHORS[category]
   if (!anchors) return xlsxBuffer
 
+  const zip = new PizZip(xlsxBuffer)
+  const sheetFile = zip.file(SHEET_PATH)
+  if (!sheetFile) return xlsxBuffer
+  const sheetXmlForGeometry = sheetFile.asText()
+
   const images: PreparedImage[] = []
   if (options.stamp?.buffer) {
     for (const placement of anchors.stamp ?? []) {
-      images.push(prepareImage(placement, options.stamp, images.length + 1, "Stamp"))
+      images.push(prepareImage(sheetXmlForGeometry, placement, options.stamp, images.length + 1, 'Stamp'))
     }
   }
   if (options.signature?.buffer) {
     for (const placement of anchors.signature ?? []) {
-      images.push(prepareImage(placement, options.signature, images.length + 1, "Signature"))
+      images.push(
+        prepareImage(sheetXmlForGeometry, placement, options.signature, images.length + 1, 'Signature')
+      )
     }
   }
   if (images.length === 0) return xlsxBuffer
-
-  const zip = new PizZip(xlsxBuffer)
-
-  const sheetFile = zip.file(SHEET_PATH)
-  if (!sheetFile) return xlsxBuffer
 
   // media
   for (const img of images) {
