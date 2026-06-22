@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -100,7 +102,7 @@ export default function PlatformUsersPage() {
       activate: `Восстановить доступ для ${email}?`,
       'reset-password': `Сбросить пароль и 2FA для ${email}?`,
     }
-    if (!confirm(texts[action])) return
+    if (!await confirm(texts[action])) return
     const res = await fetch('/api/platform/users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

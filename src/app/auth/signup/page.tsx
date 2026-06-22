@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from '@/components/ui/use-toast'
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -104,7 +106,7 @@ export default function SignUpPage() {
       if (response.ok) {
         // Показываем сообщение об успешной регистрации
         setError('')
-        alert('Регистрация прошла успешно! Теперь вы можете войти в систему.')
+        toast.success('Регистрация прошла успешно! Теперь вы можете войти в систему.')
         // Перенаправляем на страницу входа
         router.push('/auth/signin?message=registration-success')
       } else {

@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
@@ -76,7 +78,7 @@ export default function TemplateDetailPage() {
       setError(`Невозможно удалить: шаблон использован в ${used} документ(ах)`)
       return
     }
-    if (!confirm(`Удалить шаблон «${template.name}»? Это действие нельзя отменить.`)) return
+    if (!await confirm(`Удалить шаблон «${template.name}»? Это действие нельзя отменить.`)) return
 
     setDeleting(true)
     setError(null)

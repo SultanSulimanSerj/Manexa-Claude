@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from '@/components/ui/use-toast'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -116,13 +118,13 @@ export default function ReportsPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
         
-        alert(`Отчет ${reportId} успешно сгенерирован и скачан!`)
+        toast.success(`Отчет ${reportId} успешно сгенерирован и скачан!`)
       } else {
-        alert('Ошибка при генерации отчета')
+        toast.error('Ошибка при генерации отчета')
       }
     } catch (error) {
       console.error('Error generating report:', error)
-      alert('Ошибка при генерации отчета')
+      toast.error('Ошибка при генерации отчета')
     } finally {
       setGenerating(null)
     }
@@ -153,11 +155,11 @@ export default function ReportsPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
       } else {
-        alert('Ошибка при скачивании отчета')
+        toast.error('Ошибка при скачивании отчета')
       }
     } catch (error) {
       console.error('Error downloading report:', error)
-      alert('Ошибка при скачивании отчета')
+      toast.error('Ошибка при скачивании отчета')
     } finally {
       setDownloading(null)
     }
@@ -204,10 +206,10 @@ export default function ReportsPage() {
         }
       }
       
-      alert('Все отчеты успешно экспортированы в Excel!')
+      toast.success('Все отчеты успешно экспортированы в Excel!')
     } catch (error) {
       console.error('Error exporting all reports:', error)
-      alert('Ошибка при экспорте отчетов')
+      toast.error('Ошибка при экспорте отчетов')
     }
   }
 
@@ -249,13 +251,13 @@ export default function ReportsPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
         
-        alert(`Отчет "${action}" успешно сгенерирован и скачан!`)
+        toast.success(`Отчет "${action}" успешно сгенерирован и скачан!`)
       } else {
-        alert('Ошибка при генерации отчета')
+        toast.error('Ошибка при генерации отчета')
       }
     } catch (error) {
       console.error('Error generating quick report:', error)
-      alert('Ошибка при генерации отчета')
+      toast.error('Ошибка при генерации отчета')
     }
   }
 

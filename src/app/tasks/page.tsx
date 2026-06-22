@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
@@ -177,7 +179,7 @@ function TasksPageContent() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Удалить задачу?')) return
+    if (!await confirm('Удалить задачу?')) return
 
     try {
       const response = await fetch(`/api/tasks/${id}`, {

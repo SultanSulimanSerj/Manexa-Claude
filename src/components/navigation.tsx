@@ -157,7 +157,12 @@ export default function Navigation() {
 
             <div className="space-y-2">
               {filteredNavigation.map((item) => {
-                const isActive = pathname === item.href
+                // Раздел активен и на вложенных страницах (например /projects/[id]),
+                // но «Главная» — только на точном «/».
+                const isActive =
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`)
                 return (
                   <Link
                     key={item.name}

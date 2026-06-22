@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from '@/components/ui/use-toast'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -157,11 +159,11 @@ export default function SettingsPage() {
         setTimeout(() => setSaved(false), 3000)
       } else {
         const error = await res.json()
-        alert(error.error || 'Ошибка сохранения')
+        toast.error(error.error || 'Ошибка сохранения')
       }
     } catch (error) {
       console.error('Error saving deadline settings:', error)
-      alert('Ошибка сохранения настроек')
+      toast.error('Ошибка сохранения настроек')
     } finally {
       setSavingDeadlineSettings(false)
     }
@@ -258,11 +260,11 @@ export default function SettingsPage() {
         setTimeout(() => setSaved(false), 3000)
       } else {
         const errorData = await (userResponse.ok ? companyResponse : userResponse).json()
-        alert(`Ошибка при сохранении настроек: ${errorData.error || 'Неизвестная ошибка'}`)
+        toast.error(`Ошибка при сохранении настроек: ${errorData.error || 'Неизвестная ошибка'}`)
       }
     } catch (error) {
       console.error('Error saving settings:', error)
-      alert('Ошибка при сохранении настроек')
+      toast.error('Ошибка при сохранении настроек')
     } finally {
       setLoading(false)
     }

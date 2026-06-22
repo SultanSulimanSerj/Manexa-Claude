@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from '@/components/ui/use-toast'
 import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,7 +58,7 @@ export function CompanyBrandingSettings({ companyId }: CompanyBrandingSettingsPr
       }
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Ошибка загрузки')
+      toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
     } finally {
       setUploading(null)
     }
@@ -72,7 +74,7 @@ export function CompanyBrandingSettings({ companyId }: CompanyBrandingSettingsPr
       if (!res.ok) throw new Error('Ошибка удаления')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Ошибка удаления')
+      toast.error(err instanceof Error ? err.message : 'Ошибка удаления')
     } finally {
       setUploading(null)
     }
