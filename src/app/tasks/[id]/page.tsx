@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Layout from '@/components/layout'
@@ -1061,18 +1062,11 @@ export default function TaskDetailPage() {
       </div>
 
       {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl border p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Редактировать задачу</h2>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      <Dialog open={showEditModal} onOpenChange={(o) => !o && setShowEditModal(false)}>
+        <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+          <DialogHeader className="mb-2">
+            <DialogTitle>Редактировать задачу</DialogTitle>
+          </DialogHeader>
 
             <form onSubmit={handleSaveTask} className="space-y-4">
               <div>
@@ -1204,9 +1198,8 @@ export default function TaskDetailPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }

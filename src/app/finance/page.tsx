@@ -7,6 +7,8 @@ import Layout from '@/components/layout'
 import { Plus, TrendingUp, TrendingDown, X, Trash2, ArrowLeft, DollarSign, Percent, Download, Settings, Building2, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { confirm } from '@/components/ui/confirm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { KpiCard } from '@/components/finance/KpiCard'
 import { ExpenseStructureChart } from '@/components/finance/ExpenseStructureChart'
 import { BudgetProgressBar } from '@/components/finance/BudgetProgressBar'
@@ -87,7 +89,6 @@ function FinancePageContent() {
     counterparty: ''
   })
   const [estimateItems, setEstimateItems] = useState<Array<{id: string, name: string, category: string}>>([])
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -363,15 +364,19 @@ function FinancePageContent() {
     }
   }
 
-  const handleDeleteClick = (id: string) => setDeleteConfirmId(id)
-  const handleDeleteConfirm = async () => {
-    if (!deleteConfirmId) return
+  const handleDeleteClick = async (id: string) => {
+    const ok = await confirm({
+      title: 'Удалить запись?',
+      description: 'Действие необратимо.',
+      confirmText: 'Удалить',
+      destructive: true,
+    })
+    if (!ok) return
     setMessage(null)
     try {
-      const response = await fetch(`/api/finance/${deleteConfirmId}`, { method: 'DELETE' })
+      const response = await fetch(`/api/finance/${id}`, { method: 'DELETE' })
       if (response.ok) {
         fetchRecords()
-        setDeleteConfirmId(null)
         setMessage({ type: 'success', text: 'Запись удалена' })
         setTimeout(() => setMessage(null), 3000)
       } else {
@@ -380,8 +385,6 @@ function FinancePageContent() {
     } catch (err) {
       console.error(err)
       setMessage({ type: 'error', text: 'Ошибка при удалении' })
-    } finally {
-      setDeleteConfirmId(null)
     }
   }
 
@@ -596,19 +599,6 @@ function FinancePageContent() {
           </div>
         )}
 
-        {deleteConfirmId && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/20" onClick={() => setDeleteConfirmId(null)} aria-hidden />
-            <div className="relative bg-white rounded-2xl shadow-xl border p-6 max-w-sm w-full text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Удалить запись?</h3>
-              <p className="text-sm text-gray-600 mb-6">Действие необратимо.</p>
-              <div className="flex gap-3 justify-center">
-                <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Отмена</button>
-                <button onClick={handleDeleteConfirm} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">Удалить</button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Выбор проекта */}
         <div className="bg-white rounded-lg border p-4">
@@ -795,15 +785,11 @@ function FinancePageContent() {
         )}
 
         {/* Budget Settings Modal */}
-        {showBudgetModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">Настройки бюджета</h2>
-                <button onClick={() => setShowBudgetModal(false)} className="p-2 hover:bg-gray-100 rounded">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog open={showBudgetModal} onOpenChange={(o) => !o && setShowBudgetModal(false)}>
+          <DialogContent className="max-w-md p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>Настройки бюджета</DialogTitle>
+            </DialogHeader>
 
               <div className="p-6 space-y-4">
                 <div>
@@ -843,20 +829,15 @@ function FinancePageContent() {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white">
-                <h2 className="text-xl font-bold text-gray-900">Добавить финансовую запись</h2>
-                <button type="button" onClick={() => { setShowModal(false); setSubmitError(null) }} className="p-2 hover:bg-gray-100 rounded">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
+            <DialogHeader className="sticky top-0 z-10 border-b bg-white p-6 pb-4">
+              <DialogTitle>Добавить финансовую запись</DialogTitle>
+            </DialogHeader>
 
               {submitError && (
                 <div className="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
@@ -1026,9 +1007,8 @@ function FinancePageContent() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   )
