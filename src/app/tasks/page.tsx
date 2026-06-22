@@ -2,6 +2,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
@@ -417,17 +418,13 @@ function TasksPageContent() {
         </div>
 
         {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">
-                  {editingTask ? 'Редактировать задачу' : 'Создать задачу'}
-                </h2>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>
+                {editingTask ? 'Редактировать задачу' : 'Создать задачу'}
+              </DialogTitle>
+            </DialogHeader>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div>
@@ -540,9 +537,8 @@ function TasksPageContent() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   )

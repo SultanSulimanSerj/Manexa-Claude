@@ -2,6 +2,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
@@ -420,23 +421,21 @@ function ProjectsPageContent() {
         </div>
 
         {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">
-                  {editingProject ? 'Редактировать проект' : 'Создать проект'}
-                </h2>
-                <button 
-                  onClick={() => {
-                    setShowModal(false)
-                    setError(null)
-                  }} 
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog
+          open={showModal}
+          onOpenChange={(o) => {
+            if (!o) {
+              setShowModal(false)
+              setError(null)
+            }
+          }}
+        >
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>
+                {editingProject ? 'Редактировать проект' : 'Создать проект'}
+              </DialogTitle>
+            </DialogHeader>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 {error && (
@@ -753,9 +752,8 @@ function ProjectsPageContent() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   )
