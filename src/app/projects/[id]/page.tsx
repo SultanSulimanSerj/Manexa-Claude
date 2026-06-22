@@ -3,6 +3,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/use-toast'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -1318,15 +1319,11 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Edit Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">Редактировать проект</h2>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>Редактировать проект</DialogTitle>
+            </DialogHeader>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div>
@@ -1472,23 +1469,15 @@ export default function ProjectDetailPage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Add Member Modal */}
-        {showMembersModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">Добавить участника</h2>
-                <button 
-                  onClick={() => setShowMembersModal(false)} 
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog open={showMembersModal} onOpenChange={(o) => !o && setShowMembersModal(false)}>
+          <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>Добавить участника</DialogTitle>
+            </DialogHeader>
 
               <div className="p-6">
                 <div className="mb-4">
@@ -1527,24 +1516,20 @@ export default function ProjectDetailPage() {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Contact Modal */}
-        {showContactModal && selectedMember && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">Контактные данные</h2>
-                <button 
-                  onClick={() => setShowContactModal(false)} 
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog
+          open={showContactModal && !!selectedMember}
+          onOpenChange={(o) => !o && setShowContactModal(false)}
+        >
+          <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>Контактные данные</DialogTitle>
+            </DialogHeader>
 
+              {selectedMember && (
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
@@ -1605,23 +1590,16 @@ export default function ProjectDetailPage() {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+              )}
+          </DialogContent>
+        </Dialog>
 
         {/* Client Edit Modal */}
-        {showClientModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-4xl w-full my-8">
-              <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
-                <h2 className="text-xl font-bold text-gray-900">Данные клиента</h2>
-                <button 
-                  onClick={() => setShowClientModal(false)} 
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        <Dialog open={showClientModal} onOpenChange={(o) => !o && setShowClientModal(false)}>
+          <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-0">
+            <DialogHeader className="sticky top-0 z-10 border-b bg-white p-6 pb-4">
+              <DialogTitle>Данные клиента</DialogTitle>
+            </DialogHeader>
 
               <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
@@ -1813,9 +1791,8 @@ export default function ProjectDetailPage() {
                   Отмена
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   )
