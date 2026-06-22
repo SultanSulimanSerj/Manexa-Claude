@@ -4,6 +4,7 @@
 
 import { confirm } from '@/components/ui/confirm'
 import { toast } from '@/components/ui/use-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
@@ -135,8 +136,6 @@ export default function ProjectSchedulePage() {
   const [editingStage, setEditingStage] = useState<WorkStage | null>(null)
   const [viewStartDate, setViewStartDate] = useState(new Date())
   const [exporting, setExporting] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [stageToDelete, setStageToDelete] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
     name: '',
@@ -306,23 +305,20 @@ export default function ProjectSchedulePage() {
     }
   }
 
-  const handleDeleteClick = (stageId: string) => {
-    setStageToDelete(stageId)
-    setShowDeleteModal(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!stageToDelete) return
-    
+  const handleDeleteClick = async (stageId: string) => {
+    const ok = await confirm({
+      title: 'Удалить этап?',
+      description: 'Действие необратимо. Этап будет удалён вместе со всеми связанными данными (чек-лист, фото).',
+      confirmText: 'Удалить',
+      destructive: true,
+    })
+    if (!ok) return
     try {
-      const response = await fetch(`/api/projects/${projectId}/stages/${stageToDelete}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/projects/${projectId}/stages/${stageId}`, {
+        method: 'DELETE',
       })
-      
       if (response.ok) {
         await fetchData()
-        setShowDeleteModal(false)
-        setStageToDelete(null)
       }
     } catch (error) {
       console.error('Error deleting stage:', error)
@@ -1102,18 +1098,14 @@ export default function ProjectSchedulePage() {
       </div>
 
       {/* Модальное окно */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                {editingStage ? 'Редактировать этап' : 'Новый этап работ'}
-              </h2>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
+      <Dialog open={showModal} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto p-0">
+          <DialogHeader className="border-b p-6 pb-4">
+            <DialogTitle>
+              {editingStage ? 'Редактировать этап' : 'Новый этап работ'}
+            </DialogTitle>
+          </DialogHeader>
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Название */}
               <div>
@@ -1325,9 +1317,8 @@ export default function ProjectSchedulePage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Модальное окно просмотра фото */}
       {selectedPhoto && (
@@ -1372,30 +1363,6 @@ export default function ProjectSchedulePage() {
         </div>
       )}
 
-      {/* Модальное окно подтверждения удаления этапа */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/20" onClick={() => { setShowDeleteModal(false); setStageToDelete(null) }} aria-hidden />
-          <div className="relative bg-white rounded-2xl shadow-xl border p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Удалить этап?</h3>
-            <p className="text-sm text-gray-600 mb-6">Действие необратимо. Этап будет удалён вместе со всеми связанными данными (чек-лист, фото).</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => { setShowDeleteModal(false); setStageToDelete(null) }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg"
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   )
 }
