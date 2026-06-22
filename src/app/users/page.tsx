@@ -2,6 +2,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { Plus, Search, Edit, Trash2, X, UserPlus } from 'lucide-react'
@@ -376,16 +377,14 @@ export default function UsersPage() {
         </Card>
 
         {/* Create User Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>{editingUser ? 'Редактировать пользователя' : 'Добавить пользователя'}</CardTitle>
-                <CardDescription>
-                  {editingUser ? 'Измените данные пользователя' : 'Создайте нового пользователя'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+        <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editingUser ? 'Редактировать пользователя' : 'Добавить пользователя'}</DialogTitle>
+              <DialogDescription>
+                {editingUser ? 'Измените данные пользователя' : 'Создайте нового пользователя'}
+              </DialogDescription>
+            </DialogHeader>
                 <form onSubmit={handleCreateUser} className="space-y-4">
                   <div>
                     <Label htmlFor="name">Имя</Label>
@@ -463,22 +462,18 @@ export default function UsersPage() {
                     </Button>
                   </div>
                 </form>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Invite User Modal */}
-        {showInviteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Пригласить пользователя</CardTitle>
-                <CardDescription>
-                  Пригласите нового пользователя в вашу компанию
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+        <Dialog open={showInviteModal} onOpenChange={(o) => !o && setShowInviteModal(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Пригласить пользователя</DialogTitle>
+              <DialogDescription>
+                Пригласите нового пользователя в вашу компанию
+              </DialogDescription>
+            </DialogHeader>
                 <form onSubmit={handleInviteUser} className="space-y-4">
                   <div>
                     <Label htmlFor="invite-name">Имя</Label>
@@ -543,10 +538,8 @@ export default function UsersPage() {
                     </Button>
                   </div>
                 </form>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
       </PermissionGuard>
     </Layout>
