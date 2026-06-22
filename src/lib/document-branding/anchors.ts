@@ -1,59 +1,58 @@
 import { categoryToContentType } from '@/lib/document-editor/registry'
-import {
-  columnLettersToIndex,
-  parseCellAddress,
-} from '@/lib/document-renderer/xlsx-patcher/cell-address'
 import { BRAND_TAG_SIGNATURE, BRAND_TAG_STAMP } from './brand-tags'
 
-/** Координаты вставки изображений (0-based col/row, как в ExcelJS) */
-export interface ImagePlacement {
-  col: number
-  row: number
-  width: number
-  height: number
-  /** Макс. размер с сохранением пропорций */
-  maxWidth?: number
-  maxHeight?: number
+/**
+ * Якорь печати/подписи в XLSX. Указывает только ЯЧЕЙКУ-ориентир и режим —
+ * изображение центрируется по геометрии шаблона независимо от своих размеров
+ * (мультитенантность: у каждой компании своя картинка). Размер нормализуется
+ * в бокс maxWidth×maxHeight с сохранением пропорций.
+ *
+ * mode:
+ *  - 'signature' — центр по горизонтали ячейки, низ картинки на подписной линии
+ *    (ячейка-ориентир = подпись-caption «(подпись)», линия — её верхняя граница);
+ *  - 'stamp' — по центру ячейки «М.П.».
+ */
+export interface BrandPlacement {
+  cell: string
+  mode: 'signature' | 'stamp'
+  maxWidth: number
+  maxHeight: number
 }
 
 export interface DocumentBrandingAnchors {
-  stamp?: ImagePlacement[]
-  signature?: ImagePlacement[]
+  stamp?: BrandPlacement[]
+  signature?: BrandPlacement[]
 }
 
-/** Якорь по адресу ячейки шаблона. rowOff/colOff — сдвиг в ячейках:
- *  подпись ставим выше подписной строки, печать центрируем на «М.П.». */
-function at(cell: string, maxWidth: number, maxHeight: number, rowOff = 0, colOff = 0): ImagePlacement {
-  const { col, row } = parseCellAddress(cell)
-  return {
-    col: columnLettersToIndex(col) + colOff,
-    row: row - 1 + rowOff,
-    width: maxWidth,
-    height: maxHeight,
-    maxWidth,
-    maxHeight,
-  }
+// Нормализованные боксы (подпись крупная и заметная, печать — квадрат)
+const SIGNATURE_BOX = { maxWidth: 150, maxHeight: 50 }
+const STAMP_BOX = { maxWidth: 120, maxHeight: 120 }
+
+function sig(cell: string): BrandPlacement {
+  return { cell, mode: 'signature', ...SIGNATURE_BOX }
+}
+function stamp(cell: string): BrandPlacement {
+  return { cell, mode: 'stamp', ...STAMP_BOX }
 }
 
 /**
- * Координаты печати/подписи в XLSX-формах — по фактическим ячейкам шаблона
- * (строки «(подпись)» и «М.П.» стороны исполнителя/продавца):
+ * Ячейки-ориентиры печати/подписи в XLSX-формах (сторона исполнителя/продавца):
  *  УПД  — руководитель (AZ43), товар передал (AA54), ответственный (AA61), М.П. (M65)
  *  КС-2 — блок «Сдал»: подпись (E40), М.П. (B42)
  *  КС-3 — блок «Подрядчик»: подпись (D43), М.П. (A45)
  */
 export const XLSX_BRANDING_ANCHORS: Record<string, DocumentBrandingAnchors> = {
   UPD: {
-    signature: [at('AZ43', 90, 30, -2), at('AA54', 90, 30, -1), at('AA61', 90, 30, -1)],
-    stamp: [at('M65', 85, 85, -1)],
+    signature: [sig('AZ43'), sig('AA54'), sig('AA61')],
+    stamp: [stamp('M65')],
   },
   KS2: {
-    signature: [at('E40', 95, 32, -1)],
-    stamp: [at('B42', 80, 80, -1)],
+    signature: [sig('E40')],
+    stamp: [stamp('B42')],
   },
   KS3: {
-    signature: [at('D43', 95, 32, -2)],
-    stamp: [at('A45', 80, 80, -1)],
+    signature: [sig('D43')],
+    stamp: [stamp('A45')],
   },
 }
 
