@@ -13,7 +13,7 @@ const STAMP_EMU = 1_100_000
 const UNDERSCORE_EMU = 72_000
 const LINE_BOTTOM_EMU = 170_000 // низ строки с линией (CASE A)
 const CELL_BOTTOM_EMU = 190_000 // низ абзаца-ячейки с нижней границей (CASE B)
-const CASE_B_MAX_CY = 360_000 // макс. высота подписи в компактной ячейке (~28pt)
+const CASE_B_MAX_CY = 468_000 // макс. высота подписи в компактной ячейке (~37pt, ×1.3)
 
 function detectImageExt(buffer: Buffer, mimeType: string): 'png' | 'jpeg' {
   if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpeg'
