@@ -32,8 +32,10 @@ interface SheetGeometry {
 }
 
 function charsToPx(chars: number): number {
-  // Формула Excel для ширины колонки в пикселях
-  return Math.round((chars * MAX_DIGIT_WIDTH + 5) / MAX_DIGIT_WIDTH * 256) / 256 * MAX_DIGIT_WIDTH
+  // ECMA-376: ширина колонки (в символах) → пиксели. Прежняя формула добавляла
+  // +5px паддинга на каждую колонку и для УПД (51 узкая колонка по 0.71) давала
+  // накопленный сдвиг вправо. Эта — как рендерят Excel/LibreOffice.
+  return Math.floor((256 * chars + Math.floor(128 / MAX_DIGIT_WIDTH)) / 256 * MAX_DIGIT_WIDTH)
 }
 
 function buildGeometry(sheetXml: string): SheetGeometry {
@@ -127,4 +129,36 @@ export function cellRectEmu(sheetXml: string, address: string): RectEmu {
   let h = 0
   for (let rr = r1; rr <= r2; rr++) h += Math.round(geo.rowHeightPt(rr) * EMU_PER_POINT)
   return { x, y, w, h }
+}
+
+export interface CellAnchorBox {
+  /** Левый-верхний угол объединения, 0-based (для xdr:from col/row) */
+  col: number
+  row: number
+  /** Размер объединения в EMU (только свои колонки/строки — без накопления) */
+  w: number
+  h: number
+}
+
+/**
+ * Бокс ячейки (с учётом объединения) для cell-anchor: индексы левого-верхнего
+ * угла и размер. Абсолютная позиция не нужна — её считает рендерер по своей
+ * геометрии, поэтому накопленная ошибка ширин колонок не влияет.
+ */
+export function cellAnchorBox(sheetXml: string, address: string): CellAnchorBox {
+  const geo = buildGeometry(sheetXml)
+  const { col, row } = parseCellAddress(address)
+  const c = columnLettersToIndex(col)
+  const r = row - 1
+  const merge = geo.mergeOf(c, r)
+  const c1 = merge ? merge.c1 : c
+  const r1 = merge ? merge.r1 : r
+  const c2 = merge ? merge.c2 : c
+  const r2 = merge ? merge.r2 : r
+
+  let w = 0
+  for (let cc = c1; cc <= c2; cc++) w += Math.round(geo.colWidthPx(cc) * EMU_PER_PX)
+  let h = 0
+  for (let rr = r1; rr <= r2; rr++) h += Math.round(geo.rowHeightPt(rr) * EMU_PER_POINT)
+  return { col: c1, row: r1, w, h }
 }
