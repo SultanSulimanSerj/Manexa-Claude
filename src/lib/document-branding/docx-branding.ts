@@ -469,8 +469,8 @@ function placeSignatureMarkerFloating(xml: string, img: ImageRef): string | null
       // CASE A: центр над линией «_____», низ картинки — на линии
       const lineW = underscores[0].length * UNDERSCORE_EMU
       const offX = -(lineW / 2 + img.cx / 2)
-      // подпись пересекает линию (центр на линии): подъём ~cy/2, без наезда на текст выше
-      const offY = LINE_BOTTOM_EMU - img.cy / 2
+      // подпись сидит на линии, чуть выше центра (низ почти на линии), чтобы не уходила вниз
+      const offY = LINE_BOTTOM_EMU - img.cy * 0.65
       floatRun = buildFloatingImageRun(img, {
         hFrom: 'character',
         hOffset: offX,
