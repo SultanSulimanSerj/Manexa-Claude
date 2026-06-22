@@ -1,6 +1,6 @@
 import PizZip from 'pizzip'
 import { XLSX_BRANDING_ANCHORS, type BrandPlacement } from './anchors'
-import { cellRectEmu } from './xlsx-geometry'
+import { cellAnchorBox } from './xlsx-geometry'
 
 /**
  * Вставка печати/подписи в XLSX-формы (УПД, КС-2, КС-3) прямой инъекцией
@@ -77,18 +77,23 @@ interface PreparedImage {
   mediaName: string
   buffer: Buffer
   relId: string
-  posX: number
-  posY: number
+  col: number
+  row: number
+  colOff: number
+  rowOff: number
   cx: number
   cy: number
   picId: number
   name: string
 }
 
-function buildAbsoluteAnchor(img: PreparedImage): string {
+function buildOneCellAnchor(img: PreparedImage): string {
   return (
-    `<xdr:absoluteAnchor>` +
-    `<xdr:pos x="${img.posX}" y="${img.posY}"/>` +
+    `<xdr:oneCellAnchor>` +
+    `<xdr:from>` +
+    `<xdr:col>${img.col}</xdr:col><xdr:colOff>${img.colOff}</xdr:colOff>` +
+    `<xdr:row>${img.row}</xdr:row><xdr:rowOff>${img.rowOff}</xdr:rowOff>` +
+    `</xdr:from>` +
     `<xdr:ext cx="${img.cx}" cy="${img.cy}"/>` +
     `<xdr:pic>` +
     `<xdr:nvPicPr>` +
@@ -105,7 +110,7 @@ function buildAbsoluteAnchor(img: PreparedImage): string {
     `</xdr:spPr>` +
     `</xdr:pic>` +
     `<xdr:clientData/>` +
-    `</xdr:absoluteAnchor>`
+    `</xdr:oneCellAnchor>`
   )
 }
 
@@ -114,7 +119,7 @@ function buildDrawingXml(images: PreparedImage[]): string {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ` +
     `xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
-    images.map(buildAbsoluteAnchor).join('') +
+    images.map(buildOneCellAnchor).join('') +
     `</xdr:wsDr>`
   )
 }
@@ -144,26 +149,32 @@ function prepareImage(
   const cy = Math.round(height * EMU_PER_PX)
   const ext = imageExtension(asset.mimeType)
 
-  const rect = cellRectEmu(sheetXml, placement.cell)
-  const centerX = rect.x + rect.w / 2
-  let posX = Math.round(centerX - cx / 2)
-  let posY: number
+  // Привязка к ячейке-ориентиру: смещения центрируют картинку внутри объединения
+  // (могут быть отрицательными, если картинка шире/выше ячейки — это нормально,
+  // рендерер позволяет выходить за пределы ячейки).
+  const box = cellAnchorBox(sheetXml, placement.cell)
+  let colOff = Math.round(box.w / 2 - cx / 2)
+  let rowOff: number
   if (placement.mode === 'signature') {
-    // низ картинки на подписной линии (верхняя граница ячейки-caption «(подпись)»)
-    posY = Math.round(rect.y - cy)
+    // подпись чуть пересекает линию (верхняя граница ячейки-caption «(подпись)»)
+    rowOff = Math.round(-cy * 0.8)
   } else {
     // печать по центру ячейки «М.П.»
-    posY = Math.round(rect.y + rect.h / 2 - cy / 2)
+    rowOff = Math.round(box.h / 2 - cy / 2)
   }
-  if (posX < 0) posX = 0
-  if (posY < 0) posY = 0
+  // у самой кромки листа отрицательное смещение уводит картинку за край (x/y<0) —
+  // LibreOffice её не рисует; прижимаем к кромке (например, печать в «М.П.» в колонке A)
+  if (box.col === 0 && colOff < 0) colOff = 0
+  if (box.row === 0 && rowOff < 0) rowOff = 0
 
   return {
     mediaName: `brand-${ordinal}.${ext}`,
     buffer: asset.buffer,
     relId: `rId${ordinal}`,
-    posX,
-    posY,
+    col: box.col,
+    row: box.row,
+    colOff,
+    rowOff,
     cx,
     cy,
     picId: ordinal + 1,
