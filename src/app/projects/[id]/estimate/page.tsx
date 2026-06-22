@@ -2,6 +2,7 @@
 
 
 import { toast } from '@/components/ui/use-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
@@ -1177,11 +1178,12 @@ export default function EstimatePage() {
         </div>
 
         {/* Модальное окно создания сметы */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-4">Создать смету</h3>
-              
+        <Dialog open={showCreateModal} onOpenChange={(o) => !o && setShowCreateModal(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Создать смету</DialogTitle>
+            </DialogHeader>
+
               <form onSubmit={handleCreateEstimate}>
                 <div className="space-y-4">
                   <div>
@@ -1231,16 +1233,16 @@ export default function EstimatePage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Модальное окно шаблонов */}
-        {showTemplatesModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
-              <h3 className="text-lg font-semibold mb-4">Шаблоны смет</h3>
-              <p className="text-gray-600 mb-6">Выберите готовый шаблон для быстрого создания сметы</p>
+        <Dialog open={showTemplatesModal} onOpenChange={(o) => !o && setShowTemplatesModal(false)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Шаблоны смет</DialogTitle>
+              <DialogDescription>Выберите готовый шаблон для быстрого создания сметы</DialogDescription>
+            </DialogHeader>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {templates.map((template) => (
@@ -1279,17 +1281,17 @@ export default function EstimatePage() {
                   Отмена
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Модальное окно экспорта */}
-        {showExportModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-4">Экспорт сметы</h3>
-              <p className="text-gray-600 mb-6">Выберите формат для экспорта сметы</p>
-              
+        <Dialog open={showExportModal} onOpenChange={(o) => !o && setShowExportModal(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Экспорт сметы</DialogTitle>
+              <DialogDescription>Выберите формат для экспорта сметы</DialogDescription>
+            </DialogHeader>
+
               <div className="space-y-4">
                 <button
                   onClick={exportToExcel}
@@ -1335,9 +1337,8 @@ export default function EstimatePage() {
                   Отмена
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
       </div>
     </div>
