@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { Plus, Search, Edit, Trash2, X, UserPlus } from 'lucide-react'
@@ -154,7 +156,7 @@ export default function UsersPage() {
   }
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return
+    if (!await confirm('Вы уверены, что хотите удалить этого пользователя?')) return
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -171,7 +173,7 @@ export default function UsersPage() {
 
       // Пользователь создал данные — предлагаем деактивацию вместо удаления
       if (response.status === 409 && data.canDeactivate) {
-        if (confirm(`${data.error}\n\nДеактивировать пользователя сейчас?`)) {
+        if (await confirm(`${data.error}\n\nДеактивировать пользователя сейчас?`)) {
           const deactivate = await fetch(`/api/users/${userId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },

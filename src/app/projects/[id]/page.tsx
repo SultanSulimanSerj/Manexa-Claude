@@ -1,5 +1,9 @@
 'use client'
 
+
+
+import { confirm } from '@/components/ui/confirm'
+import { toast } from '@/components/ui/use-toast'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
@@ -313,18 +317,18 @@ export default function ProjectDetailPage() {
         }, 500)
       } else {
         const error = await response.json()
-        alert(error.error || 'Ошибка при добавлении участника')
+        toast.error(error.error || 'Ошибка при добавлении участника')
       }
     } catch (err) {
       console.error(err)
-      alert('Ошибка при добавлении участника')
+      toast.error('Ошибка при добавлении участника')
     } finally {
       setMembersLoading(false)
     }
   }
 
   const handleRemoveMember = async (userId: string) => {
-    if (!confirm('Удалить участника из проекта?')) return
+    if (!await confirm('Удалить участника из проекта?')) return
     
     try {
       const response = await fetch(`/api/projects/${params?.id}/members?userId=${userId}`, {
@@ -335,11 +339,11 @@ export default function ProjectDetailPage() {
         await fetchProject() // Обновляем данные проекта
       } else {
         const error = await response.json()
-        alert(error.error || 'Ошибка при удалении участника')
+        toast.error(error.error || 'Ошибка при удалении участника')
       }
     } catch (err) {
       console.error(err)
-      alert('Ошибка при удалении участника')
+      toast.error('Ошибка при удалении участника')
     }
   }
 
@@ -381,14 +385,14 @@ export default function ProjectDetailPage() {
       if (response.ok) {
         await fetchProject()
         setShowClientModal(false)
-        alert('Данные клиента обновлены!')
+        toast.success('Данные клиента обновлены!')
       } else {
         const error = await response.json()
-        alert(error.error || 'Ошибка при сохранении')
+        toast.error(error.error || 'Ошибка при сохранении')
       }
     } catch (err) {
       console.error(err)
-      alert('Ошибка при сохранении данных клиента')
+      toast.error('Ошибка при сохранении данных клиента')
     }
   }
 

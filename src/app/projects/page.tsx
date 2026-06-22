@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
@@ -209,7 +211,7 @@ function ProjectsPageContent() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Удалить проект?')) return
+    if (!await confirm('Удалить проект?')) return
 
     try {
       const response = await fetch(`/api/projects/${id}`, {

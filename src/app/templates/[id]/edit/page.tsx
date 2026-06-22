@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -106,7 +108,7 @@ export default function TemplateEditPage() {
       setError(`Невозможно удалить: шаблон использован в ${used} документ(ах)`)
       return
     }
-    if (!confirm(`Удалить шаблон «${template.name}»? Это действие нельзя отменить.`)) return
+    if (!await confirm(`Удалить шаблон «${template.name}»? Это действие нельзя отменить.`)) return
 
     setDeleting(true)
     setError(null)

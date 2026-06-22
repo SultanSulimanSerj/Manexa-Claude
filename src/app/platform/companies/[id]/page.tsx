@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -97,7 +99,7 @@ export default function PlatformCompanyPage() {
 
   const subscriptionAction = async (body: Record<string, unknown>, confirmText?: string) => {
     if (!company?.subscription) return
-    if (confirmText && !confirm(confirmText)) return
+    if (confirmText && !await confirm(confirmText)) return
     setBusy(true)
     try {
       const res = await fetch(`/api/platform/subscriptions/${company.subscription.id}`, {
@@ -122,7 +124,7 @@ export default function PlatformCompanyPage() {
       action === 'archive'
         ? `Архивировать «${company?.name}»? Все пользователи компании потеряют доступ, данные сохранятся.`
         : `Восстановить «${company?.name}» из архива?`
-    if (!confirm(text)) return
+    if (!await confirm(text)) return
     setBusy(true)
     try {
       const res = await fetch(`/api/platform/companies/${companyId}`, {
@@ -145,7 +147,7 @@ export default function PlatformCompanyPage() {
       deactivate: `Деактивировать ${email}? Пользователь потеряет доступ.`,
       activate: `Активировать ${email}?`,
     }
-    if (!confirm(confirmTexts[action])) return
+    if (!await confirm(confirmTexts[action])) return
     setBusy(true)
     try {
       const res = await fetch(`/api/platform/companies/${companyId}/users`, {
@@ -171,7 +173,7 @@ export default function PlatformCompanyPage() {
 
   const impersonate = async (userId: string, email: string) => {
     if (
-      !confirm(
+      !await confirm(
         `Войти как ${email}? Ваша текущая сессия платформы будет заменена сессией пользователя (действие записывается в аудит).`
       )
     )

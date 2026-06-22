@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from '@/components/ui/use-toast'
 import { useState } from 'react'
 import Layout from '@/components/layout'
 import { FileText, CheckCircle } from 'lucide-react'
@@ -17,14 +19,14 @@ export default function InitTemplatesPage() {
 
       if (response.ok) {
         setSuccess(true)
-        alert('Шаблон договора успешно создан!')
+        toast.success('Шаблон договора успешно создан!')
       } else {
         const error = await response.json()
-        alert(`Ошибка: ${error.error}`)
+        toast.error(`Ошибка: ${error.error}`)
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('Ошибка при создании шаблона')
+      toast.success('Ошибка при создании шаблона')
     } finally {
       setLoading(false)
     }

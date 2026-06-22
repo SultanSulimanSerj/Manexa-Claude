@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from '@/components/ui/use-toast'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
@@ -552,7 +554,7 @@ export default function EstimatePage() {
 
   const openDocumentWizard = (type: 'COMMERCIAL_OFFER' | 'INVOICE') => {
     if (!activeEstimate) {
-      alert('Выберите смету')
+      toast.error('Выберите смету')
       return
     }
     setShowExportModal(false)

@@ -1,5 +1,9 @@
 'use client'
 
+
+
+import { confirm } from '@/components/ui/confirm'
+import { toast } from '@/components/ui/use-toast'
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
@@ -532,18 +536,18 @@ export default function ProjectSchedulePage() {
         }))
       } else {
         const error = await res.json()
-        alert(error.error || 'Ошибка загрузки')
+        toast.error(error.error || 'Ошибка загрузки')
       }
     } catch (error) {
       console.error('Error uploading photo:', error)
-      alert('Ошибка загрузки фото')
+      toast.error('Ошибка загрузки фото')
     } finally {
       setUploadingPhoto(false)
     }
   }
 
   const handleDeletePhoto = async (stageId: string, photoId: string) => {
-    if (!confirm('Удалить это фото?')) return
+    if (!await confirm('Удалить это фото?')) return
     
     try {
       const res = await fetch(`/api/projects/${projectId}/stages/${stageId}/photos?photoId=${photoId}`, {
@@ -611,7 +615,7 @@ export default function ProjectSchedulePage() {
       document.body.removeChild(a)
     } catch (error) {
       console.error('Export error:', error)
-      alert('Ошибка при экспорте графика')
+      toast.error('Ошибка при экспорте графика')
     } finally {
       setExporting(false)
     }

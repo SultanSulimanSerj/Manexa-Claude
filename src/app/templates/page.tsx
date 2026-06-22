@@ -1,5 +1,7 @@
 'use client'
 
+
+import { confirm } from '@/components/ui/confirm'
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { ErrorBanner } from '@/components/ui/error-banner'
@@ -99,7 +101,7 @@ export default function TemplatesPage() {
       setLoadError(message)
       return
     }
-    if (!confirm(message)) return
+    if (!await confirm(message)) return
 
     setDeletingId(template.id)
     setLoadError(null)
