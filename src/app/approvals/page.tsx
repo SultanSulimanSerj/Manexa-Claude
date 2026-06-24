@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { confirm } from '@/components/ui/confirm'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2 } from 'lucide-react'
@@ -111,9 +112,6 @@ export default function ApprovalsPage() {
   const [uploadingCreateFiles, setUploadingCreateFiles] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [commentLoading, setCommentLoading] = useState(false)
-  const [confirmModal, setConfirmModal] = useState<
-    { type: 'deleteApproval'; approvalId: string } | { type: 'deleteAttachment'; approvalId: string; attachmentId: string } | null
-  >(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
@@ -370,14 +368,14 @@ export default function ApprovalsPage() {
     }
   }
 
-  const handleDeleteAttachmentClick = (attachmentId: string, approvalId: string) => {
-    setConfirmModal({ type: 'deleteAttachment', approvalId, attachmentId })
-  }
-
-  const handleDeleteAttachmentConfirm = async () => {
-    if (!confirmModal || confirmModal.type !== 'deleteAttachment') return
-    const { approvalId, attachmentId } = confirmModal
-    setConfirmModal(null)
+  const handleDeleteAttachmentClick = async (attachmentId: string, approvalId: string) => {
+    const ok = await confirm({
+      title: 'Удалить файл?',
+      description: 'Файл будет удалён без возможности восстановления.',
+      confirmText: 'Удалить',
+      destructive: true,
+    })
+    if (!ok) return
     try {
       const response = await fetch(`/api/approvals/${approvalId}/attachments/${attachmentId}`, {
         method: 'DELETE'
@@ -394,14 +392,14 @@ export default function ApprovalsPage() {
     }
   }
 
-  const handleDeleteApprovalClick = (approvalId: string) => {
-    setConfirmModal({ type: 'deleteApproval', approvalId })
-  }
-
-  const handleDeleteApprovalConfirm = async () => {
-    if (!confirmModal || confirmModal.type !== 'deleteApproval') return
-    const { approvalId } = confirmModal
-    setConfirmModal(null)
+  const handleDeleteApprovalClick = async (approvalId: string) => {
+    const ok = await confirm({
+      title: 'Удалить согласование?',
+      description: 'Это действие необратимо.',
+      confirmText: 'Удалить',
+      destructive: true,
+    })
+    if (!ok) return
     try {
       const response = await fetch(`/api/approvals/${approvalId}`, {
         method: 'DELETE'
@@ -577,40 +575,6 @@ export default function ApprovalsPage() {
             )}
             <p className="text-sm font-medium flex-1">{toast.text}</p>
             <button onClick={() => setToast(null)} className="p-1 hover:opacity-70 shrink-0">×</button>
-          </div>
-        </div>
-      )}
-
-      {/* Модалка подтверждения удаления */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/20" onClick={() => setConfirmModal(null)} aria-hidden />
-          <div className="relative bg-white rounded-2xl shadow-xl border border-gray-200 p-6 max-w-sm w-full text-center">
-            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-6 h-6 text-red-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {confirmModal.type === 'deleteApproval' ? 'Удалить согласование?' : 'Удалить файл?'}
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              {confirmModal.type === 'deleteApproval'
-                ? 'Это действие необратимо.'
-                : 'Файл будет удалён без возможности восстановления.'}
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setConfirmModal(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={confirmModal.type === 'deleteApproval' ? handleDeleteApprovalConfirm : handleDeleteAttachmentConfirm}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-              >
-                Удалить
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -901,16 +865,15 @@ export default function ApprovalsPage() {
         </div>
 
         {/* Create Approval Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>Создать согласование</CardTitle>
-                <CardDescription>
-                  Создайте новое согласование для документа или проекта
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Создать согласование</DialogTitle>
+              <DialogDescription>
+                Создайте новое согласование для документа или проекта
+              </DialogDescription>
+            </DialogHeader>
+            <div>
                 <form onSubmit={handleCreateApproval} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1153,22 +1116,21 @@ export default function ApprovalsPage() {
                     </Button>
                   </div>
                 </form>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Approval Details Modal */}
         {showDetailsModal && selectedApproval && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden min-w-0">
-              <CardHeader className="min-w-0">
-                <CardTitle className="break-words">{selectedApproval.title}</CardTitle>
-                <CardDescription>
+          <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden min-w-0">
+              <DialogHeader className="min-w-0">
+                <DialogTitle className="break-words">{selectedApproval.title}</DialogTitle>
+                <DialogDescription>
                   Детали согласования
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 min-w-0 overflow-x-hidden">
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 min-w-0 overflow-x-hidden">
                 <div className="min-w-0 w-full overflow-hidden">
                   <Label>Описание</Label>
                   {selectedApproval.description ? (
@@ -1342,22 +1304,22 @@ export default function ApprovalsPage() {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Comments Modal */}
         {showCommentsModal && selectedApproval && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>Комментарии</CardTitle>
-                <CardDescription>
+          <Dialog open={showCommentsModal} onOpenChange={setShowCommentsModal}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Комментарии</DialogTitle>
+                <DialogDescription>
                   Обсуждение согласования "{selectedApproval.title}"
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
                 {/* Add Comment Form */}
                 <div className="border-t pt-4">
                   <div className="flex gap-2">
@@ -1407,22 +1369,22 @@ export default function ApprovalsPage() {
                     Закрыть
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Attachments Modal */}
         {showAttachmentsModal && selectedApproval && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>Вложения</CardTitle>
-                <CardDescription>
+          <Dialog open={showAttachmentsModal} onOpenChange={setShowAttachmentsModal}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Вложения</DialogTitle>
+                <DialogDescription>
                   Файлы согласования "{selectedApproval.title}"
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
                 <div className="space-y-3">
                   {(selectedApproval.attachments || []).length > 0 ? (
                     (selectedApproval.attachments || []).map((attachment) => (
@@ -1460,22 +1422,22 @@ export default function ApprovalsPage() {
                     Закрыть
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* History Modal */}
         {showHistoryModal && selectedApproval && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>История изменений</CardTitle>
-                <CardDescription>
+          <Dialog open={showHistoryModal} onOpenChange={setShowHistoryModal}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>История изменений</DialogTitle>
+                <DialogDescription>
                   История согласования "{selectedApproval.title}"
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
                 <div className="space-y-3">
                   {selectedApproval.comments.map((comment, index) => (
                     <div key={index} className="border-l-2 border-gray-200 pl-4">
@@ -1501,9 +1463,9 @@ export default function ApprovalsPage() {
                     Закрыть
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </Layout>
