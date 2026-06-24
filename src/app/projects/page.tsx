@@ -348,33 +348,33 @@ function ProjectsPageContent() {
             }
           />
         ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-white rounded-xl border border-border/70 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-neutral-50/70">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Проект</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">План. доход</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Доходы</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Расходы</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Прибыль</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Задачи</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Команда</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Действия</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Проект</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Статус</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">План. доход</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Доходы</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Расходы</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Прибыль</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500">Задачи</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500">Команда</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Действия</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {pagedProjects.map((project) => {
                   const fs = project.financialSummary
                   return (
-                    <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={project.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3">
                         <div>
                           <div className="flex items-center gap-2">
                             <Link 
                               href={`/projects/${project.id}`}
-                              className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                              className="text-sm font-semibold text-neutral-900 font-medium hover:underline"
                             >
                               {project.name}
                             </Link>

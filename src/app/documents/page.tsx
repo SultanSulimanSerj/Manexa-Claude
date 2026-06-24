@@ -347,23 +347,23 @@ function DocumentsPageContent() {
             }
           />
         ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-white rounded-xl border border-border/70 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-neutral-50/70">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Тип</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Документ</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Файл</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Размер</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Проект</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Действия</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Тип</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Документ</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Файл</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Размер</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Проект</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Дата</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Действия</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {pagedDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={doc.id} className="hover:bg-neutral-50 transition-colors">
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getFileColor(doc.mimeType)}`}>
                         {getFileType(doc.mimeType)}

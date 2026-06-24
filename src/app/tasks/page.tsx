@@ -346,28 +346,28 @@ function TasksPageContent() {
             }
           />
         ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-white rounded-xl border border-border/70 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-neutral-50/70">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Задача</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-36">Статус</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Приоритет</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Проект</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Исполнители</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Срок</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Действия</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Задача</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 w-36">Статус</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Приоритет</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Проект</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Исполнители</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Срок</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Действия</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {pagedTasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={task.id} className="hover:bg-neutral-50 transition-colors">
                     <td className="px-4 py-3">
                       <div>
                         <Link 
                           href={`/tasks/${task.id}`}
-                          className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                          className="text-sm font-semibold text-neutral-900 font-medium hover:underline"
                         >
                           {task.title}
                         </Link>
