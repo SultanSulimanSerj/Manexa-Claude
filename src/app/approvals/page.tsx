@@ -281,7 +281,6 @@ export default function ApprovalsPage() {
 
       if (response.ok) {
         const result = await response.json()
-        console.log('Approval response:', result)
         await fetchApprovals()
         // Обновляем выбранное согласование если оно открыто
         if (selectedApproval?.id === approvalId) {
@@ -309,7 +308,6 @@ export default function ApprovalsPage() {
 
       if (response.ok) {
         const result = await response.json()
-        console.log('Reject response:', result)
         await fetchApprovals()
         // Обновляем выбранное согласование если оно открыто
         if (selectedApproval?.id === approvalId) {

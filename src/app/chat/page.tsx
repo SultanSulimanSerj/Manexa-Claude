@@ -162,7 +162,6 @@ export default function ChatPage() {
       if (response.ok) {
         const data = await response.json()
         setAllUsers(data.users || [])
-        console.log('👥 Загружено пользователей:', data.users?.length || 0)
       }
     } catch (err) {
       console.error('Error fetching users:', err)
