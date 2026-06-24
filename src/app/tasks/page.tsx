@@ -277,7 +277,7 @@ function TasksPageContent() {
           actions={
             <button
               onClick={handleCreate}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Создать задачу
@@ -337,7 +337,7 @@ function TasksPageContent() {
               tasks.length === 0 ? (
                 <button
                   onClick={handleCreate}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Создать задачу
@@ -549,7 +549,7 @@ function TasksPageContent() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700"
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90"
                   >
                     {editingTask ? 'Сохранить' : 'Создать'}
                   </button>

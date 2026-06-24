@@ -291,7 +291,7 @@ function ProjectsPageContent() {
           actions={
             <button
               onClick={handleCreate}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Создать проект
@@ -339,7 +339,7 @@ function ProjectsPageContent() {
               projects.length === 0 ? (
                 <button
                   onClick={handleCreate}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Создать проект
@@ -763,7 +763,7 @@ function ProjectsPageContent() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Сохранение...' : (editingProject ? 'Сохранить' : 'Создать')}
                   </button>
