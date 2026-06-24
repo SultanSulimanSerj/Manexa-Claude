@@ -2,6 +2,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { toast } from '@/components/ui/use-toast'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -47,7 +48,6 @@ export default function PlatformUsersPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', email: '', role: 'PLATFORM_MANAGER' })
   const [tempPassword, setTempPassword] = useState<{ email: string; password: string } | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
 
   const fetchManagers = () => {
     fetch('/api/platform/users?managers=1')
@@ -58,15 +58,9 @@ export default function PlatformUsersPage() {
 
   useEffect(fetchManagers, [])
 
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
-    return () => clearTimeout(t)
-  }, [toast])
-
   const doSearch = async () => {
     if (search.trim().length < 3) {
-      setToast('Минимум 3 символа')
+      toast.error('Минимум 3 символа')
       return
     }
     setSearching(true)
@@ -87,7 +81,7 @@ export default function PlatformUsersPage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      setToast(data.error || 'Ошибка')
+      toast.error(data.error || 'Ошибка')
       return
     }
     setTempPassword({ email: data.user.email, password: data.tempPassword })
@@ -110,25 +104,19 @@ export default function PlatformUsersPage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      setToast(data.error || 'Ошибка')
+      toast.error(data.error || 'Ошибка')
       return
     }
     if (data.tempPassword) {
       setTempPassword({ email, password: data.tempPassword })
     } else {
-      setToast('Готово')
+      toast.success('Готово')
     }
     fetchManagers()
   }
 
   return (
     <div className="space-y-6">
-      {toast && (
-        <div className="fixed right-4 top-16 z-50 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
-          {toast}
-        </div>
-      )}
-
       <h1 className="text-xl font-bold text-gray-900">Пользователи</h1>
 
       {tempPassword && (
