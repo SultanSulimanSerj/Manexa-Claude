@@ -2,6 +2,7 @@
 
 import { Plus, Trash2, Copy } from 'lucide-react'
 import type { UpdEditableLineItem } from '@/lib/document-editor/types'
+import { Tooltip } from '@/components/ui/tooltip'
 
 interface UpdLineItemsTableProps {
   items: UpdEditableLineItem[]
@@ -78,7 +79,7 @@ export function UpdLineItemsTable({ items, onChange, errors = {}, readOnly }: Up
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
             <tr>
               <th className="px-2 py-2 text-left w-10">№</th>
-              <th className="px-2 py-2 text-left min-w-[200px]">Наименование</th>
+              <th className="px-2 py-2 text-left w-[260px]">Наименование</th>
               <th className="px-2 py-2 text-left w-20">Ед.</th>
               <th className="px-2 py-2 text-right w-24">Кол-во</th>
               <th className="px-2 py-2 text-right w-28">Цена без НДС</th>
@@ -100,15 +101,17 @@ export function UpdLineItemsTable({ items, onChange, errors = {}, readOnly }: Up
               items.map((item, index) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-2 py-2 text-gray-500">{index + 1}</td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="text"
-                      value={item.name}
-                      onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                      disabled={readOnly}
-                      className="w-full border border-gray-200 rounded px-2 py-1 text-sm disabled:bg-gray-50"
-                      placeholder="Наименование работ/услуг"
-                    />
+                  <td className="px-2 py-2 w-[260px] max-w-[260px]">
+                    <Tooltip content={item.name || undefined} className="block w-full min-w-0">
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                        disabled={readOnly}
+                        className="w-full min-w-0 border border-gray-200 rounded px-2 py-1 text-sm disabled:bg-gray-50"
+                        placeholder="Наименование работ/услуг"
+                      />
+                    </Tooltip>
                   </td>
                   <td className="px-2 py-2">
                     <input

@@ -7,6 +7,7 @@ import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
 import { usePagination } from '@/components/ui/pagination'
+import { Tooltip } from '@/components/ui/tooltip'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { confirm } from '@/components/ui/confirm'
@@ -369,20 +370,22 @@ function DocumentsPageContent() {
                         {getFileType(doc.mimeType)}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div>
-                        {editorHref(doc) ? (
-                          <Link
-                            href={editorHref(doc)!}
-                            className="text-sm font-semibold text-gray-900 visited:text-gray-900 hover:underline"
-                          >
-                            {doc.title}
-                          </Link>
-                        ) : (
-                          <span className="text-sm font-semibold text-gray-900">{doc.title}</span>
-                        )}
+                    <td className="px-4 py-3 max-w-[280px]">
+                      <div className="min-w-0">
+                        <Tooltip content={doc.title} className="block max-w-full">
+                          {editorHref(doc) ? (
+                            <Link
+                              href={editorHref(doc)!}
+                              className="block truncate text-sm font-semibold text-gray-900 visited:text-gray-900 hover:underline"
+                            >
+                              {doc.title}
+                            </Link>
+                          ) : (
+                            <span className="block truncate text-sm font-semibold text-gray-900">{doc.title}</span>
+                          )}
+                        </Tooltip>
                         {doc.description && (
-                          <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{doc.description}</div>
+                          <div className="text-xs text-gray-500 mt-0.5 truncate">{doc.description}</div>
                         )}
                       </div>
                     </td>

@@ -2,6 +2,7 @@
 
 import type { InvoiceDocumentContent } from '@/lib/document-editor/types'
 import type { InvoiceDocumentData } from '@/lib/document-renderer/fns-form-types'
+import { Tooltip } from '@/components/ui/tooltip'
 
 interface InvoiceEditorProps {
   content: InvoiceDocumentContent
@@ -88,7 +89,7 @@ export function InvoiceEditor({ content, onChange, readOnly }: InvoiceEditorProp
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2 text-left">№</th>
-              <th className="px-3 py-2 text-left">Наименование</th>
+              <th className="px-3 py-2 text-left w-[260px]">Наименование</th>
               <th className="px-3 py-2 text-right">Кол-во</th>
               <th className="px-3 py-2 text-left">Ед.</th>
               <th className="px-3 py-2 text-right">Сумма</th>
@@ -98,7 +99,11 @@ export function InvoiceEditor({ content, onChange, readOnly }: InvoiceEditorProp
             {data.items.map((item) => (
               <tr key={item.lineNumber} className="border-t">
                 <td className="px-3 py-2">{item.lineNumber}</td>
-                <td className="px-3 py-2">{item.name}</td>
+                <td className="px-3 py-2 w-[260px] max-w-[260px]">
+                  <Tooltip content={item.name || undefined} className="block max-w-full">
+                    <span className="block truncate">{item.name}</span>
+                  </Tooltip>
+                </td>
                 <td className="px-3 py-2 text-right">{item.quantity}</td>
                 <td className="px-3 py-2">{item.unit}</td>
                 <td className="px-3 py-2 text-right">{formatMoney(item.totalWithVat)}</td>
