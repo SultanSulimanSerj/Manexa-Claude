@@ -283,10 +283,48 @@ export default function DocumentEditPage() {
     }, 2500)
   }
 
+  // window.document — глобальный документ (локальная переменная `document` затенена стейтом)
+  const triggerFileDownload = (url: string) => {
+    const a = window.document.createElement('a')
+    a.href = url
+    a.rel = 'noopener'
+    window.document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
+  // Сразу качаем сформированный файл (без отдельной кнопки скачивания)
+  const autoDownloadAfterExport = (format: 'both' | 'xlsx' | 'pdf') => {
+    const t = encodeURIComponent(String(Date.now()))
+    const base = `/api/documents/${documentId}/download`
+    if (format === 'pdf') {
+      triggerFileDownload(`${base}?format=pdf&t=${t}`)
+    } else if (format === 'xlsx') {
+      triggerFileDownload(`${base}?t=${t}`)
+    } else {
+      triggerFileDownload(`${base}?t=${t}`)
+      window.setTimeout(() => triggerFileDownload(`${base}?format=pdf&t=${t}`), 600)
+    }
+  }
+
   const handleExport = async (format: 'both' | 'xlsx' | 'pdf' = 'both') => {
     setExportError(null)
     const current = contentRef.current
     if (!current) return
+
+    // Файл уже сформирован и нет несохранённых правок — сразу качаем, без перегенерации
+    if (!dirty) {
+      const haveForFormat =
+        format === 'pdf'
+          ? hasPdfExport
+          : format === 'xlsx'
+            ? hasXlsxExport
+            : hasXlsxExport && hasPdfExport
+      if (haveForFormat) {
+        autoDownloadAfterExport(format)
+        return
+      }
+    }
 
     const typeDef = getDocumentTypeDefinition(getDocumentContentType(current))
     let validation = typeDef.validate?.(current) ?? { valid: true, issues: [] }
@@ -320,6 +358,7 @@ export default function DocumentEditPage() {
 
     setExporting(true)
     setExportStatusLabel(isDocxExport ? 'Формирование…' : 'Отправка в очередь…')
+    let exportSucceeded = false
     try {
       const res = await fetch(`/api/documents/${documentId}/export`, {
         method: 'POST',
@@ -335,8 +374,7 @@ export default function DocumentEditPage() {
       const data = await res.json().catch(() => ({}))
       if (data.status === 'completed') {
         await fetchDocument()
-        setExporting(false)
-        setExportStatusLabel(null)
+        exportSucceeded = true
         return
       }
 
@@ -361,6 +399,7 @@ export default function DocumentEditPage() {
             )
           }
           await fetchDocument()
+          exportSucceeded = true
           return
         }
         throw new Error(data.error || 'Ошибка экспорта')
@@ -369,6 +408,7 @@ export default function DocumentEditPage() {
       if (data.status === 'completed' && data.document) {
         setDocument((prev) => (prev ? { ...prev, ...data.document } : prev))
         await fetchDocument()
+        exportSucceeded = true
         return
       }
 
@@ -383,12 +423,14 @@ export default function DocumentEditPage() {
           )
         }
         await fetchDocument()
+        exportSucceeded = true
       }
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Ошибка экспорта')
     } finally {
       setExporting(false)
       setExportStatusLabel(null)
+      if (exportSucceeded) autoDownloadAfterExport(format)
     }
   }
 
