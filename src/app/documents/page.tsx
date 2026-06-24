@@ -6,6 +6,7 @@ import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
+import { usePagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { confirm } from '@/components/ui/confirm'
@@ -242,6 +243,8 @@ function DocumentsPageContent() {
     return matchesSearch && matchesProject
   })
 
+  const { pageItems: pagedDocuments, Pagination } = usePagination(filteredDocuments, 20)
+
   if (loading) {
     return (
       <Layout>
@@ -359,7 +362,7 @@ function DocumentsPageContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredDocuments.map((doc) => (
+                {pagedDocuments.map((doc) => (
                   <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getFileColor(doc.mimeType)}`}>
@@ -468,6 +471,7 @@ function DocumentsPageContent() {
               </tbody>
             </table>
           </div>
+          <Pagination />
         </div>
         )}
 

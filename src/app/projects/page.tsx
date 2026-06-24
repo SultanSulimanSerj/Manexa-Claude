@@ -9,6 +9,7 @@ import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
+import { usePagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { Plus, Search, Edit, Trash2, Users, X, FolderOpen } from 'lucide-react'
@@ -236,6 +237,8 @@ function ProjectsPageContent() {
     return matchesSearch && matchesStatus
   })
 
+  const { pageItems: pagedProjects, Pagination } = usePagination(filteredProjects, 20)
+
   const getStatusText = (status: string) => {
     const map: Record<string, string> = {
       'PLANNING': 'Планирование',
@@ -362,7 +365,7 @@ function ProjectsPageContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProjects.map((project) => {
+                {pagedProjects.map((project) => {
                   const fs = project.financialSummary
                   return (
                     <tr key={project.id} className="hover:bg-gray-50 transition-colors">
@@ -440,6 +443,7 @@ function ProjectsPageContent() {
               </tbody>
             </table>
           </div>
+          <Pagination />
         </div>
         )}
 
