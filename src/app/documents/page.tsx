@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { confirm } from '@/components/ui/confirm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus, Search, Download, Trash2, Pencil, X, Upload, ArrowLeft } from 'lucide-react'
+import { Plus, Search, Download, Trash2, Pencil, X, Upload, ArrowLeft, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { CreateDocumentMenu } from '@/components/documents/CreateDocumentMenu'
 import { EDITABLE_CATEGORIES } from '@/lib/document-category-labels'
@@ -242,11 +245,9 @@ function DocumentsPageContent() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Документы" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -265,35 +266,32 @@ function DocumentsPageContent() {
       )}
 
       <div className="space-y-6">
-        {/* Header */}
-        {currentProject && (
-          <Link 
-            href={`/projects/${currentProject.id}`}
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Вернуться к проекту "{currentProject.name}"
-          </Link>
-        )}
-        
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {currentProject ? `Документы проекта "${currentProject.name}"` : 'Документы'}
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">{filteredDocuments.length} документов</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <CreateDocumentMenu projectId={projectIdFromUrl || undefined} />
-            <button 
-              onClick={() => setShowModal(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Загрузить
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title={currentProject ? `Документы проекта "${currentProject.name}"` : 'Документы'}
+          description={`${filteredDocuments.length} документов`}
+          back={currentProject ? `/projects/${currentProject.id}` : undefined}
+          breadcrumbs={
+            currentProject
+              ? [
+                  { label: 'Проекты', href: '/projects' },
+                  { label: currentProject.name, href: `/projects/${currentProject.id}` },
+                  { label: 'Документы' },
+                ]
+              : undefined
+          }
+          actions={
+            <>
+              <CreateDocumentMenu projectId={projectIdFromUrl || undefined} />
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Загрузить
+              </button>
+            </>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 border">
@@ -324,6 +322,28 @@ function DocumentsPageContent() {
         </div>
 
         {/* Table */}
+        {filteredDocuments.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title={documents.length === 0 ? 'Пока нет документов' : 'Ничего не найдено'}
+            description={
+              documents.length === 0
+                ? 'Загрузите файл или создайте документ, чтобы начать.'
+                : 'Попробуйте изменить поиск или фильтры.'
+            }
+            action={
+              documents.length === 0 ? (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Загрузить
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
         <div className="bg-white rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -449,6 +469,7 @@ function DocumentsPageContent() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Modal */}
         <Dialog

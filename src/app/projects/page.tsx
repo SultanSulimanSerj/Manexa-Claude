@@ -7,8 +7,11 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
-import { Plus, Search, Edit, Trash2, Users, X } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Users, X, FolderOpen } from 'lucide-react'
 import Link from 'next/link'
 import { InnLookupField } from '@/components/counterparty/InnLookupField'
 import { toClientRequisitesFields } from '@/lib/counterparty/map-fields'
@@ -267,11 +270,9 @@ function ProjectsPageContent() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Проекты" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -281,20 +282,19 @@ function ProjectsPageContent() {
     <Layout>
       <div className="space-y-6">
         <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Проекты</h1>
-            <p className="text-sm text-gray-600 mt-1">{projects.length} проектов</p>
-          </div>
-          <button 
-            onClick={handleCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Создать проект
-          </button>
-        </div>
+        <PageHeader
+          title="Проекты"
+          description={`${projects.length} проектов`}
+          actions={
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Создать проект
+            </button>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 border">
@@ -323,6 +323,28 @@ function ProjectsPageContent() {
         </div>
 
         {/* Table */}
+        {filteredProjects.length === 0 ? (
+          <EmptyState
+            icon={FolderOpen}
+            title={projects.length === 0 ? 'Пока нет проектов' : 'Ничего не найдено'}
+            description={
+              projects.length === 0
+                ? 'Создайте первый проект, чтобы начать работу.'
+                : 'Попробуйте изменить поиск или фильтры.'
+            }
+            action={
+              projects.length === 0 ? (
+                <button
+                  onClick={handleCreate}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Создать проект
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
         <div className="bg-white rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -419,6 +441,7 @@ function ProjectsPageContent() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Modal */}
         <Dialog

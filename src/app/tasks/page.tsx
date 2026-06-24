@@ -7,8 +7,11 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
-import { Plus, Search, Edit, Trash2, X, ArrowLeft } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, ArrowLeft, Flag } from 'lucide-react'
 import Link from 'next/link'
 
 interface Task {
@@ -243,11 +246,9 @@ function TasksPageContent() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Задачи" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -257,32 +258,29 @@ function TasksPageContent() {
     <Layout>
       <div className="space-y-6">
         <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
-        {/* Header */}
-        {currentProject && (
-          <Link 
-            href={`/projects/${currentProject.id}`}
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Вернуться к проекту "{currentProject.name}"
-          </Link>
-        )}
-        
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {currentProject ? `Задачи проекта "${currentProject.name}"` : 'Задачи'}
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">{filteredTasks.length} задач</p>
-          </div>
-          <button 
-            onClick={handleCreate}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Создать задачу
-          </button>
-        </div>
+        <PageHeader
+          title={currentProject ? `Задачи проекта "${currentProject.name}"` : 'Задачи'}
+          description={`${filteredTasks.length} задач`}
+          back={currentProject ? `/projects/${currentProject.id}` : undefined}
+          breadcrumbs={
+            currentProject
+              ? [
+                  { label: 'Проекты', href: '/projects' },
+                  { label: currentProject.name, href: `/projects/${currentProject.id}` },
+                  { label: 'Задачи' },
+                ]
+              : undefined
+          }
+          actions={
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Создать задачу
+            </button>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 border">
@@ -323,6 +321,28 @@ function TasksPageContent() {
         </div>
 
         {/* Table */}
+        {filteredTasks.length === 0 ? (
+          <EmptyState
+            icon={Flag}
+            title={tasks.length === 0 ? 'Пока нет задач' : 'Ничего не найдено'}
+            description={
+              tasks.length === 0
+                ? 'Создайте первую задачу, чтобы начать работу.'
+                : 'Попробуйте изменить поиск или фильтры.'
+            }
+            action={
+              tasks.length === 0 ? (
+                <button
+                  onClick={handleCreate}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Создать задачу
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
         <div className="bg-white rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -416,6 +436,7 @@ function TasksPageContent() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Modal */}
         <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
