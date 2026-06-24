@@ -11,7 +11,7 @@ import { usePagination } from '@/components/ui/pagination'
 import { Tooltip } from '@/components/ui/tooltip'
 import { confirm } from '@/components/ui/confirm'
 import { toast } from '@/components/ui/use-toast'
-import { Plus, Search, Package, Trash2, ArrowDownToLine, ArrowUpFromLine, Settings2 } from 'lucide-react'
+import { Plus, Search, Package, Trash2, ArrowDownToLine, ArrowUpFromLine, Settings2, Wallet, AlertTriangle, Layers } from 'lucide-react'
 
 interface Material {
   id: string
@@ -90,6 +90,16 @@ export default function MaterialsPage() {
       (m.sku || '').toLowerCase().includes(search.toLowerCase())
   )
   const { pageItems, Pagination } = usePagination(filtered, 20)
+
+  // Сводка по складу
+  const stockValue = materials.reduce(
+    (s, m) => s + (m.price != null ? m.price * m.balance : 0),
+    0
+  )
+  const lowStockCount = materials.filter((m) => m.lowStock).length
+  const categoriesCount = new Set(
+    materials.map((m) => m.category).filter(Boolean)
+  ).size
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -187,6 +197,40 @@ export default function MaterialsPage() {
             </button>
           }
         />
+
+        {/* Сводка */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border border-border/70 shadow-sm p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+              <Package className="h-4 w-4" /> Позиций
+            </div>
+            <div className="mt-1 text-2xl font-bold text-neutral-900 tabular-nums">{materials.length}</div>
+          </div>
+          <div className="bg-white rounded-xl border border-border/70 shadow-sm p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+              <Wallet className="h-4 w-4" /> Стоимость склада
+            </div>
+            <div className="mt-1 text-2xl font-bold text-neutral-900 tabular-nums">{fmtMoney(stockValue)}</div>
+          </div>
+          <div className="bg-white rounded-xl border border-border/70 shadow-sm p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+              <AlertTriangle className="h-4 w-4" /> Ниже минимума
+            </div>
+            <div
+              className={`mt-1 text-2xl font-bold tabular-nums ${
+                lowStockCount > 0 ? 'text-red-600' : 'text-neutral-900'
+              }`}
+            >
+              {lowStockCount}
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-border/70 shadow-sm p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+              <Layers className="h-4 w-4" /> Категорий
+            </div>
+            <div className="mt-1 text-2xl font-bold text-neutral-900 tabular-nums">{categoriesCount}</div>
+          </div>
+        </div>
 
         <div className="bg-white rounded-xl p-4 border border-border/70">
           <div className="relative">
