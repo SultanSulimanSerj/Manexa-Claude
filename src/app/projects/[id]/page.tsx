@@ -307,9 +307,7 @@ export default function ProjectDetailPage() {
       })
       
       if (response.ok) {
-        console.log('Member added successfully, refreshing project data...')
         await fetchProject() // Обновляем данные проекта
-        console.log('Project data refreshed:', project)
         setSelectedUserId('')
         setShowMembersModal(false)
         // Принудительно обновляем страницу через небольшую задержку
@@ -1166,7 +1164,6 @@ export default function ProjectDetailPage() {
           {project._count.users > 0 ? (
             <div className="flex flex-wrap gap-2">
               {project.users.map((member) => {
-                console.log('Rendering member:', member) // Отладочная информация
                 return (
                   <div key={member.user.id} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
                     <div 

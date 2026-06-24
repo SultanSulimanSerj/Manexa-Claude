@@ -444,15 +444,12 @@ export default function EstimatePage() {
 
   const exportToExcel = () => {
     if (!activeEstimate) {
-      console.log('No active estimate')
       return
     }
 
-    console.log('Starting Excel export...')
 
     // Импортируем XLSX динамически
     import('xlsx').then((XLSX) => {
-      console.log('XLSX library loaded successfully')
       // Создаем новую рабочую книгу
       const workbook = XLSX.utils.book_new()
 
@@ -545,9 +542,7 @@ export default function EstimatePage() {
 
       // Создаем и скачиваем файл
       const fileName = `Смета_${activeEstimate.name}_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.xlsx`
-      console.log('Creating file:', fileName)
       XLSX.writeFile(workbook, fileName)
-      console.log('File created successfully')
     }).catch((error) => {
       console.error('Ошибка при экспорте в Excel:', error)
     })
