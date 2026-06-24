@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { Plus, Search, Edit, Trash2, X, UserPlus } from 'lucide-react'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -229,11 +231,9 @@ export default function UsersPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Загрузка пользователей...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Пользователи" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -250,28 +250,27 @@ export default function UsersPage() {
         }
       >
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Пользователи</h1>
-            <p className="text-sm text-gray-600 mt-1">{users.length} пользователей</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowInviteModal(true)} variant="outline">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Пригласить
-            </Button>
-            <PermissionButton
-              permission="canCreateUsers"
-              onClick={() => setShowModal(true)}
-            >
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Добавить пользователя
+        <PageHeader
+          title="Пользователи"
+          description={`${users.length} пользователей`}
+          actions={
+            <>
+              <Button onClick={() => setShowInviteModal(true)} variant="outline">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Пригласить
               </Button>
-            </PermissionButton>
-          </div>
-        </div>
+              <PermissionButton
+                permission="canCreateUsers"
+                onClick={() => setShowModal(true)}
+              >
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить пользователя
+                </Button>
+              </PermissionButton>
+            </>
+          }
+        />
 
         {/* Search */}
         <div className="relative">

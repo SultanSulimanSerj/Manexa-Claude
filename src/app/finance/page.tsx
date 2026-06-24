@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 import { Plus, TrendingUp, TrendingDown, X, Trash2, ArrowLeft, DollarSign, Percent, Download, Settings, Building2, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -575,11 +577,9 @@ function FinancePageContent() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Финансы" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -646,32 +646,32 @@ function FinancePageContent() {
           </Link>
         )}
         
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {currentProject ? `Финансы: ${currentProject.name}` : 'Финансы'}
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              {currentProject ? `${projectFilteredRecords.length} записей` : `Сводка по ${projectsForSummary.length} проектам`}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleExport} variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Экспорт {currentProject ? 'проекта' : 'всех'}
-            </Button>
-            {currentProject && (
-              <Button onClick={handleBudgetSettings} variant="outline" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Настройки бюджета
+        <PageHeader
+          title={currentProject ? `Финансы: ${currentProject.name}` : 'Финансы'}
+          description={
+            currentProject
+              ? `${projectFilteredRecords.length} записей`
+              : `Сводка по ${projectsForSummary.length} проектам`
+          }
+          actions={
+            <>
+              <Button onClick={handleExport} variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Экспорт {currentProject ? 'проекта' : 'всех'}
               </Button>
-            )}
-            <Button onClick={() => { setShowModal(true); setSubmitError(null) }} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Добавить запись
-            </Button>
-          </div>
-        </div>
+              {currentProject && (
+                <Button onClick={handleBudgetSettings} variant="outline" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Настройки бюджета
+                </Button>
+              )}
+              <Button onClick={() => { setShowModal(true); setSubmitError(null) }} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Добавить запись
+              </Button>
+            </>
+          }
+        />
 
         {/* Режим "все проекты": сводная таблица */}
         {!currentProject && (

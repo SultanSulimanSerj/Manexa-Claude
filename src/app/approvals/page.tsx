@@ -11,6 +11,8 @@ import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, Messag
 import ExpandableDescription from '@/components/expandable-description'
 import ApprovalProgress from '@/components/approval-progress'
 import { ErrorBanner } from '@/components/ui/error-banner'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 
 // Обновленные интерфейсы с новыми полями
 interface Approval {
@@ -549,11 +551,9 @@ export default function ApprovalsPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Согласования" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -580,21 +580,20 @@ export default function ApprovalsPage() {
       )}
 
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Согласования</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              {filteredApprovals.length === approvals.length
-                ? `${approvals.length} согласований`
-                : `${filteredApprovals.length} из ${approvals.length} согласований`}
-            </p>
-          </div>
-          <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Создать согласование
-          </Button>
-        </div>
+        <PageHeader
+          title="Согласования"
+          description={
+            filteredApprovals.length === approvals.length
+              ? `${approvals.length} согласований`
+              : `${filteredApprovals.length} из ${approvals.length} согласований`
+          }
+          actions={
+            <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Создать согласование
+            </Button>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 border">
