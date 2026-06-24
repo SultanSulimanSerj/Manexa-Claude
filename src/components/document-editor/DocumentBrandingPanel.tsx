@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Stamp, PenLine } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 interface CompanyBrandingInfo {
   hasStamp: boolean
@@ -44,78 +45,61 @@ export function DocumentBrandingPanel({
   if (!companyId || loading) return null
   if (!branding?.hasStamp && !branding?.hasSignature) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-        Печать и подпись не загружены. Добавьте их в{' '}
-        <a href="/settings" className="text-blue-600 hover:underline">
-          настройках компании
+      <div className="rounded-xl border border-dashed border-border bg-neutral-50 p-3 text-sm text-muted-foreground">
+        Печать и подпись не загружены —{' '}
+        <a href="/settings" className="font-medium text-foreground underline-offset-2 hover:underline">
+          добавить в настройках
         </a>
-        .
       </div>
     )
   }
 
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3">
-      <p className="text-sm font-medium text-gray-900">Печать и подпись при выгрузке</p>
-      <div className="flex flex-wrap gap-6">
-        {branding.hasStamp && (
-          <label className="flex items-start gap-3 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={includeStamp}
-              disabled={readOnly}
-              onChange={(e) =>
-                onChange({ includeStamp: e.target.checked, includeSignature })
-              }
-            />
-            <span>
-              <span className="flex items-center gap-1.5 font-medium text-gray-800">
-                <Stamp className="h-4 w-4" />
-                Печать
-              </span>
-              {branding.stampUrl && (
-                <img
-                  src={branding.stampUrl}
-                  alt="Печать"
-                  className="mt-2 h-16 w-16 object-contain border rounded bg-white"
-                />
-              )}
-            </span>
-          </label>
-        )}
-        {branding.hasSignature && (
-          <label className="flex items-start gap-3 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={includeSignature}
-              disabled={readOnly}
-              onChange={(e) =>
-                onChange({ includeStamp, includeSignature: e.target.checked })
-              }
-            />
-            <span>
-              <span className="flex items-center gap-1.5 font-medium text-gray-800">
-                <PenLine className="h-4 w-4" />
-                Подпись
-              </span>
-              {branding.signatureUrl && (
-                <img
-                  src={branding.signatureUrl}
-                  alt="Подпись"
-                  className="mt-2 h-12 max-w-[140px] object-contain border rounded bg-white"
-                />
-              )}
-            </span>
-          </label>
-        )}
-      </div>
-      <p className="text-xs text-gray-500">
-        Отметки применяются при нажатии «Сформировать». В шаблоне DOCX используйте теги{' '}
-        <code className="text-[11px]">____&quot;signature&quot;_____</code> и{' '}
-        <code className="text-[11px]">____&quot;stamp&quot;_____</code>.
-      </p>
+    <div className="rounded-xl border border-border/70 bg-white shadow-xs divide-y divide-border/70">
+      {branding.hasStamp && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {branding.stampUrl ? (
+              <img
+                src={branding.stampUrl}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-md border border-border/70 object-contain bg-white"
+              />
+            ) : (
+              <Stamp className="h-5 w-5 shrink-0 text-muted-foreground" />
+            )}
+            <span className="text-sm font-medium text-foreground">Печать</span>
+          </div>
+          <Switch
+            checked={includeStamp}
+            disabled={readOnly}
+            aria-label="Печать при выгрузке"
+            onCheckedChange={(v) => onChange({ includeStamp: v, includeSignature })}
+          />
+        </div>
+      )}
+      {branding.hasSignature && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {branding.signatureUrl ? (
+              <img
+                src={branding.signatureUrl}
+                alt=""
+                className="h-9 w-14 shrink-0 rounded-md border border-border/70 object-contain bg-white"
+              />
+            ) : (
+              <PenLine className="h-5 w-5 shrink-0 text-muted-foreground" />
+            )}
+            <span className="text-sm font-medium text-foreground">Подпись</span>
+          </div>
+          <Switch
+            checked={includeSignature}
+            disabled={readOnly}
+            aria-label="Подпись при выгрузке"
+            onCheckedChange={(v) => onChange({ includeStamp, includeSignature: v })}
+          />
+        </div>
+      )}
     </div>
   )
 }

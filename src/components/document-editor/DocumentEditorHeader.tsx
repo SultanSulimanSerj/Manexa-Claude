@@ -11,6 +11,7 @@ import {
   CheckCircle,
   AlertCircle,
   ShieldCheck,
+  Loader2,
 } from 'lucide-react'
 
 export type DocumentApprovalStatus = 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
@@ -202,25 +203,31 @@ export function DocumentEditorHeader({
                         type="button"
                         onClick={() => onExport('both')}
                         disabled={exporting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg shadow-xs hover:bg-primary/90 disabled:opacity-50"
                       >
-                        <FileText className="h-4 w-4" />
+                        {exporting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
                         {exporting ? exportStatusLabel || 'Формирование…' : 'Word + PDF'}
                       </button>
                       <button
                         type="button"
                         onClick={() => onExport('xlsx')}
                         disabled={exporting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
                       >
+                        <FileText className="h-4 w-4" />
                         Word
                       </button>
                       <button
                         type="button"
                         onClick={() => onExport('pdf')}
                         disabled={exporting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
                       >
+                        <FileText className="h-4 w-4" />
                         PDF
                       </button>
                     </>
@@ -232,61 +239,37 @@ export function DocumentEditorHeader({
                       type="button"
                       onClick={() => onExport('both')}
                       disabled={exporting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg shadow-xs hover:bg-primary/90 disabled:opacity-50"
                     >
-                      <FileSpreadsheet className="h-4 w-4" />
+                      {exporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
                       {exporting ? exportStatusLabel || 'Формирование…' : 'Excel + PDF'}
                     </button>
                     <button
                       type="button"
                       onClick={() => onExport('xlsx')}
                       disabled={exporting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
                     >
+                      <FileSpreadsheet className="h-4 w-4" />
                       Excel
                     </button>
                     <button
                       type="button"
                       onClick={() => onExport('pdf')}
                       disabled={exporting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
                     >
+                      <FileText className="h-4 w-4" />
                       PDF
                     </button>
                   </>
                   )
                 )}
               </>
-            )}
-            {hasDocxExport && onDownloadDocx && (
-              <button
-                type="button"
-                onClick={onDownloadDocx}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <Download className="h-4 w-4" />
-                Word
-              </button>
-            )}
-            {hasXlsxExport && exportMode !== 'docx' && (
-              <button
-                type="button"
-                onClick={onDownloadXlsx}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <Download className="h-4 w-4" />
-                Excel
-              </button>
-            )}
-            {hasPdfExport && (
-              <button
-                type="button"
-                onClick={onDownloadPdf}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <FileText className="h-4 w-4" />
-                PDF
-              </button>
             )}
           </div>
         </div>
