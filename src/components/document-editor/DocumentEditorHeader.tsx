@@ -124,9 +124,11 @@ export function DocumentEditorHeader({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <h1 className="text-lg font-bold text-gray-900 truncate">{title}</h1>
-            <span className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded ${statusColor}`}>
-              {statusLabel}
-            </span>
+            {statusLabel !== 'Черновик' && (
+              <span className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded ${statusColor}`}>
+                {statusLabel}
+              </span>
+            )}
             {readOnly && (
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 Только просмотр
