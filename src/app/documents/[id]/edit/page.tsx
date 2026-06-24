@@ -13,7 +13,6 @@ import { InvoiceEditor } from '@/components/document-editor/InvoiceEditor'
 import { CommercialOfferEditor } from '@/components/document-editor/CommercialOfferEditor'
 import { ContractEditor } from '@/components/document-editor/ContractEditor'
 import { DocumentVersionHistory } from '@/components/document-editor/DocumentVersionHistory'
-import { DocumentBrandingPanel } from '@/components/document-editor/DocumentBrandingPanel'
 import { useSession } from 'next-auth/react'
 import { LegacyDocumentNotice } from '@/components/document-editor/LegacyDocumentNotice'
 import { FnsDraftPreview } from '@/components/document-editor/FnsDraftPreview'
@@ -92,9 +91,26 @@ export default function DocumentEditPage() {
   } | null>(null)
   const [includeStamp, setIncludeStamp] = useState(false)
   const [includeSignature, setIncludeSignature] = useState(false)
+  const [branding, setBranding] = useState<{ hasStamp: boolean; hasSignature: boolean } | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contentRef = useRef<DocumentContent | null>(null)
+
+  const companyId = session?.user?.companyId
+  useEffect(() => {
+    if (!companyId) {
+      setBranding(null)
+      return
+    }
+    fetch(`/api/company/${companyId}/branding`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) =>
+        setBranding(
+          data ? { hasStamp: Boolean(data.hasStamp), hasSignature: Boolean(data.hasSignature) } : null
+        )
+      )
+      .catch(() => setBranding(null))
+  }, [companyId])
   const resumedJobIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -575,13 +591,16 @@ export default function DocumentEditPage() {
           onExport={isLegacy ? undefined : handleExport}
           onDownloadXlsx={handleDownloadXlsx}
           onDownloadPdf={handleDownloadPdf}
-          onToggleVersions={isUpd ? undefined : handleToggleVersions}
           exporting={exporting}
           exportStatusLabel={exportStatusLabel}
           exportMode={isDocxType ? 'docx' : 'upd'}
           chainAction={chainAction}
-          hasDocxExport={Boolean(isDocxType && hasXlsxExport)}
-          onDownloadDocx={isDocxType ? handleDownloadDocx : undefined}
+          brandingAvailable={!isLegacy && Boolean(branding && (branding.hasStamp || branding.hasSignature))}
+          brandingOn={includeStamp || includeSignature}
+          onBrandingToggle={(v) => {
+            setIncludeStamp(v && Boolean(branding?.hasStamp))
+            setIncludeSignature(v && Boolean(branding?.hasSignature))
+          }}
           approvalStatus={approvalStatus === 'CANCELLED' ? null : approvalStatus}
           approvalCreateHref={`/approvals?create=1&documentId=${documentId}&title=${encodeURIComponent(document.title)}`}
         />
@@ -589,21 +608,6 @@ export default function DocumentEditPage() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
           <ErrorBanner message={exportError} onDismiss={() => setExportError(null)} />
-
-          {!isLegacy && (
-            <div className="mb-6">
-              <DocumentBrandingPanel
-                companyId={session?.user?.companyId}
-                includeStamp={includeStamp}
-                includeSignature={includeSignature}
-                onChange={({ includeStamp: stamp, includeSignature: signature }) => {
-                  setIncludeStamp(stamp)
-                  setIncludeSignature(signature)
-                }}
-                readOnly={!canEdit}
-              />
-            </div>
-          )}
 
           {isLegacy ? (
             <LegacyDocumentNotice

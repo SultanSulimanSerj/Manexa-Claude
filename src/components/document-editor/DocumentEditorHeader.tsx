@@ -3,16 +3,12 @@
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Save,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  History,
   CheckCircle,
   AlertCircle,
   ShieldCheck,
   Loader2,
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 export type DocumentApprovalStatus = 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
@@ -45,6 +41,11 @@ interface DocumentEditorHeaderProps {
   chainAction?: { label: string; href: string }
   hasDocxExport?: boolean
   onDownloadDocx?: () => void
+  /** Доступны ли печать/подпись компании (показывать тумблер) */
+  brandingAvailable?: boolean
+  /** Включены ли печать+подпись при выгрузке */
+  brandingOn?: boolean
+  onBrandingToggle?: (value: boolean) => void
   /** Статус активного согласования документа (если есть) */
   approvalStatus?: DocumentApprovalStatus | null
   /** Ссылка на создание согласования для документа */
@@ -72,6 +73,9 @@ export function DocumentEditorHeader({
   chainAction,
   hasDocxExport,
   onDownloadDocx,
+  brandingAvailable,
+  brandingOn,
+  onBrandingToggle,
   approvalStatus,
   approvalCreateHref,
 }: DocumentEditorHeaderProps) {
@@ -176,98 +180,47 @@ export function DocumentEditorHeader({
                 {chainAction.label}
               </Link>
             )}
-            {onToggleVersions && (
-              <button
-                type="button"
-                onClick={onToggleVersions}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                <History className="h-4 w-4" />
-                Версии
-              </button>
-            )}
             {!readOnly && (
               <>
                 <button
                   type="button"
                   onClick={onSave}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-input px-4 py-1.5 text-sm font-medium shadow-xs transition-colors hover:bg-accent active:scale-[0.98]"
                 >
-                  <Save className="h-4 w-4" />
                   Сохранить
                 </button>
-                {exportMode === 'docx' ? (
-                  onExport && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onExport('both')}
-                        disabled={exporting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg shadow-xs hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        {exporting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                        {exporting ? exportStatusLabel || 'Формирование…' : 'Word + PDF'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onExport('xlsx')}
-                        disabled={exporting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Word
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onExport('pdf')}
-                        disabled={exporting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
-                      >
-                        <FileText className="h-4 w-4" />
-                        PDF
-                      </button>
-                    </>
-                  )
-                ) : (
-                  onExport && (
+                {onExport && (
                   <>
                     <button
                       type="button"
-                      onClick={() => onExport('both')}
+                      onClick={() => onExport('pdf')}
                       disabled={exporting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg shadow-xs hover:bg-primary/90 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-input px-4 py-1.5 text-sm font-medium shadow-xs transition-colors hover:bg-accent active:scale-[0.98] disabled:opacity-50"
                     >
-                      {exporting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                      {exporting ? exportStatusLabel || 'Формирование…' : 'Excel + PDF'}
+                      {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      PDF
                     </button>
                     <button
                       type="button"
                       onClick={() => onExport('xlsx')}
                       disabled={exporting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-input px-4 py-1.5 text-sm font-medium shadow-xs transition-colors hover:bg-accent active:scale-[0.98] disabled:opacity-50"
                     >
-                      <FileSpreadsheet className="h-4 w-4" />
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onExport('pdf')}
-                      disabled={exporting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-input rounded-lg shadow-xs hover:bg-accent disabled:opacity-50"
-                    >
-                      <FileText className="h-4 w-4" />
-                      PDF
+                      {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {exportMode === 'docx' ? 'Word' : 'Excel'}
                     </button>
                   </>
-                  )
+                )}
+                {brandingAvailable && onBrandingToggle && (
+                  <div className="ml-1 inline-flex items-center gap-2 rounded-full border border-input px-3 py-1 shadow-xs">
+                    <Switch
+                      checked={Boolean(brandingOn)}
+                      onCheckedChange={onBrandingToggle}
+                      disabled={exporting}
+                      aria-label="Подпись и печать при выгрузке"
+                    />
+                    <span className="text-sm font-medium text-foreground">Подпись и печать</span>
+                  </div>
                 )}
               </>
             )}
