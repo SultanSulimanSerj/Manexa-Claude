@@ -83,6 +83,8 @@ model User {
   paidFinances          Finance[]            @relation("FinancePaidBy")
   checklistsCompleted   ChecklistItem[]      @relation("ChecklistCompletedBy")
   uploadedPhotos        StagePhoto[]         @relation("StagePhotoUploadedBy")
+  createdMaterials      Material[]           @relation("MaterialCreator")
+  createdStockMovements StockMovement[]      @relation("StockMovementCreator")
 
   @@index([companyId])
   @@index([role])
@@ -153,6 +155,8 @@ model Company {
   estimates            Estimate[]
   estimateItems        EstimateItem[]
   workStages           WorkStage[]
+  materials            Material[]
+  stockMovements       StockMovement[]
   subscription         Subscription?
 }
 
@@ -306,6 +310,7 @@ model Project {
   notifications Notification[]
   estimates     Estimate[]
   workStages    WorkStage[]
+  stockMovements StockMovement[]
 
   @@index([companyId])
   @@index([status])
@@ -1122,4 +1127,59 @@ model EstimateItem {
 
   @@index([companyId])
   @@index([estimateId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Материалы / Склад
+// ─────────────────────────────────────────────────────────────
+
+enum StockMovementType {
+  RECEIPT // Поступление
+  ISSUE // Списание / выдача на объект
+  ADJUSTMENT // Корректировка / инвентаризация
+}
+
+model Material {
+  id        String   @id @default(cuid())
+  name      String
+  unit      String   @default("шт")
+  sku       String? // Артикул
+  category  String?
+  minStock  Decimal? @db.Decimal(15, 3) // Минимальный остаток (для подсветки)
+  price     Decimal? @db.Decimal(15, 2) // Последняя/ориентировочная цена
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   User    @relation("MaterialCreator", fields: [creatorId], references: [id])
+
+  movements StockMovement[]
+
+  @@index([companyId])
+  @@index([companyId, name])
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  type      StockMovementType
+  quantity  Decimal           @db.Decimal(15, 3) // Для ADJUSTMENT может быть отрицательной
+  price     Decimal?          @db.Decimal(15, 2)
+  note      String?
+  date      DateTime          @default(now())
+  createdAt DateTime          @default(now())
+
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  creatorId  String
+  creator    User     @relation("StockMovementCreator", fields: [creatorId], references: [id])
+
+  @@index([companyId])
+  @@index([materialId])
+  @@index([projectId])
 }
