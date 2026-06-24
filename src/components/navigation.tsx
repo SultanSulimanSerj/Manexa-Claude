@@ -169,14 +169,14 @@ export default function Navigation() {
                     href={item.href}
                     onClick={() => setIsOpen(false)}
                     className={`
-                      flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                      ${isActive 
-                        ? 'bg-blue-50 text-blue-600' 
-                        : 'text-gray-700 hover:bg-gray-50'
+                      flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                      ${isActive
+                        ? 'bg-neutral-100 text-neutral-900'
+                        : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
                       }
                     `}
                   >
-                    <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+                    <item.icon className={`h-[18px] w-[18px] ${isActive ? 'text-neutral-900' : 'text-neutral-400'}`} />
                     <span className="text-sm font-medium">{item.name}</span>
                   </Link>
                 )
@@ -189,8 +189,8 @@ export default function Navigation() {
             {userInfo && (
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 font-medium text-sm">
+                  <div className="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-medium text-sm">
                       {userInfo.name?.charAt(0).toUpperCase()}
                     </span>
                   </div>

@@ -287,7 +287,7 @@ function DocumentsPageContent() {
               <CreateDocumentMenu projectId={projectIdFromUrl || undefined} />
               <button
                 onClick={() => setShowModal(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Загрузить
@@ -338,7 +338,7 @@ function DocumentsPageContent() {
               documents.length === 0 ? (
                 <button
                   onClick={() => setShowModal(true)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Загрузить
@@ -546,7 +546,7 @@ function DocumentsPageContent() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 flex items-center justify-center gap-2"
                   >
                     <Upload className="h-4 w-4" />
                     Загрузить
