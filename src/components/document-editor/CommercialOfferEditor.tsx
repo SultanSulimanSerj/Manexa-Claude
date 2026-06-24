@@ -5,6 +5,7 @@ import type { CommercialOfferData } from '@/lib/commercial-offer-generator'
 import type { SpecificationItem } from '@/lib/specification-appendix'
 import { recalculateCommercialOfferData } from '@/lib/document-editor/commercial-offer-calculations'
 import { Plus, Trash2 } from 'lucide-react'
+import { Tooltip } from '@/components/ui/tooltip'
 
 interface CommercialOfferEditorProps {
   content: CommercialOfferDocumentContent
@@ -120,7 +121,7 @@ export function CommercialOfferEditor({ content, onChange, readOnly }: Commercia
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2 text-left w-10">№</th>
-              <th className="px-3 py-2 text-left">Наименование</th>
+              <th className="px-3 py-2 text-left w-[260px]">Наименование</th>
               <th className="px-3 py-2 text-right w-24">Кол-во</th>
               <th className="px-3 py-2 text-left w-20">Ед.</th>
               <th className="px-3 py-2 text-right w-28">Цена</th>
@@ -132,17 +133,19 @@ export function CommercialOfferEditor({ content, onChange, readOnly }: Commercia
             {data.items.map((item, index) => (
               <tr key={index} className="border-t">
                 <td className="px-3 py-2">{index + 1}</td>
-                <td className="px-3 py-2">
-                  {readOnly ? (
-                    item.name
-                  ) : (
-                    <input
-                      type="text"
-                      value={item.name}
-                      onChange={(e) => updateItem(index, { name: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                    />
-                  )}
+                <td className="px-3 py-2 w-[260px] max-w-[260px]">
+                  <Tooltip content={item.name || undefined} className="block w-full min-w-0">
+                    {readOnly ? (
+                      <span className="block truncate">{item.name}</span>
+                    ) : (
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => updateItem(index, { name: e.target.value })}
+                        className="w-full min-w-0 border rounded px-2 py-1"
+                      />
+                    )}
+                  </Tooltip>
                 </td>
                 <td className="px-3 py-2 text-right">
                   {readOnly ? (

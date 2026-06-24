@@ -2,6 +2,7 @@
 
 
 import { toast } from '@/components/ui/use-toast'
+import { Tooltip } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -923,14 +924,16 @@ export default function EstimatePage() {
                                 </select>
                               </td>
                             )}
-                            <td className="px-4 py-4 border-r border-gray-200">
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm bg-white"
-                                placeholder="Наименование позиции"
-                              />
+                            <td className="px-4 py-4 border-r border-gray-200 w-[280px] max-w-[280px]">
+                              <Tooltip content={item.name || undefined} className="block w-full min-w-0">
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm bg-white"
+                                  placeholder="Наименование позиции"
+                                />
+                              </Tooltip>
                             </td>
                             <td className="px-4 py-4 text-center border-r border-gray-200">
                               <input
