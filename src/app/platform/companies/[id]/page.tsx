@@ -2,6 +2,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { toast } from '@/components/ui/use-toast'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -69,7 +70,6 @@ export default function PlatformCompanyPage() {
   const [company, setCompany] = useState<CompanyDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [tempPassword, setTempPassword] = useState<{ email: string; password: string } | null>(null)
   const [paymentForm, setPaymentForm] = useState({ months: '1', amount: '', invoiceNumber: '', comment: '' })
   const [plans, setPlans] = useState<{ code: string; name: string; priceMonthly: string }[]>([])
@@ -91,11 +91,6 @@ export default function PlatformCompanyPage() {
       .catch(() => {})
   }, [fetchCompany])
 
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
-    return () => clearTimeout(t)
-  }, [toast])
 
   const subscriptionAction = async (body: Record<string, unknown>, confirmText?: string) => {
     if (!company?.subscription) return
@@ -109,10 +104,10 @@ export default function PlatformCompanyPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setToast(data.error || 'Ошибка')
+        toast.error(data.error || 'Ошибка')
         return
       }
-      setToast('Готово')
+      toast.success('Готово')
       fetchCompany()
     } finally {
       setBusy(false)
@@ -133,7 +128,7 @@ export default function PlatformCompanyPage() {
         body: JSON.stringify({ action }),
       })
       if (res.ok) {
-        setToast(action === 'archive' ? 'Компания в архиве' : 'Компания восстановлена')
+        toast.success(action === 'archive' ? 'Компания в архиве' : 'Компания восстановлена')
         fetchCompany()
       }
     } finally {
@@ -157,13 +152,13 @@ export default function PlatformCompanyPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setToast(data.error || 'Ошибка')
+        toast.error(data.error || 'Ошибка')
         return
       }
       if (data.tempPassword) {
         setTempPassword({ email, password: data.tempPassword })
       } else {
-        setToast('Готово')
+        toast.success('Готово')
       }
       fetchCompany()
     } finally {
@@ -187,7 +182,7 @@ export default function PlatformCompanyPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setToast(data.error || 'Ошибка')
+        toast.error(data.error || 'Ошибка')
         return
       }
       const result = await signIn('credentials', {
@@ -196,7 +191,7 @@ export default function PlatformCompanyPage() {
         redirect: false,
       })
       if (result?.error) {
-        setToast('Не удалось войти от имени пользователя')
+        toast.error('Не удалось войти от имени пользователя')
         return
       }
       window.location.href = '/'
@@ -213,12 +208,6 @@ export default function PlatformCompanyPage() {
 
   return (
     <div className="space-y-5">
-      {toast && (
-        <div className="fixed right-4 top-16 z-50 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
-          {toast}
-        </div>
-      )}
-
       <Link
         href="/platform/companies"
         className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
@@ -268,7 +257,7 @@ export default function PlatformCompanyPage() {
               navigator.clipboard.writeText(
                 `Email: ${tempPassword.email}\nВременный пароль: ${tempPassword.password}`
               )
-              setToast('Скопировано')
+              toast.success('Скопировано')
             }}
             className="mt-2 rounded border border-amber-400 px-3 py-1 text-xs text-amber-800 hover:bg-amber-100"
           >

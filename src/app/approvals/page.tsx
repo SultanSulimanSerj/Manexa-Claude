@@ -5,6 +5,7 @@ import Layout from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { confirm } from '@/components/ui/confirm'
+import { toast } from '@/components/ui/use-toast'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2 } from 'lucide-react'
@@ -114,7 +115,6 @@ export default function ApprovalsPage() {
   const [uploadingCreateFiles, setUploadingCreateFiles] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [commentLoading, setCommentLoading] = useState(false)
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     fetchCurrentUser()
@@ -150,12 +150,6 @@ export default function ApprovalsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documents, createForm.documentId])
-
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
-    return () => clearTimeout(t)
-  }, [toast])
 
   const fetchCurrentUser = async () => {
     try {
@@ -295,11 +289,11 @@ export default function ApprovalsPage() {
         }
       } else {
         const error = await response.json()
-        setToast({ type: 'error', text: error.error || 'Ошибка при одобрении' })
+        toast.error(error.error || 'Ошибка при одобрении')
       }
     } catch (err) {
       console.error(err)
-      setToast({ type: 'error', text: 'Ошибка при одобрении' })
+      toast.error('Ошибка при одобрении')
     }
   }
 
@@ -323,11 +317,11 @@ export default function ApprovalsPage() {
         }
       } else {
         const error = await response.json()
-        setToast({ type: 'error', text: error.error || 'Ошибка при отклонении' })
+        toast.error(error.error || 'Ошибка при отклонении')
       }
     } catch (err) {
       console.error(err)
-      setToast({ type: 'error', text: 'Ошибка при отклонении' })
+      toast.error('Ошибка при отклонении')
     }
   }
 
@@ -356,15 +350,15 @@ export default function ApprovalsPage() {
 
       if (response.ok) {
         await fetchAttachments(approvalId)
-        setToast({ type: 'success', text: 'Файл загружен успешно' })
+        toast.success('Файл загружен успешно')
         const fileInput = document.getElementById('file-upload') as HTMLInputElement
         if (fileInput) fileInput.value = ''
       } else {
-        setToast({ type: 'error', text: 'Ошибка при загрузке файла' })
+        toast.error('Ошибка при загрузке файла')
       }
     } catch (error) {
       console.error('Error uploading file:', error)
-      setToast({ type: 'error', text: 'Ошибка при загрузке файла' })
+      toast.error('Ошибка при загрузке файла')
     } finally {
       setUploadingFile(false)
     }
@@ -384,13 +378,13 @@ export default function ApprovalsPage() {
       })
       if (response.ok) {
         await fetchAttachments(approvalId)
-        setToast({ type: 'success', text: 'Файл удалён' })
+        toast.success('Файл удалён')
       } else {
-        setToast({ type: 'error', text: 'Ошибка при удалении файла' })
+        toast.error('Ошибка при удалении файла')
       }
     } catch (error) {
       console.error('Error deleting attachment:', error)
-      setToast({ type: 'error', text: 'Ошибка при удалении файла' })
+      toast.error('Ошибка при удалении файла')
     }
   }
 
@@ -410,13 +404,13 @@ export default function ApprovalsPage() {
         setApprovals(prev => prev.filter(a => a.id !== approvalId))
         setShowDetailsModal(false)
         setSelectedApproval(null)
-        setToast({ type: 'success', text: 'Согласование удалено' })
+        toast.success('Согласование удалено')
       } else {
-        setToast({ type: 'error', text: 'Ошибка при удалении согласования' })
+        toast.error('Ошибка при удалении согласования')
       }
     } catch (error) {
       console.error('Error deleting approval:', error)
-      setToast({ type: 'error', text: 'Ошибка при удалении согласования' })
+      toast.error('Ошибка при удалении согласования')
     }
   }
 
@@ -562,22 +556,6 @@ export default function ApprovalsPage() {
   return (
     <Layout>
       <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
-      {/* Тосты */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 max-w-sm animate-in fade-in slide-in-from-right-5 duration-200">
-          <div className={`rounded-xl shadow-lg border p-4 flex items-center gap-3 ${
-            toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
-            )}
-            <p className="text-sm font-medium flex-1">{toast.text}</p>
-            <button onClick={() => setToast(null)} className="p-1 hover:opacity-70 shrink-0">×</button>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-6">
         <PageHeader
