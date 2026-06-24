@@ -9,6 +9,7 @@ import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
+import { usePagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { Plus, Search, Edit, Trash2, X, ArrowLeft, Flag } from 'lucide-react'
@@ -205,6 +206,8 @@ function TasksPageContent() {
     return matchesSearch && matchesStatus && matchesProject
   })
 
+  const { pageItems: pagedTasks, Pagination } = usePagination(filteredTasks, 20)
+
   const getStatusText = (status: string) => {
     const map: Record<string, string> = {
       'TODO': 'К выполнению',
@@ -358,7 +361,7 @@ function TasksPageContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTasks.map((task) => (
+                {pagedTasks.map((task) => (
                   <tr key={task.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div>
@@ -435,6 +438,7 @@ function TasksPageContent() {
               </tbody>
             </table>
           </div>
+          <Pagination />
         </div>
         )}
 
