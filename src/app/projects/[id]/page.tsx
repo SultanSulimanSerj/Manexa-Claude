@@ -9,7 +9,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
-import { ExpenseStructureChart } from '@/components/finance/ExpenseStructureChart'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+
+const EXPENSE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, MapPin, FileSignature, Clock, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { PermissionButton } from '@/components/permission-guard'
@@ -858,10 +860,49 @@ export default function ProjectDetailPage() {
 
             {financeStats.expenseByCategory.length > 0 && (
               <div className="mt-6 border-t border-gray-100 pt-6">
-                <ExpenseStructureChart
-                  data={financeStats.expenseByCategory}
-                  total={financeStats.totalExpenses}
-                />
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Структура расходов</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={financeStats.expenseByCategory}
+                          dataKey="amount"
+                          nameKey="category"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={42}
+                          outerRadius={68}
+                          paddingAngle={2}
+                        >
+                          {financeStats.expenseByCategory.map((_, i) => (
+                            <Cell key={i} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-1.5">
+                    {financeStats.expenseByCategory.slice(0, 5).map((item, i) => {
+                      const pct = financeStats.totalExpenses > 0 ? (item.amount / financeStats.totalExpenses) * 100 : 0
+                      return (
+                        <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
+                            <span className="truncate text-gray-700">{item.category}</span>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2 tabular-nums">
+                            <span className="text-gray-400">{pct.toFixed(0)}%</span>
+                            <span className="font-medium text-gray-900">{item.amount.toLocaleString('ru-RU')} ₽</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {financeStats.expenseByCategory.length > 5 && (
+                      <p className="text-xs text-gray-400 pt-1">и ещё {financeStats.expenseByCategory.length - 5}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
