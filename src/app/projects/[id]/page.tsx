@@ -9,6 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
+import { ExpenseStructureChart } from '@/components/finance/ExpenseStructureChart'
 import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, MapPin, FileSignature, Clock, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { PermissionButton } from '@/components/permission-guard'
@@ -61,6 +62,7 @@ interface FinanceStats {
   totalExpenses: number
   profit: number
   margin: number
+  expenseByCategory: { category: string; amount: number }[]
 }
 
 interface User {
@@ -245,12 +247,25 @@ export default function ProjectDetailPage() {
         const totalExpenses = finances.filter((f: any) => f.type === 'EXPENSE').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
         const profit = totalIncome - totalExpenses
         const margin = totalIncome > 0 ? ((profit / totalIncome) * 100) : 0
-        
+
+        // Структура расходов по категориям (для диаграммы)
+        const catMap = new Map<string, number>()
+        finances
+          .filter((f: any) => f.type === 'EXPENSE')
+          .forEach((f: any) => {
+            const key = f.category || 'Без категории'
+            catMap.set(key, (catMap.get(key) || 0) + Number(f.amount))
+          })
+        const expenseByCategory = Array.from(catMap.entries())
+          .map(([category, amount]) => ({ category, amount }))
+          .sort((a, b) => b.amount - a.amount)
+
         setFinanceStats({
           totalIncome,
           totalExpenses,
           profit,
-          margin
+          margin,
+          expenseByCategory,
         })
       }
     } catch (err) {
@@ -840,6 +855,15 @@ export default function ProjectDetailPage() {
                 </p>
               </div>
             </div>
+
+            {financeStats.expenseByCategory.length > 0 && (
+              <div className="mt-6 border-t border-gray-100 pt-6">
+                <ExpenseStructureChart
+                  data={financeStats.expenseByCategory}
+                  total={financeStats.totalExpenses}
+                />
+              </div>
+            )}
           </div>
         )}
 
