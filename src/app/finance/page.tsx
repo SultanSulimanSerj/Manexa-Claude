@@ -69,7 +69,7 @@ function FinancePageContent() {
     number: string
     type: 'invoice' | 'payment'
     amount: number
-    dueDate: string
+    dueDate: string | null
     date?: string
     isPaid: boolean
     paidAt: string | null
@@ -88,6 +88,7 @@ function FinancePageContent() {
     projectId: projectIdFromUrl || '',
     estimateItemId: '',
     invoiceNumber: '',
+    dueDate: '',
     counterparty: ''
   })
   const [estimateItems, setEstimateItems] = useState<Array<{id: string, name: string, category: string}>>([])
@@ -330,6 +331,7 @@ function FinancePageContent() {
           category: formData.category.trim(),
           estimateItemId: formData.estimateItemId || null,
           invoiceNumber: formData.invoiceNumber?.trim() || null,
+          dueDate: formData.dueDate?.trim() || null,
           counterparty: formData.counterparty?.trim() || null
         })
       })
@@ -349,6 +351,7 @@ function FinancePageContent() {
           projectId: '',
           estimateItemId: '',
           invoiceNumber: '',
+          dueDate: '',
           counterparty: ''
         })
         fetchRecords()
@@ -515,9 +518,9 @@ function FinancePageContent() {
 
       if (response.ok) {
         // Обновляем локальное состояние
-        setInvoicesData(prev => prev.map(item => 
-          item.id === financeId 
-            ? { ...item, isPaid, status: isPaid ? 'paid' : (new Date(item.dueDate) < new Date() ? 'overdue' : 'pending') as 'paid' | 'pending' | 'overdue' }
+        setInvoicesData(prev => prev.map(item =>
+          item.id === financeId
+            ? { ...item, isPaid, status: (isPaid ? 'paid' : (item.dueDate && new Date(item.dueDate) < new Date() ? 'overdue' : 'pending')) as 'paid' | 'pending' | 'overdue' }
             : item
         ))
       }
@@ -551,11 +554,13 @@ function FinancePageContent() {
   const incomeListForBlock = useMemo(() =>
     invoicesData
       .filter((i: { type: string }) => i.type === 'invoice')
-      .map((i: { id: string; number: string; amount: number; date?: string; dueDate: string; status: 'paid' | 'pending' | 'overdue'; description?: string; counterparty?: string | null }) => ({
+      .map((i) => ({
         id: i.id,
         number: i.number,
         amount: i.amount,
-        date: i.date || i.dueDate,
+        date: i.date || i.dueDate || '',
+        dueDate: i.dueDate,
+        isPaid: i.isPaid,
         status: i.status,
         description: i.description,
         counterparty: i.counterparty ?? undefined
@@ -780,6 +785,7 @@ function FinancePageContent() {
           onAddOperation={handleAddOperation}
           onCreateInvoice={handleCreateInvoice}
           onCreatePayment={handleCreatePayment}
+          onMarkPaid={handleMarkAsPaid}
         />
           </>
         )}
@@ -955,26 +961,35 @@ function FinancePageContent() {
                   </div>
                 )}
 
-                {formData.type === 'EXPENSE' && (
+                {(formData.type === 'INCOME' || formData.type === 'EXPENSE') && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
-                    <p className="sm:col-span-2 text-xs font-medium text-gray-600 mb-1">Для сверки с банком (опционально)</p>
+                    <p className="sm:col-span-2 text-xs font-medium text-gray-600 mb-1">Счёт и оплата (опционально)</p>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Номер счёта</label>
                       <input
                         type="text"
                         value={formData.invoiceNumber}
                         onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
                         placeholder="Напр. 123 от 01.01.2025"
                       />
                     </div>
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Срок оплаты</label>
+                      <input
+                        type="date"
+                        value={formData.dueDate}
+                        onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Контрагент</label>
                       <input
                         type="text"
                         value={formData.counterparty}
                         onChange={(e) => setFormData({...formData, counterparty: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
                         placeholder="ИП Иванов, ООО Поставщик"
                       />
                     </div>

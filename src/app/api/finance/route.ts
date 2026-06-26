@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { type, category, description, amount, date, projectId, estimateItemId, invoiceNumber, counterparty } = body
+    const { type, category, description, amount, date, projectId, estimateItemId, invoiceNumber, counterparty, dueDate } = body
     
     // projectId обязателен (схема Finance)
     if (!projectId || typeof projectId !== 'string' || projectId.trim() === '') {
@@ -220,6 +220,10 @@ export async function POST(request: NextRequest) {
     const estItemId = typeof estimateItemId === 'string' && estimateItemId.trim() ? estimateItemId.trim() : null
     const invNumber = typeof invoiceNumber === 'string' && invoiceNumber.trim() ? invoiceNumber.trim() : null
     const counter = typeof counterparty === 'string' && counterparty.trim() ? counterparty.trim() : null
+    const dueDateVal =
+      typeof dueDate === 'string' && dueDate.trim() && !isNaN(new Date(dueDate).getTime())
+        ? new Date(dueDate)
+        : null
 
     // Создаём без counterparty и invoiceNumber — старый Prisma Client их не знает; потом допишем через raw SQL
     const finance = await prisma.finance.create({
@@ -241,13 +245,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (invNumber !== null || counter !== null) {
+    if (invNumber !== null || counter !== null || dueDateVal !== null) {
       try {
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE "Finance" SET "invoiceNumber" = ${invNumber}, "counterparty" = ${counter} WHERE "id" = ${finance.id}`
+          Prisma.sql`UPDATE "Finance" SET "invoiceNumber" = ${invNumber}, "counterparty" = ${counter}, "dueDate" = ${dueDateVal} WHERE "id" = ${finance.id}`
         )
       } catch (rawErr) {
-        console.error('Finance update invoiceNumber/counterparty:', rawErr)
+        console.error('Finance update invoiceNumber/counterparty/dueDate:', rawErr)
       }
     }
 
