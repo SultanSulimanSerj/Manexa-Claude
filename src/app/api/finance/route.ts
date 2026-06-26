@@ -88,6 +88,9 @@ export async function GET(request: NextRequest) {
           project: {
             select: { id: true, name: true },
           },
+          estimateItem: {
+            select: { id: true, name: true },
+          },
         },
         orderBy: { date: 'desc' },
         skip: (page - 1) * limit,
@@ -185,7 +188,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { type, category, description, amount, date, projectId, estimateItemId, invoiceNumber, counterparty, dueDate } = body
+    const { type, category, description, amount, date, projectId, estimateItemId, invoiceNumber, counterparty, dueDate, purchasedBy, receiptKeys } = body
     
     // projectId обязателен (схема Finance)
     if (!projectId || typeof projectId !== 'string' || projectId.trim() === '') {
@@ -236,7 +239,9 @@ export async function POST(request: NextRequest) {
         projectId,
         creatorId: user.id,
         companyId,
-        ...(estItemId ? { estimateItemId: estItemId } : {})
+        ...(estItemId ? { estimateItemId: estItemId } : {}),
+        ...(typeof purchasedBy === 'string' && purchasedBy.trim() ? { purchasedBy: purchasedBy.trim() } : {}),
+        ...(Array.isArray(receiptKeys) && receiptKeys.length ? { receiptKeys: receiptKeys.filter((k: unknown) => typeof k === 'string') } : {})
       },
       include: {
         project: {
