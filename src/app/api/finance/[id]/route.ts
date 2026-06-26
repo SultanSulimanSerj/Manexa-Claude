@@ -22,7 +22,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { type, category, description, amount, date, projectId } = body
+    const { type, category, description, amount, date, projectId, invoiceNumber, dueDate, counterparty, purchasedBy, receiptKeys, estimateItemId } = body
 
     if (projectId) {
       const projectOk = await verifyProjectCompanyAccess(user, projectId)
@@ -48,6 +48,12 @@ export async function PUT(
         ...(parsedAmount !== undefined && { amount: parsedAmount }),
         ...(date && { date: new Date(date) }),
         ...(projectId !== undefined && { projectId: projectId || null }),
+        ...(invoiceNumber !== undefined && { invoiceNumber: invoiceNumber || null }),
+        ...(counterparty !== undefined && { counterparty: counterparty || null }),
+        ...(purchasedBy !== undefined && { purchasedBy: purchasedBy || null }),
+        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+        ...(estimateItemId !== undefined && { estimateItemId: estimateItemId || null }),
+        ...(Array.isArray(receiptKeys) && { receiptKeys: receiptKeys.filter((k: unknown) => typeof k === 'string') }),
         updatedAt: new Date(),
       },
       include: {

@@ -101,6 +101,7 @@ function FinancePageContent() {
   })
   const [receiptUploads, setReceiptUploads] = useState<Array<{ key: string; url: string; name: string }>>([])
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [estimateItems, setEstimateItems] = useState<Array<{id: string, name: string, category: string}>>([])
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -329,8 +330,8 @@ function FinancePageContent() {
       return
     }
     try {
-      const response = await fetch('/api/finance', {
-        method: 'POST',
+      const response = await fetch(editingId ? `/api/finance/${editingId}` : '/api/finance', {
+        method: editingId ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -368,6 +369,7 @@ function FinancePageContent() {
           purchasedBy: ''
         })
         setReceiptUploads([])
+        setEditingId(null)
         fetchRecords()
         if (projectIdFromUrl) fetchInvoicesData(projectIdFromUrl)
         fetchCategoriesData(projectIdFromUrl || undefined)
@@ -515,12 +517,50 @@ function FinancePageContent() {
   const handleAddOperation = () => {
     setSubmitError(null)
     setReceiptUploads([])
+    setEditingId(null)
     setFormData(prev => ({ ...prev, type: 'EXPENSE', purchasedBy: '' }))
     setShowModal(true)
   }
 
+  const handleEditOperation = (id: string) => {
+    const r = records.find(x => x.id === id)
+    if (!r) return
+    setSubmitError(null)
+    setEditingId(id)
+    setFormData({
+      type: r.type,
+      category: r.category || '',
+      amount: String(r.amount ?? ''),
+      date: r.date ? new Date(r.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      description: r.description || '',
+      projectId: r.project?.id || projectIdFromUrl || '',
+      estimateItemId: r.estimateItemId || '',
+      invoiceNumber: r.invoiceNumber || '',
+      dueDate: r.dueDate ? new Date(r.dueDate).toISOString().split('T')[0] : '',
+      counterparty: r.counterparty || '',
+      purchasedBy: r.purchasedBy || '',
+    })
+    setReceiptUploads((r.receiptKeys || []).map((k, i) => ({ key: k, url: `/api/finance/receipts?key=${encodeURIComponent(k)}`, name: `Чек ${i + 1}` })))
+    setShowModal(true)
+  }
+
+  const handleUpdateReceipts = async (id: string, keys: string[]) => {
+    try {
+      const res = await fetch(`/api/finance/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiptKeys: keys }),
+      })
+      if (res.ok) fetchRecords()
+      else toast.error('Не удалось обновить чеки')
+    } catch {
+      toast.error('Ошибка при обновлении чеков')
+    }
+  }
+
   const handleCreateInvoice = () => {
     setSubmitError(null)
+    setEditingId(null)
     setFormData(prev => ({
       ...prev,
       type: 'INCOME',
@@ -624,6 +664,11 @@ function FinancePageContent() {
         inEstimate: !!r.estimateItemId,
       })),
     [projectFilteredRecords]
+  )
+
+  const knownCategories = useMemo(
+    () => Array.from(new Set(records.map(r => r.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ru')),
+    [records]
   )
   
   const totalIncome = projectFilteredRecords.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + Number(r.amount), 0)
@@ -836,6 +881,9 @@ function FinancePageContent() {
           onAddOperation={handleAddOperation}
           onCreateInvoice={handleCreateInvoice}
           onMarkPaid={handleMarkAsPaid}
+          onEdit={handleEditOperation}
+          onDelete={handleDeleteClick}
+          onUpdateReceipts={handleUpdateReceipts}
         />
           </>
         )}
@@ -892,7 +940,7 @@ function FinancePageContent() {
         <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
             <DialogHeader className="sticky top-0 z-10 border-b bg-white p-6 pb-4">
-              <DialogTitle>Добавить финансовую запись</DialogTitle>
+              <DialogTitle>{editingId ? 'Изменить запись' : 'Добавить финансовую запись'}</DialogTitle>
             </DialogHeader>
 
               {submitError && (
@@ -930,14 +978,22 @@ function FinancePageContent() {
                         ))}
                       </select>
                     ) : (
-                      <input
-                        type="text"
-                        value={formData.category}
-                        onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="Напр. Материалы, Работы"
-                        required
-                      />
+                      <>
+                        <input
+                          type="text"
+                          list="finance-categories"
+                          value={formData.category}
+                          onChange={(e) => setFormData({...formData, category: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
+                          placeholder="Напр. Материалы, Работы"
+                          required
+                        />
+                        <datalist id="finance-categories">
+                          {knownCategories.map(cat => (
+                            <option key={cat} value={cat} />
+                          ))}
+                        </datalist>
+                      </>
                     )}
                   </div>
                 </div>
