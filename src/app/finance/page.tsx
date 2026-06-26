@@ -6,6 +6,7 @@ import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
+import { toast } from '@/components/ui/use-toast'
 import { Plus, TrendingUp, TrendingDown, X, Trash2, ArrowLeft, DollarSign, Percent, Download, Settings, Building2, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,12 @@ interface FinanceRecord {
   project: { id: string; name: string } | null
   invoiceNumber?: string | null
   counterparty?: string | null
+  isPaid?: boolean
+  purchasedBy?: string | null
+  receiptKeys?: string[]
+  estimateItemId?: string | null
+  estimateItem?: { id: string; name: string } | null
+  dueDate?: string | null
 }
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
@@ -89,8 +96,11 @@ function FinancePageContent() {
     estimateItemId: '',
     invoiceNumber: '',
     dueDate: '',
-    counterparty: ''
+    counterparty: '',
+    purchasedBy: ''
   })
+  const [receiptUploads, setReceiptUploads] = useState<Array<{ key: string; url: string; name: string }>>([])
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [estimateItems, setEstimateItems] = useState<Array<{id: string, name: string, category: string}>>([])
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -332,7 +342,9 @@ function FinancePageContent() {
           estimateItemId: formData.estimateItemId || null,
           invoiceNumber: formData.invoiceNumber?.trim() || null,
           dueDate: formData.dueDate?.trim() || null,
-          counterparty: formData.counterparty?.trim() || null
+          counterparty: formData.counterparty?.trim() || null,
+          purchasedBy: formData.purchasedBy?.trim() || null,
+          receiptKeys: receiptUploads.map(r => r.key)
         })
       })
 
@@ -352,8 +364,10 @@ function FinancePageContent() {
           estimateItemId: '',
           invoiceNumber: '',
           dueDate: '',
-          counterparty: ''
+          counterparty: '',
+          purchasedBy: ''
         })
+        setReceiptUploads([])
         fetchRecords()
         if (projectIdFromUrl) fetchInvoicesData(projectIdFromUrl)
         fetchCategoriesData(projectIdFromUrl || undefined)
@@ -475,8 +489,33 @@ function FinancePageContent() {
     }
   }
 
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploadingReceipt(true)
+    try {
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        const res = await fetch('/api/finance/receipts', { method: 'POST', body: fd })
+        if (res.ok) {
+          const data = await res.json()
+          setReceiptUploads(prev => [...prev, { key: data.key, url: data.url, name: file.name }])
+        } else {
+          const d = await res.json().catch(() => ({}))
+          toast.error(d.error || 'Не удалось загрузить чек')
+        }
+      }
+    } finally {
+      setUploadingReceipt(false)
+      e.target.value = ''
+    }
+  }
+
   const handleAddOperation = () => {
     setSubmitError(null)
+    setReceiptUploads([])
+    setFormData(prev => ({ ...prev, type: 'EXPENSE', purchasedBy: '' }))
     setShowModal(true)
   }
 
@@ -566,6 +605,25 @@ function FinancePageContent() {
         counterparty: i.counterparty ?? undefined
       })),
     [invoicesData]
+  )
+
+  const expensesForBlock = useMemo(() =>
+    projectFilteredRecords
+      .filter(r => r.type === 'EXPENSE')
+      .map(r => ({
+        id: r.id,
+        date: r.date,
+        amount: r.amount,
+        category: r.category || 'Без категории',
+        description: r.description ?? undefined,
+        counterparty: r.counterparty ?? undefined,
+        isPaid: !!r.isPaid,
+        purchasedBy: r.purchasedBy ?? undefined,
+        receiptKeys: r.receiptKeys ?? [],
+        estimateItemName: r.estimateItem?.name ?? null,
+        inEstimate: !!r.estimateItemId,
+      })),
+    [projectFilteredRecords]
   )
   
   const totalIncome = projectFilteredRecords.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + Number(r.amount), 0)
@@ -763,28 +821,20 @@ function FinancePageContent() {
         {/* Фильтры, освоение, структура, детализация — только при выбранном проекте */}
         {currentProject && (
           <>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BudgetProgressBar
-            budget={budgetData.budget}
-            estimateTotal={budgetData.estimateTotal}
-            spent={budgetData.spent}
-            received={budgetData.received}
-            projectName={currentProject?.name}
-            projectStatus={currentProject?.status}
-          />
-          <ExpenseStructureChart
-            data={expenseStructure}
-            total={budgetData.spent}
-          />
-        </div>
+        <BudgetProgressBar
+          budget={budgetData.budget}
+          estimateTotal={budgetData.estimateTotal}
+          spent={budgetData.spent}
+          received={budgetData.received}
+          projectName={currentProject?.name}
+          projectStatus={currentProject?.status}
+        />
 
         <BudgetCategoriesWithOperations
-          categoriesData={categoriesData}
-          operationsByCategory={operationsByCategory}
           incomeList={incomeListForBlock}
+          expenses={expensesForBlock}
           onAddOperation={handleAddOperation}
           onCreateInvoice={handleCreateInvoice}
-          onCreatePayment={handleCreatePayment}
           onMarkPaid={handleMarkAsPaid}
         />
           </>
@@ -996,12 +1046,49 @@ function FinancePageContent() {
                   </div>
                 )}
 
+                {formData.type === 'EXPENSE' && (
+                  <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 space-y-3">
+                    <p className="text-xs font-medium text-gray-600">Расход (опционально)</p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Кто купил</label>
+                      <input
+                        type="text"
+                        value={formData.purchasedBy}
+                        onChange={(e) => setFormData({...formData, purchasedBy: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
+                        placeholder="Напр. прораб Сергей"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Чеки (фото)</label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {receiptUploads.map((r, i) => (
+                          <div key={i} className="relative group">
+                            <img src={r.url} alt={r.name} className="h-14 w-14 rounded-md border border-gray-200 object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setReceiptUploads(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-neutral-900 text-white text-xs flex items-center justify-center"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <label className="h-14 w-14 rounded-md border border-dashed border-gray-300 flex items-center justify-center cursor-pointer text-gray-400 hover:bg-gray-100">
+                          {uploadingReceipt ? '…' : <Plus className="h-5 w-5" />}
+                          <input type="file" accept="image/*" multiple className="hidden" onChange={handleReceiptUpload} disabled={uploadingReceipt} />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Описание</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
                     rows={3}
                   />
                 </div>

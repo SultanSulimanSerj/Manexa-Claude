@@ -501,6 +501,7 @@ model Document {
   versions         DocumentVersion[]
   approvals        Approval[]
   exportJobs       DocumentExportJob[]
+  financeRecords   Finance[]            @relation("DocumentFinances")
 
   @@index([parentDocumentId])
 
@@ -659,6 +660,9 @@ model Finance {
   paidAt        DateTime? // Когда оплачен
   paidById      String? // Кто отметил оплату
   paidBy        User?       @relation("FinancePaidBy", fields: [paidById], references: [id])
+  // Расходы: кто купил и чеки (фото)
+  purchasedBy   String? // Кто купил (для расходов)
+  receiptKeys   String[]    @default([]) // Ключи фото-чеков в хранилище
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -673,11 +677,16 @@ model Finance {
   estimateItemId String?
   estimateItem   EstimateItem? @relation(fields: [estimateItemId], references: [id], onDelete: SetNull)
 
+  // Связь со счётом-документом (доход из генератора)
+  documentId String?
+  document   Document? @relation("DocumentFinances", fields: [documentId], references: [id], onDelete: SetNull)
+
   @@index([companyId])
   @@index([companyId, date])
   @@index([projectId, date])
   @@index([isPaid])
   @@index([estimateItemId])
+  @@index([documentId])
 }
 
 model Timesheet {
