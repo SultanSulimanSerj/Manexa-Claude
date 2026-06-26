@@ -275,10 +275,10 @@ export async function POST(request: NextRequest) {
           await notifyFinancialUpdate(
             projectId,
             participantIds,
-            type as 'income' | 'expense' | 'budget',
+            financeType === 'EXPENSE' ? 'expense' : 'income',
             parsedAmount,
             finance.project.name,
-            description
+            typeof description === 'string' && description.trim() ? description.trim() : undefined
           )
         }
       } catch (notificationError) {

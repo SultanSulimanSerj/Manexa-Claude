@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { authenticateUser } from '@/lib/auth-api'
-import { uploadFile, getSignedUrl } from '@/lib/storage'
+import { uploadFile, getFileBuffer } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,20 +24,43 @@ export async function POST(request: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer())
   await uploadFile(key, buffer, file.type || 'image/jpeg')
 
-  const url = await getSignedUrl(key, 3600)
+  // Ссылка через само приложение (storage-эндпоинт внутренний)
+  const url = `/api/finance/receipts?key=${encodeURIComponent(key)}`
   return NextResponse.json({ key, url }, { status: 201 })
 }
 
-// GET ?key=... — отдаёт временную ссылку (редирект) на чек. Только в рамках своей компании.
+// GET ?key=...[&dl=1] — отдаёт файл чека стримом через приложение
+// (storage-эндпоинт внутренний и недоступен из браузера напрямую).
 export async function GET(request: NextRequest) {
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
 
-  const key = new URL(request.url).searchParams.get('key')
+  const { searchParams } = new URL(request.url)
+  const key = searchParams.get('key')
+  const download = searchParams.get('dl') === '1'
   if (!key || !key.startsWith(`receipts/${user.companyId}/`)) {
     return NextResponse.json({ error: 'Нет доступа' }, { status: 403 })
   }
-  const url = await getSignedUrl(key, 3600)
-  return NextResponse.redirect(url)
+
+  try {
+    const buffer = await getFileBuffer(key)
+    const ext = (key.split('.').pop() || 'jpg').toLowerCase()
+    const mime =
+      ext === 'png' ? 'image/png'
+        : ext === 'webp' ? 'image/webp'
+        : ext === 'pdf' ? 'application/pdf'
+        : ext === 'heic' ? 'image/heic'
+        : 'image/jpeg'
+    const filename = `cheque.${ext}`
+    return new NextResponse(buffer as any, {
+      headers: {
+        'Content-Type': mime,
+        'Cache-Control': 'private, max-age=300',
+        'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="${filename}"`,
+      },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Файл не найден' }, { status: 404 })
+  }
 }

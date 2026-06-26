@@ -305,10 +305,8 @@ export function BudgetCategoriesWithOperations({
                                             <img src={href} alt={`Чек ${i + 1}`} className="h-20 w-20 rounded-md border border-gray-200 object-cover hover:opacity-90" />
                                           </a>
                                           <a
-                                            href={href}
+                                            href={`${href}&dl=1`}
                                             download
-                                            target="_blank"
-                                            rel="noopener noreferrer"
                                             className="absolute bottom-1 right-1 h-6 w-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-600 hover:text-neutral-900"
                                             title="Скачать"
                                           >
