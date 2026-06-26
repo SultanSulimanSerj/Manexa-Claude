@@ -50,6 +50,7 @@ export default function MaterialsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
 
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', unit: 'шт', sku: '', category: '', minStock: '', price: '' })
@@ -84,11 +85,19 @@ export default function MaterialsPage() {
       .catch(() => {})
   }, [])
 
-  const filtered = materials.filter(
-    (m) =>
+  const categories = Array.from(
+    new Set(materials.map((m) => m.category).filter(Boolean) as string[])
+  ).sort((a, b) => a.localeCompare(b, 'ru'))
+
+  const filtered = materials.filter((m) => {
+    const matchesSearch =
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       (m.sku || '').toLowerCase().includes(search.toLowerCase())
-  )
+    const matchesCategory =
+      categoryFilter === 'all' ||
+      (categoryFilter === '__none__' ? !m.category : m.category === categoryFilter)
+    return matchesSearch && matchesCategory
+  })
   const { pageItems, Pagination } = usePagination(filtered, 20)
 
   // Сводка по складу
@@ -97,9 +106,7 @@ export default function MaterialsPage() {
     0
   )
   const lowStockCount = materials.filter((m) => m.lowStock).length
-  const categoriesCount = new Set(
-    materials.map((m) => m.category).filter(Boolean)
-  ).size
+  const categoriesCount = categories.length
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -233,15 +240,28 @@ export default function MaterialsPage() {
         </div>
 
         <div className="bg-white rounded-xl p-4 border border-border/70">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Поиск по наименованию или артикулу..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/55"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative md:col-span-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Поиск по наименованию или артикулу..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/55"
+              />
+            </div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-ring/55"
+            >
+              <option value="all">Все категории</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+              <option value="__none__">Без категории</option>
+            </select>
           </div>
         </div>
 
