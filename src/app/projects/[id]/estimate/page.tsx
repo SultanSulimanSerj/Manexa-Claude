@@ -7,6 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useState as useStateNav } from 'react'
 import { ArrowLeft, Plus, Edit, Trash2, Save, Calculator, FileText, DollarSign, Download, Copy, Search, Filter, SortAsc, SortDesc, Eye, EyeOff, Check, X, AlertCircle, Info, Zap, Menu, Home, FolderOpen, Flag, CheckCircle, MessageSquare, BarChart3, Users, Settings } from 'lucide-react'
 import Link from 'next/link'
@@ -579,149 +582,48 @@ export default function EstimatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <div className="text-sm text-gray-500 mt-2">Загрузка смет...</div>
+      <Layout>
+        <div className="space-y-6">
+          <PageHeader title="Сметы проекта" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
-      </div>
+      </Layout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Кастомная навигация для сметы */}
-      {isNavCollapsed && !isHoveringNav && (
-        <div className="fixed top-0 left-0 z-40">
-          <button
-            onClick={() => setIsNavCollapsed(!isNavCollapsed)}
-            className="p-3 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-            title={isNavCollapsed ? 'Развернуть навигацию' : 'Свернуть навигацию'}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-      
-      {/* Развернутая навигация */}
-      {(!isNavCollapsed || isHoveringNav) && (
-        <div 
-          className="fixed top-0 left-0 z-30 w-64 h-full bg-white shadow-lg transform transition-transform duration-300"
-          onMouseEnter={() => setIsHoveringNav(true)}
-          onMouseLeave={() => setIsHoveringNav(false)}
-        >
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Навигация</h2>
-              <button
-                onClick={() => setIsNavCollapsed(true)}
-                className="p-1 text-gray-400 hover:text-gray-600"
+    <Layout>
+      <div className="space-y-6">
+        <PageHeader
+          title="Сметы проекта"
+          description={project ? `${project.name} · Бюджет: ${project.budget ? formatCurrency(project.budget) : 'не установлен'}` : undefined}
+          back={`/projects/${projectId}`}
+          breadcrumbs={[
+            { label: 'Проекты', href: '/projects' },
+            ...(project ? [{ label: project.name, href: `/projects/${projectId}` }] : []),
+            { label: 'Сметы' },
+          ]}
+          actions={
+            <>
+              <PermissionButton
+                permission="canCreateEstimates"
+                onClick={() => setShowTemplatesModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 text-sm font-medium shadow-xs hover:bg-accent transition-colors"
               >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <nav className="space-y-2">
-              <Link href="/" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <Home className="h-4 w-4" />
-                Главная
-              </Link>
-              <Link href="/projects" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <FolderOpen className="h-4 w-4" />
-                Проекты
-              </Link>
-              <Link href="/tasks" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <Flag className="h-4 w-4" />
-                Задачи
-              </Link>
-              <Link href="/documents" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <FileText className="h-4 w-4" />
-                Документы
-              </Link>
-              <Link href="/finance" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <DollarSign className="h-4 w-4" />
-                Финансы
-              </Link>
-              <Link href="/approvals" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <CheckCircle className="h-4 w-4" />
-                Согласования
-              </Link>
-              <Link href="/chat" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <MessageSquare className="h-4 w-4" />
-                Чат
-              </Link>
-              <Link href="/reports" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <BarChart3 className="h-4 w-4" />
-                Отчеты
-              </Link>
-              <Link href="/users" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <Users className="h-4 w-4" />
-                Пользователи
-              </Link>
-              <Link href="/settings" className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                <Settings className="h-4 w-4" />
-                Настройки
-              </Link>
-            </nav>
-          </div>
-        </div>
-      )}
-      
-      {/* Невидимая зона для наведения мыши слева */}
-      {isNavCollapsed && (
-        <div 
-          className="fixed top-0 left-0 z-20 w-8 h-full"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+                <Zap className="h-4 w-4" />
+                Шаблоны
+              </PermissionButton>
+              <PermissionButton
+                permission="canCreateEstimates"
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-xs hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Создать смету
+              </PermissionButton>
+            </>
+          }
         />
-      )}
-      
-      <div 
-        className="min-h-screen bg-gray-50" 
-        style={{ marginLeft: isNavCollapsed ? '0' : '0' }}
-      >
-        <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 py-10">
-          {/* Заголовок */}
-          <div className="mb-10">
-            <div className="flex items-center gap-4 mb-4">
-              <Link 
-                href={`/projects/${projectId}`}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Назад к проекту
-              </Link>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">Сметы проекта</h1>
-                <p className="text-lg text-gray-600">
-                  {project?.name} • Бюджет: {project?.budget ? formatCurrency(project.budget) : 'Не установлен'}
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <PermissionButton
-                  permission="canCreateEstimates"
-                  onClick={() => setShowTemplatesModal(true)}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Zap className="h-4 w-4" />
-                  Шаблоны
-                </PermissionButton>
-                
-                <PermissionButton
-                  permission="canCreateEstimates"
-                  onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  Создать смету
-                </PermissionButton>
-              </div>
-            </div>
-          </div>
 
           {/* Панель инструментов */}
           <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
@@ -734,7 +636,7 @@ export default function EstimatePage() {
                     placeholder="Поиск смет..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ring/55 focus:border-ring"
                   />
                 </div>
                 
@@ -742,7 +644,7 @@ export default function EstimatePage() {
                   <button
                     onClick={() => setSortBy('name')}
                     className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm ${
-                      sortBy === 'name' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      sortBy === 'name' ? 'bg-neutral-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
                     Название
@@ -752,7 +654,7 @@ export default function EstimatePage() {
                   <button
                     onClick={() => setSortBy('total')}
                     className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm ${
-                      sortBy === 'total' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      sortBy === 'total' ? 'bg-neutral-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
                     Сумма
@@ -762,7 +664,7 @@ export default function EstimatePage() {
                   <button
                     onClick={() => setSortBy('createdAt')}
                     className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm ${
-                      sortBy === 'createdAt' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      sortBy === 'createdAt' ? 'bg-neutral-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
                     Дата
@@ -782,7 +684,7 @@ export default function EstimatePage() {
                 
                 <button
                   onClick={() => setShowCategories(!showCategories)}
-                  className={`p-2 rounded-lg ${showCategories ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  className={`p-2 rounded-lg ${showCategories ? 'bg-neutral-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-100'}`}
                   title="Показать/скрыть категории"
                 >
                   {showCategories ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -809,7 +711,7 @@ export default function EstimatePage() {
                         onClick={() => setActiveEstimate(recalculateEstimate(estimate))}
                         className={`py-4 px-3 border-b-2 font-medium text-sm transition-all duration-200 whitespace-nowrap ${
                           activeEstimate?.id === estimate.id
-                            ? 'border-blue-500 text-blue-600 bg-blue-50'
+                            ? 'border-primary text-primary bg-neutral-50'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
@@ -818,7 +720,7 @@ export default function EstimatePage() {
                           <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full font-medium">
                             {estimate.items.length}
                           </span>
-                          <span className="text-xs font-bold text-green-600">
+                          <span className="text-xs font-semibold text-neutral-700">
                             {formatCurrency(estimate.totalWithVat || estimate.total)}
                           </span>
                         </div>
@@ -829,7 +731,7 @@ export default function EstimatePage() {
                   {/* Кнопка добавления новой сметы */}
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="py-4 px-3 border-b-2 border-transparent text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 rounded-t-lg"
+                    className="py-4 px-3 border-b-2 border-transparent text-gray-400 hover:text-primary hover:border-neutral-300 hover:bg-neutral-50 transition-all duration-200 rounded-t-lg"
                     title="Создать новую смету"
                   >
                     <div className="flex items-center gap-2">
@@ -847,7 +749,7 @@ export default function EstimatePage() {
                 <>
 
                   {/* Заголовок сметы */}
-                  <div className="p-8 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="p-6 border-b border-gray-200 bg-white">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">{activeEstimate.name}</h2>
@@ -862,37 +764,37 @@ export default function EstimatePage() {
                   <div className="overflow-x-auto" ref={tableRef}>
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-300">
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-16 border-r border-gray-200">
+                        <tr className="sticky top-0 z-10 bg-neutral-50 border-b border-gray-200">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 w-16">
                             №
                           </th>
                           {showCategories && (
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-48 border-r border-gray-200">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 w-48">
                               Категория
                             </th>
                           )}
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[250px] border-r border-gray-200">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 min-w-[250px]">
                             Наименование
                           </th>
-                          <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-40 border-r border-gray-200">
+                          <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 w-40">
                             Кол-во
                           </th>
-                          <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-48 border-r border-gray-200">
+                          <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 w-48">
                             Ед. изм.
                           </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-56 border-r border-gray-200">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 w-56">
                             Цена
                           </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-56 border-r border-gray-200">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 w-56">
                             Себест.
                           </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-56 border-r border-gray-200">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 w-56">
                             Сумма
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[200px] border-r border-gray-200">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 min-w-[200px]">
                             Комментарий
                           </th>
-                          <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-24">
+                          <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 w-24">
                             Действия
                           </th>
                         </tr>
@@ -904,19 +806,19 @@ export default function EstimatePage() {
                             className={`
                               border-b border-gray-200 transition-all duration-150
                               ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                              ${item.isNew ? 'bg-blue-50 border-blue-200' : ''}
-                              hover:bg-blue-50/50 hover:shadow-sm
+                              ${item.isNew ? 'bg-neutral-50' : ''}
+                              hover:bg-neutral-50
                             `}
                           >
-                            <td className="px-4 py-4 text-center text-sm font-semibold text-gray-600 border-r border-gray-200">
+                            <td className="px-4 py-4 text-center text-sm font-semibold text-gray-600">
                               {index + 1}
                             </td>
                             {showCategories && (
-                              <td className="px-4 py-4 border-r border-gray-200">
+                              <td className="px-4 py-4">
                                 <select
                                   value={item.category}
                                   onChange={(e) => updateItem(item.id, 'category', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm bg-white"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ring/55 focus:border-ring transition-colors text-sm bg-white"
                                 >
                                   {categories.map(category => (
                                     <option key={category} value={category}>{category}</option>
@@ -924,18 +826,18 @@ export default function EstimatePage() {
                                 </select>
                               </td>
                             )}
-                            <td className="px-4 py-4 border-r border-gray-200 w-[280px] max-w-[280px]">
+                            <td className="px-4 py-4 w-[280px] max-w-[280px]">
                               <Tooltip content={item.name || undefined} className="block w-full min-w-0">
                                 <input
                                   type="text"
                                   value={item.name}
                                   onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm bg-white"
+                                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ring/55 focus:border-ring transition-colors text-sm bg-white"
                                   placeholder="Наименование позиции"
                                 />
                               </Tooltip>
                             </td>
-                            <td className="px-4 py-4 text-center border-r border-gray-200">
+                            <td className="px-4 py-4 text-center">
                               <input
                                 type="text"
                                 value={item.quantity > 0 ? formatNumber(item.quantity) : ''}
@@ -943,18 +845,18 @@ export default function EstimatePage() {
                                   const value = e.target.value.replace(/\s/g, '').replace(',', '.')
                                   updateItem(item.id, 'quantity', Number(value) || 0)
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-right text-sm bg-white font-medium"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ring/55 focus:border-ring transition-colors text-right text-sm bg-white font-medium"
                                 placeholder="0"
                               />
                             </td>
-                            <td className="px-4 py-4 text-center border-r border-gray-200">
+                            <td className="px-4 py-4 text-center">
                               <div className="relative">
                                 <input
                                   type="text"
                                   list={`units-${item.id}`}
                                   value={item.unit || ''}
                                   onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-                                  className="w-full px-3 py-2 border-2 border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm font-bold text-center bg-blue-100 text-gray-900"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ring/55 focus:border-ring transition-colors text-sm font-medium text-center bg-white text-gray-900"
                                   placeholder="шт"
                                 />
                                 <datalist id={`units-${item.id}`}>
@@ -964,7 +866,7 @@ export default function EstimatePage() {
                                 </datalist>
                               </div>
                             </td>
-                            <td className="px-4 py-4 text-right border-r border-gray-200">
+                            <td className="px-4 py-4 text-right">
                               <input
                                 type="text"
                                 value={item.unitPrice > 0 ? formatNumber(item.unitPrice) : ''}
@@ -972,11 +874,11 @@ export default function EstimatePage() {
                                   const value = e.target.value.replace(/\s/g, '').replace(',', '.')
                                   updateItem(item.id, 'unitPrice', Number(value) || 0)
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-right text-sm font-semibold bg-white whitespace-nowrap"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ring/55 focus:border-ring transition-colors text-right text-sm font-semibold bg-white whitespace-nowrap"
                                 placeholder="0.00"
                               />
                             </td>
-                            <td className="px-4 py-4 text-right border-r border-gray-200">
+                            <td className="px-4 py-4 text-right">
                               <input
                                 type="text"
                                 value={item.costPrice > 0 ? formatNumber(item.costPrice) : ''}
@@ -984,16 +886,16 @@ export default function EstimatePage() {
                                   const value = e.target.value.replace(/\s/g, '').replace(',', '.')
                                   updateItem(item.id, 'costPrice', Number(value) || 0)
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-right text-sm font-semibold bg-white whitespace-nowrap"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ring/55 focus:border-ring transition-colors text-right text-sm font-semibold bg-white whitespace-nowrap"
                                 placeholder="0.00"
                               />
                             </td>
-                            <td className="px-4 py-4 text-right border-r border-gray-200">
+                            <td className="px-4 py-4 text-right">
                               <div className="text-sm font-bold text-gray-900 bg-gray-100 px-3 py-2 rounded-md text-right whitespace-nowrap">
                                 {formatCurrency(item.total)}
                               </div>
                             </td>
-                            <td className="px-4 py-4 border-r border-gray-200">
+                            <td className="px-4 py-4">
                               <div className="relative group">
                                 <button
                                   onClick={() => {
@@ -1002,14 +904,14 @@ export default function EstimatePage() {
                                       updateItem(item.id, 'notes', notes)
                                     }
                                   }}
-                                  className={`w-full px-3 py-2 border border-gray-300 rounded-md hover:border-blue-400 transition-colors text-left text-xs ${
-                                    item.notes ? 'bg-blue-50 border-blue-300' : 'bg-white'
+                                  className={`w-full px-3 py-2 border border-gray-300 rounded-md hover:border-neutral-300 transition-colors text-left text-xs ${
+                                    item.notes ? "bg-neutral-100 border-neutral-300" : "bg-white"
                                   }`}
                                   title={item.notes || 'Добавить комментарий'}
                                 >
                                   {item.notes ? (
                                     <div className="flex items-center gap-1.5">
-                                      <MessageSquare className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                                      <MessageSquare className="h-3.5 w-3.5 text-neutral-900 flex-shrink-0" />
                                       <span className="truncate text-gray-700">{item.notes}</span>
                                     </div>
                                   ) : (
@@ -1025,7 +927,7 @@ export default function EstimatePage() {
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => duplicateItem(item.id)}
-                                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                  className="p-2 text-gray-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-md transition-colors"
                                   title="Дублировать"
                                 >
                                   <Copy className="h-4 w-4" />
@@ -1047,10 +949,10 @@ export default function EstimatePage() {
                   </div>
 
                   {/* Кнопка добавления позиции */}
-                  <div className="p-8 border-t border-gray-200 bg-gray-50">
+                  <div className="p-5 border-t border-gray-200 bg-white">
                     <button
                       onClick={addNewItem}
-                      className="w-full flex items-center justify-center gap-3 py-5 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 text-base font-medium"
+                      className="w-full flex items-center justify-center gap-3 py-5 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-neutral-300 hover:text-primary hover:bg-neutral-50 transition-all duration-200 text-base font-medium"
                     >
                       <Plus className="h-6 w-6" />
                       <span>Добавить позицию</span>
@@ -1058,7 +960,7 @@ export default function EstimatePage() {
                   </div>
 
                   {/* Панель НДС и расчеты */}
-                  <div className="p-8 bg-gray-50 border-t border-gray-200">
+                  <div className="sticky bottom-0 z-10 p-5 bg-white border-t border-gray-200 shadow-[0_-2px_8px_-4px_rgba(16,16,20,0.08)]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-6">
                         <label className="flex items-center gap-3">
@@ -1066,7 +968,7 @@ export default function EstimatePage() {
                             type="checkbox"
                             checked={activeEstimate.vatEnabled}
                             onChange={toggleVat}
-                            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="w-5 h-5 text-neutral-900 border-gray-300 rounded focus:ring-ring/55"
                           />
                           <span className="text-base font-medium text-gray-700">Включить НДС</span>
                         </label>
@@ -1077,7 +979,7 @@ export default function EstimatePage() {
                             <select
                               value={activeEstimate.vatRate}
                               onChange={(e) => updateVatRate(Number(e.target.value))}
-                              className="px-4 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[280px]"
+                              className="px-4 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-ring/55 focus:border-ring min-w-[280px]"
                             >
                               {VAT_RATES_RU.map(({ value, label }) => (
                                 <option key={value} value={value}>{label}</option>
@@ -1107,12 +1009,12 @@ export default function EstimatePage() {
                           {activeEstimate.vatEnabled && (
                             <div className="flex items-center gap-6">
                               <span className="text-base text-gray-600">НДС ({activeEstimate.vatRate}%):</span>
-                              <span className="text-base font-semibold text-orange-600">{formatCurrency(activeEstimate.vatAmount)}</span>
+                              <span className="text-base font-semibold text-neutral-700">{formatCurrency(activeEstimate.vatAmount)}</span>
                             </div>
                           )}
                           <div className="flex items-center gap-6 border-t border-gray-300 pt-2 mt-2">
                             <span className="text-lg font-bold text-gray-800">Итого:</span>
-                            <span className="text-2xl font-bold text-green-600">
+                            <span className="text-2xl font-bold text-neutral-900">
                               {formatCurrency(activeEstimate.vatEnabled ? activeEstimate.totalWithVat : activeEstimate.total)}
                             </span>
                           </div>
@@ -1125,7 +1027,7 @@ export default function EstimatePage() {
                             disabled={!hasUnsavedChanges || isSaving}
                             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors text-base ${
                               hasUnsavedChanges 
-                                ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
                                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                             }`}
                           >
@@ -1135,7 +1037,7 @@ export default function EstimatePage() {
                           
                           <button
                             onClick={exportToExcel}
-                            className="p-3 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            className="p-3 text-gray-600 hover:text-primary hover:bg-neutral-100 rounded-lg transition-colors"
                             title="Экспорт в Excel"
                           >
                             <FileText className="h-5 w-5" />
@@ -1155,20 +1057,22 @@ export default function EstimatePage() {
                   </div>
                 </>
               ) : (
-                <div className="flex items-center justify-center h-96">
-                  <div className="text-center">
-                    <Calculator className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Выберите смету</h3>
-                    <p className="text-gray-600 mb-6">Выберите смету из вкладок выше или создайте новую</p>
-                    <PermissionButton
-                      permission="canCreateEstimates"
-                      onClick={() => setShowCreateModal(true)}
-                      className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Plus className="h-5 w-5" />
-                      Создать смету
-                    </PermissionButton>
-                  </div>
+                <div className="p-6">
+                  <EmptyState
+                    icon={Calculator}
+                    title="Выберите смету"
+                    description="Выберите смету из вкладок выше или создайте новую."
+                    action={
+                      <PermissionButton
+                        permission="canCreateEstimates"
+                        onClick={() => setShowCreateModal(true)}
+                        className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Создать смету
+                      </PermissionButton>
+                    }
+                  />
                 </div>
               )}
             </div>
@@ -1192,7 +1096,7 @@ export default function EstimatePage() {
                       type="text"
                       value={estimateForm.name}
                       onChange={(e) => setEstimateForm({ ...estimateForm, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ring/55 focus:border-ring"
                       placeholder="Например: Смета на ремонт офиса"
                       required
                     />
@@ -1205,7 +1109,7 @@ export default function EstimatePage() {
                     <textarea
                       value={estimateForm.description}
                       onChange={(e) => setEstimateForm({ ...estimateForm, description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ring/55 focus:border-ring"
                       rows={3}
                       placeholder="Дополнительная информация о смете"
                     />
@@ -1215,7 +1119,7 @@ export default function EstimatePage() {
                 <div className="flex gap-3 mt-6">
                   <button
                     type="submit"
-                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
                   >
                     Создать
                   </button>
@@ -1244,7 +1148,7 @@ export default function EstimatePage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {templates.map((template) => (
-                  <div key={template.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                  <div key={template.id} className="border border-gray-200 rounded-lg p-4 hover:border-neutral-300 transition-colors">
                     <h4 className="font-medium text-gray-900 mb-2">{template.name}</h4>
                     <p className="text-sm text-gray-600 mb-3">{template.items.length} позиций</p>
                     
@@ -1263,7 +1167,7 @@ export default function EstimatePage() {
                     
                     <button
                       onClick={() => applyTemplate(template)}
-                      className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+                      className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
                     >
                       Применить шаблон
                     </button>
@@ -1337,8 +1241,6 @@ export default function EstimatePage() {
               </div>
           </DialogContent>
         </Dialog>
-
-      </div>
-    </div>
+    </Layout>
   )
 }
