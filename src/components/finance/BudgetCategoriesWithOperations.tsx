@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, FileText, CreditCard, Paperclip, Search } from 'lucide-react'
+import { Plus, FileText, CreditCard, Download, Search, ChevronRight, ChevronDown } from 'lucide-react'
 
 export interface IncomeItem {
   id: string
@@ -59,6 +59,8 @@ export function BudgetCategoriesWithOperations({
   const [mode, setMode] = useState<'all' | 'noEstimate' | 'unpaid'>('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [openRow, setOpenRow] = useState<string | null>(null)
+  const toggleRow = (id: string) => setOpenRow((cur) => (cur === id ? null : id))
 
   const totalIncome = incomeList.reduce((s, i) => s + i.amount, 0)
   const totalExpense = expenses.reduce((s, e) => s + e.amount, 0)
@@ -116,44 +118,60 @@ export function BudgetCategoriesWithOperations({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-neutral-50/70 border-b">
-                    <th className="text-left py-2 px-3 font-medium text-neutral-500">№ счёта</th>
+                    <th className="w-8 py-2 px-2"></th>
                     <th className="text-left py-2 px-3 font-medium text-neutral-500">Дата</th>
                     <th className="text-left py-2 px-3 font-medium text-neutral-500">Описание / контрагент</th>
                     <th className="text-right py-2 px-3 font-medium text-neutral-500">Сумма</th>
-                    <th className="text-left py-2 px-3 font-medium text-neutral-500">Срок оплаты</th>
                     <th className="text-center py-2 px-3 font-medium text-neutral-500">Статус</th>
                     {onMarkPaid && <th className="py-2 px-3"></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {incomeList.map((item) => (
-                    <tr key={item.id} className="border-b last:border-0 hover:bg-neutral-50">
-                      <td className="py-2 px-3 tabular-nums">{item.number}</td>
-                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{fmtDate(item.date)}</td>
-                      <td className="py-2 px-3 text-gray-700 max-w-[200px] truncate" title={[item.description, item.counterparty].filter(Boolean).join(' / ')}>
-                        {item.description || item.counterparty || '—'}
-                      </td>
-                      <td className="py-2 px-3 text-right font-medium text-green-600 tabular-nums">{fmt(item.amount)}</td>
-                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{item.dueDate ? fmtDate(item.dueDate) : '—'}</td>
-                      <td className="py-2 px-3 text-center">
-                        {item.status === 'paid' && <Badge className="bg-green-100 text-green-800">Оплачен</Badge>}
-                        {item.status === 'pending' && <Badge variant="secondary">Ожидает</Badge>}
-                        {item.status === 'overdue' && <Badge variant="destructive">Просрочен</Badge>}
-                      </td>
-                      {onMarkPaid && (
-                        <td className="py-2 px-3 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => onMarkPaid(item.id, !item.isPaid)}
-                            className={`text-xs font-medium rounded-md px-2.5 py-1 border transition-colors ${
-                              item.isPaid ? 'border-gray-200 text-gray-500 hover:bg-gray-50' : 'border-green-200 text-green-700 hover:bg-green-50'
-                            }`}
-                          >
-                            {item.isPaid ? 'Снять оплату' : 'Оплатить'}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
+                  {incomeList.map((item) => {
+                    const open = openRow === `inc-${item.id}`
+                    return (
+                      <React.Fragment key={item.id}>
+                        <tr className="border-b last:border-0 hover:bg-neutral-50 cursor-pointer" onClick={() => toggleRow(`inc-${item.id}`)}>
+                          <td className="py-2 px-2 text-gray-400">{open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td>
+                          <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{fmtDate(item.date)}</td>
+                          <td className="py-2 px-3 text-gray-700 max-w-[220px] truncate" title={[item.description, item.counterparty].filter(Boolean).join(' / ')}>
+                            {item.description || item.counterparty || '—'}
+                          </td>
+                          <td className="py-2 px-3 text-right font-medium text-green-600 tabular-nums">{fmt(item.amount)}</td>
+                          <td className="py-2 px-3 text-center">
+                            {item.status === 'paid' && <Badge className="bg-green-100 text-green-800">Оплачен</Badge>}
+                            {item.status === 'pending' && <Badge variant="secondary">Ожидает</Badge>}
+                            {item.status === 'overdue' && <Badge variant="destructive">Просрочен</Badge>}
+                          </td>
+                          {onMarkPaid && (
+                            <td className="py-2 px-3 text-right whitespace-nowrap">
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); onMarkPaid(item.id, !item.isPaid) }}
+                                className={`text-xs font-medium rounded-md px-2.5 py-1 border transition-colors ${
+                                  item.isPaid ? 'border-gray-200 text-gray-500 hover:bg-gray-50' : 'border-green-200 text-green-700 hover:bg-green-50'
+                                }`}
+                              >
+                                {item.isPaid ? 'Снять оплату' : 'Оплатить'}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                        {open && (
+                          <tr className="bg-neutral-50/50 border-b last:border-0">
+                            <td colSpan={onMarkPaid ? 6 : 5} className="px-4 py-3">
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">Счёт №</dt><dd className="font-medium text-gray-900">{item.number}</dd></div>
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">Контрагент</dt><dd className="text-gray-900">{item.counterparty || '—'}</dd></div>
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">Срок оплаты</dt><dd className="text-gray-900">{item.dueDate ? fmtDate(item.dueDate) : '—'}</dd></div>
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">Оплата</dt><dd className="text-gray-900">{item.isPaid ? `Оплачено по счёту ${item.number}` : 'Не оплачено'}</dd></div>
+                                {item.description && <div className="sm:col-span-2"><dt className="text-gray-500">Описание</dt><dd className="text-gray-900">{item.description}</dd></div>}
+                              </dl>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -218,73 +236,98 @@ export function BudgetCategoriesWithOperations({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-neutral-50/70 border-b">
+                    <th className="w-8 py-2 px-2"></th>
                     <th className="text-left py-2 px-3 font-medium text-neutral-500">Дата</th>
                     <th className="text-left py-2 px-3 font-medium text-neutral-500">Категория</th>
                     <th className="text-left py-2 px-3 font-medium text-neutral-500">Описание / контрагент</th>
                     <th className="text-left py-2 px-3 font-medium text-neutral-500">По смете</th>
-                    <th className="text-left py-2 px-3 font-medium text-neutral-500">Кто купил</th>
-                    <th className="text-center py-2 px-3 font-medium text-neutral-500">Чек</th>
                     <th className="text-right py-2 px-3 font-medium text-neutral-500">Сумма</th>
                     <th className="text-center py-2 px-3 font-medium text-neutral-500">Оплата</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredExpenses.map((e) => (
-                    <tr key={e.id} className="border-b last:border-0 hover:bg-neutral-50">
-                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{fmtDate(e.date)}</td>
-                      <td className="py-2 px-3 text-gray-700">{e.category}</td>
-                      <td className="py-2 px-3 text-gray-700 max-w-[220px] truncate" title={[e.description, e.counterparty].filter(Boolean).join(' / ')}>
-                        {e.description || e.counterparty || '—'}
-                      </td>
-                      <td className="py-2 px-3">
-                        {e.inEstimate ? (
-                          <Badge variant="secondary" className="max-w-[160px] truncate" title={e.estimateItemName || ''}>
-                            {e.estimateItemName || 'По смете'}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">Вне сметы</Badge>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-gray-700 whitespace-nowrap">{e.purchasedBy || '—'}</td>
-                      <td className="py-2 px-3 text-center">
-                        {e.receiptKeys.length > 0 ? (
-                          <div className="flex items-center justify-center gap-1">
-                            {e.receiptKeys.map((k, i) => (
-                              <a
-                                key={i}
-                                href={`/api/finance/receipts?key=${encodeURIComponent(k)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-500 hover:text-neutral-900"
-                                title={`Чек ${i + 1}`}
+                  {filteredExpenses.map((e) => {
+                    const open = openRow === `exp-${e.id}`
+                    return (
+                      <React.Fragment key={e.id}>
+                        <tr className="border-b last:border-0 hover:bg-neutral-50 cursor-pointer" onClick={() => toggleRow(`exp-${e.id}`)}>
+                          <td className="py-2 px-2 text-gray-400">{open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td>
+                          <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{fmtDate(e.date)}</td>
+                          <td className="py-2 px-3 text-gray-700">{e.category}</td>
+                          <td className="py-2 px-3 text-gray-700 max-w-[220px] truncate" title={[e.description, e.counterparty].filter(Boolean).join(' / ')}>
+                            {e.description || e.counterparty || '—'}
+                          </td>
+                          <td className="py-2 px-3">
+                            {e.inEstimate ? (
+                              <Badge variant="secondary" className="max-w-[160px] truncate" title={e.estimateItemName || ''}>
+                                {e.estimateItemName || 'По смете'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">Вне сметы</Badge>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right font-medium text-red-600 tabular-nums whitespace-nowrap">{fmt(e.amount)}</td>
+                          <td className="py-2 px-3 text-center">
+                            {onMarkPaid ? (
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); onMarkPaid(e.id, !e.isPaid) }}
+                                className={`text-xs font-medium rounded-md px-2.5 py-1 border transition-colors ${
+                                  e.isPaid ? 'border-green-200 text-green-700 bg-green-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                                }`}
                               >
-                                <Paperclip className="h-4 w-4" />
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300">—</span>
+                                {e.isPaid ? 'Оплачено' : 'Оплатить'}
+                              </button>
+                            ) : e.isPaid ? (
+                              <Badge className="bg-green-100 text-green-800">Оплачено</Badge>
+                            ) : (
+                              <Badge variant="secondary">Не оплачено</Badge>
+                            )}
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="bg-neutral-50/50 border-b last:border-0">
+                            <td colSpan={7} className="px-4 py-3">
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm mb-3">
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">Кто купил</dt><dd className="font-medium text-gray-900">{e.purchasedBy || '—'}</dd></div>
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">Контрагент</dt><dd className="text-gray-900">{e.counterparty || '—'}</dd></div>
+                                <div className="flex justify-between gap-3"><dt className="text-gray-500">По смете</dt><dd className="text-gray-900">{e.inEstimate ? (e.estimateItemName || 'Да') : 'Вне сметы'}</dd></div>
+                                {e.description && <div className="sm:col-span-2"><dt className="text-gray-500">Описание</dt><dd className="text-gray-900">{e.description}</dd></div>}
+                              </dl>
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1.5">Чеки</p>
+                                {e.receiptKeys.length > 0 ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    {e.receiptKeys.map((k, i) => {
+                                      const href = `/api/finance/receipts?key=${encodeURIComponent(k)}`
+                                      return (
+                                        <div key={i} className="relative group">
+                                          <a href={href} target="_blank" rel="noopener noreferrer">
+                                            <img src={href} alt={`Чек ${i + 1}`} className="h-20 w-20 rounded-md border border-gray-200 object-cover hover:opacity-90" />
+                                          </a>
+                                          <a
+                                            href={href}
+                                            download
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="absolute bottom-1 right-1 h-6 w-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-600 hover:text-neutral-900"
+                                            title="Скачать"
+                                          >
+                                            <Download className="h-3.5 w-3.5" />
+                                          </a>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-400">Чеков нет</p>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                      <td className="py-2 px-3 text-right font-medium text-red-600 tabular-nums whitespace-nowrap">{fmt(e.amount)}</td>
-                      <td className="py-2 px-3 text-center">
-                        {onMarkPaid ? (
-                          <button
-                            onClick={() => onMarkPaid(e.id, !e.isPaid)}
-                            className={`text-xs font-medium rounded-md px-2.5 py-1 border transition-colors ${
-                              e.isPaid ? 'border-green-200 text-green-700 bg-green-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                            }`}
-                          >
-                            {e.isPaid ? 'Оплачено' : 'Оплатить'}
-                          </button>
-                        ) : e.isPaid ? (
-                          <Badge className="bg-green-100 text-green-800">Оплачено</Badge>
-                        ) : (
-                          <Badge variant="secondary">Не оплачено</Badge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                      </React.Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
