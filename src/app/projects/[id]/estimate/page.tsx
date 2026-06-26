@@ -2,6 +2,7 @@
 
 
 import { toast } from '@/components/ui/use-toast'
+import { confirm } from '@/components/ui/confirm'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useState, useEffect, useRef } from 'react'
@@ -182,6 +183,34 @@ export default function EstimatePage() {
       }
     } catch (error) {
       console.error('Error creating estimate:', error)
+    }
+  }
+
+  const handleDeleteEstimate = async (estimate: Estimate) => {
+    const ok = await confirm({
+      title: 'Удалить смету?',
+      description: `«${estimate.name}» и все её позиции будут удалены без возможности восстановления.`,
+      confirmText: 'Удалить',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      const response = await fetch(`/api/projects/${projectId}/estimates/${estimate.id}`, {
+        method: 'DELETE',
+      })
+      if (response.ok) {
+        const rest = estimates.filter((e) => e.id !== estimate.id)
+        setEstimates(rest)
+        setActiveEstimate((prev) =>
+          prev?.id === estimate.id ? (rest[0] ? recalculateEstimate(rest[0]) : null) : prev
+        )
+        toast.success('Смета удалена')
+      } else {
+        const d = await response.json().catch(() => ({}))
+        toast.error(d.error || 'Ошибка при удалении сметы')
+      }
+    } catch {
+      toast.error('Ошибка при удалении сметы')
     }
   }
 
@@ -750,13 +779,21 @@ export default function EstimatePage() {
 
                   {/* Заголовок сметы */}
                   <div className="p-6 border-b border-gray-200 bg-white">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">{activeEstimate.name}</h2>
                         {activeEstimate.description && (
                           <p className="text-base text-gray-600">{activeEstimate.description}</p>
                         )}
                       </div>
+                      <button
+                        onClick={() => handleDeleteEstimate(activeEstimate)}
+                        className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-input px-3 py-2 text-sm font-medium text-gray-600 shadow-xs transition-colors hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                        title="Удалить смету"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Удалить смету
+                      </button>
                     </div>
                   </div>
 
