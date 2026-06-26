@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, FileText, CreditCard, Download, Search, ChevronRight, ChevronDown } from 'lucide-react'
+import { Plus, FileText, CreditCard, Download, Search, ChevronRight, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 
 export interface IncomeItem {
   id: string
@@ -42,6 +42,9 @@ interface Props {
   onCreateInvoice?: () => void
   onCreatePayment?: () => void
   onMarkPaid?: (financeId: string, isPaid: boolean) => void
+  onEdit?: (id: string) => void
+  onDelete?: (id: string) => void
+  onUpdateReceipts?: (id: string, keys: string[]) => void
 }
 
 const fmt = (v: number) =>
@@ -55,15 +58,57 @@ export function BudgetCategoriesWithOperations({
   onCreateInvoice,
   onCreatePayment,
   onMarkPaid,
+  onEdit,
+  onDelete,
+  onUpdateReceipts,
 }: Props) {
+  const [tab, setTab] = useState<'income' | 'expense'>('expense')
   const [mode, setMode] = useState<'all' | 'noEstimate' | 'unpaid'>('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [incSearch, setIncSearch] = useState('')
+  const [incMode, setIncMode] = useState<'all' | 'unpaid'>('all')
   const [openRow, setOpenRow] = useState<string | null>(null)
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null)
   const toggleRow = (id: string) => setOpenRow((cur) => (cur === id ? null : id))
+
+  const uploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>, row: ExpenseRow) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !onUpdateReceipts) return
+    setUploadingFor(row.id)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/finance/receipts', { method: 'POST', body: fd })
+      if (res.ok) {
+        const data = await res.json()
+        onUpdateReceipts(row.id, [...row.receiptKeys, data.key])
+      }
+    } finally {
+      setUploadingFor(null)
+    }
+  }
 
   const totalIncome = incomeList.reduce((s, i) => s + i.amount, 0)
   const totalExpense = expenses.reduce((s, e) => s + e.amount, 0)
+  const incomePaid = incomeList.filter((i) => i.isPaid).reduce((s, i) => s + i.amount, 0)
+  const incomeUnpaid = totalIncome - incomePaid
+  const expensePaid = expenses.filter((e) => e.isPaid).reduce((s, e) => s + e.amount, 0)
+  const expenseUnpaid = totalExpense - expensePaid
+
+  const filteredIncome = useMemo(
+    () =>
+      incomeList.filter((i) => {
+        if (incMode === 'unpaid' && i.isPaid) return false
+        if (incSearch) {
+          const hay = `${i.number} ${i.description || ''} ${i.counterparty || ''}`.toLowerCase()
+          if (!hay.includes(incSearch.toLowerCase())) return false
+        }
+        return true
+      }),
+    [incomeList, incMode, incSearch]
+  )
 
   const categories = useMemo(
     () => Array.from(new Set(expenses.map((e) => e.category))).sort((a, b) => a.localeCompare(b, 'ru')),
@@ -88,16 +133,29 @@ export function BudgetCategoriesWithOperations({
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle>Доходы и расходы</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-lg border border-gray-200 p-0.5">
+            <button
+              onClick={() => setTab('income')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === 'income' ? 'bg-neutral-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              Доходы ({incomeList.length})
+            </button>
+            <button
+              onClick={() => setTab('expense')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === 'expense' ? 'bg-neutral-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              Расходы ({expenses.length})
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2 shrink-0">
-            {onCreateInvoice && (
+            {tab === 'income' && onCreateInvoice && (
               <Button onClick={onCreateInvoice} size="sm" variant="outline" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Добавить счёт
               </Button>
             )}
-            {onAddOperation && (
+            {tab === 'expense' && onAddOperation && (
               <Button onClick={onAddOperation} size="sm" variant="secondary" className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 Добавить расход
@@ -106,14 +164,32 @@ export function BudgetCategoriesWithOperations({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-8">
+      <CardContent className="space-y-4">
         {/* Доходы / счета */}
-        {incomeList.length > 0 && (
+        {tab === 'income' && (
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Доходы (счета) — всего {fmt(totalIncome)}
-            </h3>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Доходы — всего {fmt(totalIncome)}
+                <span className="font-normal text-gray-500"> · оплачено {fmt(incomePaid)} · не оплачено {fmt(incomeUnpaid)}</span>
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex rounded-lg border border-gray-200 p-0.5">
+                  {([['all', 'Все'], ['unpaid', 'Не оплачено']] as const).map(([key, label]) => (
+                    <button key={key} onClick={() => setIncMode(key)} className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${incMode === key ? 'bg-neutral-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>{label}</button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                  <input value={incSearch} onChange={(e) => setIncSearch(e.target.value)} placeholder="Поиск" className="pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-ring/55" />
+                </div>
+              </div>
+            </div>
+            {filteredIncome.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-500 rounded-lg bg-gray-50 border border-dashed">
+                {incomeList.length === 0 ? 'Счетов пока нет. Нажмите «Добавить счёт».' : 'Ничего не найдено.'}
+              </div>
+            ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
@@ -127,7 +203,7 @@ export function BudgetCategoriesWithOperations({
                   </tr>
                 </thead>
                 <tbody>
-                  {incomeList.map((item) => {
+                  {filteredIncome.map((item) => {
                     const open = openRow === `inc-${item.id}`
                     return (
                       <React.Fragment key={item.id}>
@@ -166,6 +242,20 @@ export function BudgetCategoriesWithOperations({
                                 <div className="flex justify-between gap-3"><dt className="text-gray-500">Оплата</dt><dd className="text-gray-900">{item.isPaid ? `Оплачено по счёту ${item.number}` : 'Не оплачено'}</dd></div>
                                 {item.description && <div className="sm:col-span-2"><dt className="text-gray-500">Описание</dt><dd className="text-gray-900">{item.description}</dd></div>}
                               </dl>
+                              {(onEdit || onDelete) && (
+                                <div className="mt-3 flex gap-2">
+                                  {onEdit && (
+                                    <button onClick={() => onEdit(item.id)} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-2.5 py-1 border border-gray-200 text-gray-600 hover:bg-gray-50">
+                                      <Pencil className="h-3.5 w-3.5" /> Изменить
+                                    </button>
+                                  )}
+                                  {onDelete && (
+                                    <button onClick={() => onDelete(item.id)} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-2.5 py-1 border border-red-200 text-red-600 hover:bg-red-50">
+                                      <Trash2 className="h-3.5 w-3.5" /> Удалить
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         )}
@@ -175,14 +265,17 @@ export function BudgetCategoriesWithOperations({
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 
         {/* Расходы — простой список */}
+        {tab === 'expense' && (
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
             <h3 className="text-sm font-semibold text-gray-700">
               Расходы — всего {fmt(totalExpense)}
+              <span className="font-normal text-gray-500"> · оплачено {fmt(expensePaid)} · к оплате {fmt(expenseUnpaid)}</span>
               {filteredExpenses.length !== expenses.length && (
                 <span className="font-normal text-gray-500"> · показано {fmt(filteredTotal)}</span>
               )}
@@ -295,31 +388,57 @@ export function BudgetCategoriesWithOperations({
                               </dl>
                               <div>
                                 <p className="text-xs text-gray-500 mb-1.5">Чеки</p>
-                                {e.receiptKeys.length > 0 ? (
-                                  <div className="flex flex-wrap gap-2">
-                                    {e.receiptKeys.map((k, i) => {
-                                      const href = `/api/finance/receipts?key=${encodeURIComponent(k)}`
-                                      return (
-                                        <div key={i} className="relative group">
-                                          <a href={href} target="_blank" rel="noopener noreferrer">
-                                            <img src={href} alt={`Чек ${i + 1}`} className="h-20 w-20 rounded-md border border-gray-200 object-cover hover:opacity-90" />
-                                          </a>
-                                          <a
-                                            href={`${href}&dl=1`}
-                                            download
-                                            className="absolute bottom-1 right-1 h-6 w-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-600 hover:text-neutral-900"
-                                            title="Скачать"
+                                <div className="flex flex-wrap gap-2">
+                                  {e.receiptKeys.map((k, i) => {
+                                    const href = `/api/finance/receipts?key=${encodeURIComponent(k)}`
+                                    return (
+                                      <div key={i} className="relative group">
+                                        <a href={href} target="_blank" rel="noopener noreferrer">
+                                          <img src={href} alt={`Чек ${i + 1}`} className="h-20 w-20 rounded-md border border-gray-200 object-cover hover:opacity-90" />
+                                        </a>
+                                        <a
+                                          href={`${href}&dl=1`}
+                                          download
+                                          className="absolute bottom-1 right-1 h-6 w-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-600 hover:text-neutral-900"
+                                          title="Скачать"
+                                        >
+                                          <Download className="h-3.5 w-3.5" />
+                                        </a>
+                                        {onUpdateReceipts && (
+                                          <button
+                                            onClick={() => onUpdateReceipts(e.id, e.receiptKeys.filter((_, idx) => idx !== i))}
+                                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-neutral-900 text-white text-xs flex items-center justify-center"
+                                            title="Удалить чек"
                                           >
-                                            <Download className="h-3.5 w-3.5" />
-                                          </a>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                ) : (
-                                  <p className="text-sm text-gray-400">Чеков нет</p>
-                                )}
+                                            ×
+                                          </button>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                  {onUpdateReceipts && (
+                                    <label className="h-20 w-20 rounded-md border border-dashed border-gray-300 flex items-center justify-center cursor-pointer text-gray-400 hover:bg-gray-100">
+                                      {uploadingFor === e.id ? '…' : <Plus className="h-5 w-5" />}
+                                      <input type="file" accept="image/*" className="hidden" disabled={uploadingFor === e.id} onChange={(ev) => uploadReceipt(ev, e)} />
+                                    </label>
+                                  )}
+                                  {e.receiptKeys.length === 0 && !onUpdateReceipts && <p className="text-sm text-gray-400">Чеков нет</p>}
+                                </div>
                               </div>
+                              {(onEdit || onDelete) && (
+                                <div className="mt-3 flex gap-2">
+                                  {onEdit && (
+                                    <button onClick={() => onEdit(e.id)} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-2.5 py-1 border border-gray-200 text-gray-600 hover:bg-gray-50">
+                                      <Pencil className="h-3.5 w-3.5" /> Изменить
+                                    </button>
+                                  )}
+                                  {onDelete && (
+                                    <button onClick={() => onDelete(e.id)} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-2.5 py-1 border border-red-200 text-red-600 hover:bg-red-50">
+                                      <Trash2 className="h-3.5 w-3.5" /> Удалить
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         )}
@@ -331,6 +450,7 @@ export function BudgetCategoriesWithOperations({
             </div>
           )}
         </div>
+        )}
       </CardContent>
     </Card>
   )
