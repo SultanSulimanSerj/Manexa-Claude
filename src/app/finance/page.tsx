@@ -320,7 +320,7 @@ function FinancePageContent() {
       setSubmitError('Выберите проект')
       return
     }
-    if (!formData.category?.trim()) {
+    if (formData.type === 'EXPENSE' && !formData.category?.trim()) {
       setSubmitError('Укажите категорию')
       return
     }
@@ -339,7 +339,7 @@ function FinancePageContent() {
           ...formData,
           amount: amountNum,
           projectId: formData.projectId.trim(),
-          category: formData.category.trim(),
+          category: formData.category.trim() || (formData.type === 'INCOME' ? 'Оплата по счёту' : ''),
           estimateItemId: formData.estimateItemId || null,
           invoiceNumber: formData.invoiceNumber?.trim() || null,
           dueDate: formData.dueDate?.trim() || null,
@@ -676,6 +676,9 @@ function FinancePageContent() {
   const totalExpenses = projectFilteredRecords.filter(r => r.type === 'EXPENSE').reduce((sum, r) => sum + Number(r.amount), 0)
   const balance = totalIncome - totalExpenses
   const margin = totalIncome > 0 ? ((balance / totalIncome) * 100) : 0
+  // Долги: не оплачено нам (дебиторка) и к оплате (кредиторка)
+  const receivableUnpaid = projectFilteredRecords.filter(r => r.type === 'INCOME' && !r.isPaid).reduce((sum, r) => sum + Number(r.amount), 0)
+  const payableUnpaid = projectFilteredRecords.filter(r => r.type === 'EXPENSE' && !r.isPaid).reduce((sum, r) => sum + Number(r.amount), 0)
 
   // Сводка по проектам для режима "все проекты"
   const projectsForSummary = projectSearch.trim()
@@ -855,11 +858,13 @@ function FinancePageContent() {
 
         {/* Режим "один проект": KPI по проекту */}
         {currentProject && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <KpiCard title="Бюджет" value={formatMoney(budgetData.budget)} icon={<DollarSign className="h-5 w-5" />} status="neutral" />
             <KpiCard title="Потрачено" value={formatMoney(budgetData.spent)} change={budgetData.budget > 0 ? Number(((budgetData.spent / budgetData.budget) * 100).toFixed(1)) : 0} changeLabel="от бюджета" icon={<TrendingDown className="h-5 w-5" />} status={budgetData.spent > budgetData.budget ? 'negative' : 'neutral'} />
             <KpiCard title="Остаток" value={formatMoney(budgetData.budget - budgetData.spent)} icon={<Percent className="h-5 w-5" />} status={budgetData.budget - budgetData.spent >= 0 ? 'positive' : 'negative'} />
             <KpiCard title="Получено" value={formatMoney(budgetData.received)} icon={<TrendingUp className="h-5 w-5" />} status="positive" />
+            <KpiCard title="Не оплачено нам" value={formatMoney(receivableUnpaid)} icon={<TrendingUp className="h-5 w-5" />} status={receivableUnpaid > 0 ? 'negative' : 'neutral'} />
+            <KpiCard title="К оплате" value={formatMoney(payableUnpaid)} icon={<TrendingDown className="h-5 w-5" />} status={payableUnpaid > 0 ? 'negative' : 'neutral'} />
           </div>
         )}
 
@@ -964,12 +969,12 @@ function FinancePageContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Категория *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Категория {formData.type === 'EXPENSE' ? '*' : ''}</label>
                     {formData.type === 'EXPENSE' && formData.projectId && estimateCategories.length > 0 ? (
                       <select
                         value={formData.category}
                         onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
                         required
                       >
                         <option value="">Выберите категорию</option>
@@ -985,8 +990,8 @@ function FinancePageContent() {
                           value={formData.category}
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/55"
-                          placeholder="Напр. Материалы, Работы"
-                          required
+                          placeholder={formData.type === 'INCOME' ? 'Напр. Оплата по счёту' : 'Напр. Материалы, Работы'}
+                          required={formData.type === 'EXPENSE'}
                         />
                         <datalist id="finance-categories">
                           {knownCategories.map(cat => (
