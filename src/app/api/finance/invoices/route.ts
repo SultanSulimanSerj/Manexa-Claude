@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       description: string | null
       category: string
       invoiceNumber: string | null
+      dueDate: Date | null
       counterparty?: string | null
       isPaid: boolean
       paidAt: Date | null
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
           description: true,
           category: true,
           invoiceNumber: true,
+          dueDate: true,
           counterparty: true,
           isPaid: true,
           paidAt: true,
@@ -90,6 +92,7 @@ export async function GET(request: NextRequest) {
           description: true,
           category: true,
           invoiceNumber: true,
+          dueDate: true,
           isPaid: true,
           paidAt: true,
           paidBy: { select: { id: true, name: true } }
@@ -99,13 +102,12 @@ export async function GET(request: NextRequest) {
       finances = finances.map((f) => ({ ...f, counterparty: null }))
     }
 
-    const invoicesData = finances.map((finance, index) => {
+    const invoicesData = finances.map((finance) => {
       const isIncome = finance.type === 'INCOME'
-      const dueDate = new Date(finance.date)
-      dueDate.setDate(dueDate.getDate() + 30)
 
       const now = new Date()
-      const isOverdue = dueDate < now && !finance.isPaid
+      // Просрочка только при наличии реального срока оплаты
+      const isOverdue = !!finance.dueDate && finance.dueDate < now && !finance.isPaid
       let status: 'paid' | 'pending' | 'overdue'
       if (finance.isPaid) status = 'paid'
       else if (isOverdue) status = 'overdue'
@@ -113,11 +115,11 @@ export async function GET(request: NextRequest) {
 
       return {
         id: finance.id,
-        number: finance.invoiceNumber || `${isIncome ? 'СЧ' : 'ПЛ'}-${String(index + 1).padStart(3, '0')}`,
+        number: finance.invoiceNumber || '—',
         type: isIncome ? ('invoice' as const) : ('payment' as const),
         amount: Number(finance.amount),
         date: finance.date.toISOString().split('T')[0],
-        dueDate: dueDate.toISOString().split('T')[0],
+        dueDate: finance.dueDate ? finance.dueDate.toISOString().split('T')[0] : null,
         isPaid: finance.isPaid,
         paidAt: finance.paidAt?.toISOString() || null,
         paidBy: finance.paidBy ? { id: finance.paidBy.id, name: finance.paidBy.name } : null,

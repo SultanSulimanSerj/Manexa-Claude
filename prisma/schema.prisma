@@ -653,6 +653,7 @@ model Finance {
   date          DateTime
   // Поля для отслеживания оплаты и сверки с банком
   invoiceNumber String? // Номер счёта
+  dueDate       DateTime? // Срок оплаты
   counterparty  String? // Контрагент (получатель/плательщик)
   isPaid        Boolean     @default(false)
   paidAt        DateTime? // Когда оплачен

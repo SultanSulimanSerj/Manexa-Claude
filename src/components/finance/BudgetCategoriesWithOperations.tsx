@@ -32,6 +32,8 @@ export interface IncomeItem {
   number: string
   amount: number
   date: string
+  dueDate?: string | null
+  isPaid?: boolean
   status: 'paid' | 'pending' | 'overdue'
   description?: string
   counterparty?: string | null
@@ -44,6 +46,7 @@ interface BudgetCategoriesWithOperationsProps {
   onAddOperation?: () => void
   onCreateInvoice?: () => void
   onCreatePayment?: () => void
+  onMarkPaid?: (financeId: string, isPaid: boolean) => void
 }
 
 export function BudgetCategoriesWithOperations({
@@ -52,7 +55,8 @@ export function BudgetCategoriesWithOperations({
   incomeList = [],
   onAddOperation,
   onCreateInvoice,
-  onCreatePayment
+  onCreatePayment,
+  onMarkPaid
 }: BudgetCategoriesWithOperationsProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
@@ -117,28 +121,45 @@ export function BudgetCategoriesWithOperations({
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">№</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">Дата</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">Описание / контрагент</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-600">Сумма</th>
-                    <th className="text-center py-2 px-3 font-medium text-gray-600">Статус</th>
+                  <tr className="bg-neutral-50/70 border-b">
+                    <th className="text-left py-2 px-3 font-medium text-neutral-500">№ счёта</th>
+                    <th className="text-left py-2 px-3 font-medium text-neutral-500">Дата</th>
+                    <th className="text-left py-2 px-3 font-medium text-neutral-500">Описание / контрагент</th>
+                    <th className="text-right py-2 px-3 font-medium text-neutral-500">Сумма</th>
+                    <th className="text-left py-2 px-3 font-medium text-neutral-500">Срок оплаты</th>
+                    <th className="text-center py-2 px-3 font-medium text-neutral-500">Статус</th>
+                    {onMarkPaid && <th className="py-2 px-3"></th>}
                   </tr>
                 </thead>
                 <tbody>
                   {incomeList.map((item) => (
-                    <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="py-2 px-3">{item.number}</td>
-                      <td className="py-2 px-3 text-gray-600">{formatDate(item.date)}</td>
+                    <tr key={item.id} className="border-b last:border-0 hover:bg-neutral-50">
+                      <td className="py-2 px-3 tabular-nums">{item.number}</td>
+                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{formatDate(item.date)}</td>
                       <td className="py-2 px-3 text-gray-700 max-w-[200px] truncate" title={[item.description, item.counterparty].filter(Boolean).join(' / ')}>
                         {item.description || item.counterparty || '—'}
                       </td>
-                      <td className="py-2 px-3 text-right font-medium text-green-600">{formatCurrency(item.amount)}</td>
+                      <td className="py-2 px-3 text-right font-medium text-green-600 tabular-nums">{formatCurrency(item.amount)}</td>
+                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{item.dueDate ? formatDate(item.dueDate) : '—'}</td>
                       <td className="py-2 px-3 text-center">
                         {item.status === 'paid' && <Badge className="bg-green-100 text-green-800">Оплачен</Badge>}
                         {item.status === 'pending' && <Badge variant="secondary">Ожидает</Badge>}
                         {item.status === 'overdue' && <Badge variant="destructive">Просрочен</Badge>}
                       </td>
+                      {onMarkPaid && (
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => onMarkPaid(item.id, !item.isPaid)}
+                            className={`text-xs font-medium rounded-md px-2.5 py-1 border transition-colors ${
+                              item.isPaid
+                                ? 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                                : 'border-green-200 text-green-700 hover:bg-green-50'
+                            }`}
+                          >
+                            {item.isPaid ? 'Снять оплату' : 'Оплатить'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
