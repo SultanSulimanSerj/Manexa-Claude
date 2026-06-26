@@ -8,6 +8,7 @@ import { toast } from '@/components/ui/use-toast'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
 import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, MapPin, FileSignature, Clock, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { PermissionButton } from '@/components/permission-guard'
@@ -70,9 +71,18 @@ interface User {
   phone: string | null
 }
 
+const PROJECT_TABS = [
+  { key: 'overview', label: 'Обзор' },
+  { key: 'client', label: 'Реквизиты' },
+  { key: 'team', label: 'Команда' },
+  { key: 'chat', label: 'Чат' },
+] as const
+type ProjectTab = (typeof PROJECT_TABS)[number]['key']
+
 export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<ProjectTab>('overview')
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [financeStats, setFinanceStats] = useState<FinanceStats | null>(null)
@@ -669,33 +679,50 @@ export default function ProjectDetailPage() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Link 
-            href="/projects"
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-            <div className="flex items-center gap-4 mt-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+        <PageHeader
+          title={project.name}
+          description={
+            <span className="inline-flex flex-wrap items-center gap-3">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
                 {getStatusText(project.status)}
               </span>
-              <span className="text-sm text-gray-600">
-                Создатель: {project.creator.name}
-              </span>
-            </div>
-          </div>
-          <button 
-            onClick={handleEdit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Edit className="h-4 w-4" />
-            Редактировать
-          </button>
+              <span className="text-gray-500">Создатель: {project.creator.name}</span>
+            </span>
+          }
+          back="/projects"
+          breadcrumbs={[{ label: 'Проекты', href: '/projects' }, { label: project.name }]}
+          actions={
+            <button
+              onClick={handleEdit}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 flex items-center gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Редактировать
+            </button>
+          }
+        />
+
+        {/* Вкладки */}
+        <div className="border-b border-gray-200">
+          <nav className="flex gap-1 -mb-px overflow-x-auto">
+            {PROJECT_TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === t.key
+                    ? 'border-neutral-900 text-neutral-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
+        {activeTab === 'overview' && (
+        <>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Link 
@@ -703,8 +730,8 @@ export default function ProjectDetailPage() {
             className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Flag className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-neutral-100 rounded-lg">
+                <Flag className="h-5 w-5 text-neutral-700" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-900">{project._count.tasks}</p>
@@ -716,8 +743,8 @@ export default function ProjectDetailPage() {
             className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <FileText className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-neutral-100 rounded-lg">
+                <FileText className="h-5 w-5 text-neutral-700" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-900">{project._count.documents}</p>
@@ -729,8 +756,8 @@ export default function ProjectDetailPage() {
             className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <DollarSign className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-neutral-100 rounded-lg">
+                <DollarSign className="h-5 w-5 text-neutral-700" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-900">
@@ -744,8 +771,8 @@ export default function ProjectDetailPage() {
             className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <FileText className="h-5 w-5 text-indigo-600" />
+              <div className="p-2 bg-neutral-100 rounded-lg">
+                <FileText className="h-5 w-5 text-neutral-700" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-900">
@@ -759,11 +786,11 @@ export default function ProjectDetailPage() {
             className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-neutral-100 rounded-lg">
+                <FileText className="h-5 w-5 text-neutral-700" />
               </div>
             </div>
-            <p className="text-sm font-medium text-blue-600">Создать документы</p>
+            <p className="text-sm font-medium text-neutral-900">Создать документы</p>
             <p className="text-xs text-gray-600">Генерация документа →</p>
           </Link>
         </div>
@@ -890,7 +917,11 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </Link>
+        </>
+        )}
 
+        {activeTab === 'client' && (
+        <>
         {/* Client Details */}
         <div className="bg-white rounded-lg border">
           <div 
@@ -1009,6 +1040,11 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
+        </>
+        )}
+
+        {activeTab === 'overview' && (
+        <>
         {/* Details */}
         <div className="bg-white rounded-lg border p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Детали проекта</h2>
@@ -1144,6 +1180,11 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
+        </>
+        )}
+
+        {activeTab === 'team' && (
+        <>
         {/* Team */}
         <div className="bg-white rounded-lg border p-6">
           <div className="flex items-center justify-between mb-4">
@@ -1198,6 +1239,11 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
+        </>
+        )}
+
+        {activeTab === 'chat' && (
+        <>
         {/* Chat */}
         <div className="bg-white rounded-lg border">
           <div className="p-6 border-b">
@@ -1314,6 +1360,9 @@ export default function ProjectDetailPage() {
             </div>
           </form>
         </div>
+
+        </>
+        )}
 
         {/* Edit Modal */}
         <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
