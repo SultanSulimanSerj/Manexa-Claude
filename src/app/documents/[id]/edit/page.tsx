@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Layout from '@/components/layout'
 import { ErrorBanner } from '@/components/ui/error-banner'
+import { toast } from '@/components/ui/use-toast'
 import {
   DocumentEditorHeader,
   type DocumentApprovalStatus,
@@ -92,9 +93,36 @@ export default function DocumentEditPage() {
   const [includeStamp, setIncludeStamp] = useState(false)
   const [includeSignature, setIncludeSignature] = useState(false)
   const [branding, setBranding] = useState<{ hasStamp: boolean; hasSignature: boolean } | null>(null)
+  const [inRegistry, setInRegistry] = useState(false)
+  const [addingToRegistry, setAddingToRegistry] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contentRef = useRef<DocumentContent | null>(null)
+
+  // Есть ли уже запись в реестре оплат по этому Счёту
+  useEffect(() => {
+    if (document?.category !== 'INVOICE') return
+    fetch(`/api/documents/${documentId}/to-finance`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setInRegistry(!!d.inRegistry) })
+      .catch(() => {})
+  }, [document?.category, documentId])
+
+  const handleAddToRegistry = async () => {
+    setAddingToRegistry(true)
+    try {
+      const res = await fetch(`/api/documents/${documentId}/to-finance`, { method: 'POST' })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setInRegistry(true)
+        toast.success(d.already ? 'Счёт уже в реестре оплат' : 'Счёт внесён в реестр оплат')
+      } else {
+        toast.error(d.error || 'Не удалось внести в реестр')
+      }
+    } finally {
+      setAddingToRegistry(false)
+    }
+  }
 
   const companyId = session?.user?.companyId
   useEffect(() => {
@@ -608,6 +636,32 @@ export default function DocumentEditPage() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
           <ErrorBanner message={exportError} onDismiss={() => setExportError(null)} />
+
+          {isInvoice && document.project?.id && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-white px-4 py-3 shadow-xs">
+              <p className="text-sm text-gray-600">
+                {inRegistry
+                  ? 'Этот счёт уже в реестре оплат проекта.'
+                  : 'Внести этот счёт в реестр оплат проекта (доход «Ожидает оплаты»).'}
+              </p>
+              {inRegistry ? (
+                <a
+                  href={`/finance?projectId=${document.project.id}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 text-sm font-medium shadow-xs hover:bg-accent transition-colors"
+                >
+                  Открыть реестр
+                </a>
+              ) : (
+                <button
+                  onClick={handleAddToRegistry}
+                  disabled={addingToRegistry}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-xs hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {addingToRegistry ? 'Добавление…' : 'В реестр оплат'}
+                </button>
+              )}
+            </div>
+          )}
 
           {isLegacy ? (
             <LegacyDocumentNotice
