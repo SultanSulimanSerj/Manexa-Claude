@@ -238,13 +238,14 @@ function FinancePageContent() {
               .filter(r => r.type === 'EXPENSE')
               .reduce((sum, r) => sum + Number(r.amount), 0)
 
+      // «Получено» — только фактически оплаченные доходы (isPaid)
       const received =
         projectIdFromUrl
           ? projectRecords
-              .filter(r => r.type === 'INCOME')
+              .filter(r => r.type === 'INCOME' && r.isPaid)
               .reduce((sum, r) => sum + Number(r.amount), 0)
           : financeSummary?.income ?? projectRecords
-              .filter(r => r.type === 'INCOME')
+              .filter(r => r.type === 'INCOME' && r.isPaid)
               .reduce((sum, r) => sum + Number(r.amount), 0)
 
       setBudgetData({ budget, estimateTotal, spent, received })
