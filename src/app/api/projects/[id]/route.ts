@@ -208,63 +208,8 @@ export async function PUT(
         select: { status: true }
       })
 
-      // Если изменился статус с PLANNING на ACTIVE - конвертируем планируемый доход в реальный
-      if (status && oldProject && oldProject.status === 'PLANNING' && (status === 'ACTIVE' || status === 'COMPLETED')) {
-        await tx.finance.updateMany({
-          where: {
-            projectId: params.id,
-            type: 'PLANNED_INCOME'
-          },
-          data: {
-            type: 'INCOME',
-            category: 'Доход от проекта'
-          }
-        })
-      }
-
-      // Если изменился бюджет, обновляем финансовую запись
-      if (parsedBudget !== undefined) {
-        const projectStatus = status || project.status
-        
-        // Определяем тип финансовой записи в зависимости от статуса
-        let financeType: 'PLANNED_INCOME' | 'INCOME' = 'PLANNED_INCOME'
-        let financeCategory = 'Планируемый доход'
-        
-        if (projectStatus === 'ACTIVE' || projectStatus === 'COMPLETED') {
-          financeType = 'INCOME'
-          financeCategory = 'Доход от проекта'
-        }
-        
-        // Удаляем старые финансовые записи с бюджетом проекта
-        await tx.finance.deleteMany({
-          where: {
-            projectId: params.id,
-            OR: [
-              { type: 'INCOME', category: { contains: 'Бюджет проекта' } },
-              { type: 'PLANNED_INCOME', category: { contains: 'Планируемый' } },
-              { category: 'Планируемый доход' },
-              { category: 'Доход от проекта' }
-            ]
-          }
-        })
-
-        // Создаем новую финансовую запись, если бюджет больше 0
-        if (parsedBudget > 0) {
-          await tx.finance.create({
-            data: {
-              id: generateId(),
-              type: financeType as any,
-              category: financeCategory,
-              description: `Бюджет проекта "${project.name}"`,
-              amount: parsedBudget,
-              date: new Date(),
-              projectId: project.id,
-              creatorId: user.id,
-              updatedAt: new Date()
-            }
-          })
-        }
-      }
+      // Бюджет = стоимость договора (project.budget). Доходом не считается —
+      // доходы ведутся отдельными счетами в реестре, поэтому авто-запись бюджета убрана.
 
       return project
     })

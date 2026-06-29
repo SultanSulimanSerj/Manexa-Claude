@@ -263,33 +263,8 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Если указан бюджет, создаем финансовую запись в зависимости от статуса проекта
-      if (parsedBudget && parsedBudget > 0) {
-        const projectStatus = status || 'PLANNING'
-        
-        // Определяем тип финансовой записи в зависимости от статуса
-        let financeType: 'PLANNED_INCOME' | 'INCOME' = 'PLANNED_INCOME'
-        let financeCategory = 'Планируемый доход'
-        
-        if (projectStatus === 'ACTIVE' || projectStatus === 'COMPLETED') {
-          financeType = 'INCOME'
-          financeCategory = 'Доход от проекта'
-        }
-        
-        await tx.finance.create({
-          data: {
-            id: generateId(),
-            type: financeType as any,
-            category: financeCategory,
-            description: `Бюджет проекта "${name}"`,
-            amount: parsedBudget,
-            date: new Date(),
-            projectId: project.id,
-            creatorId: user.id,
-            updatedAt: new Date()
-          }
-        })
-      }
+      // Бюджет = стоимость договора, хранится в project.budget.
+      // Доходом он НЕ является — доходы создаются отдельными счетами в реестре.
 
       return project
     })
