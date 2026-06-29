@@ -597,12 +597,16 @@ function FinancePageContent() {
       })
 
       if (response.ok) {
-        // Обновляем локальное состояние
+        // Оптимистично обновляем список счетов
         setInvoicesData(prev => prev.map(item =>
           item.id === financeId
             ? { ...item, isPaid, status: (isPaid ? 'paid' : (item.dueDate && new Date(item.dueDate) < new Date() ? 'overdue' : 'pending')) as 'paid' | 'pending' | 'overdue' }
             : item
         ))
+        // Обновляем записи в памяти, чтобы KPI (Получено / долги) пересчитались сразу
+        setRecords(prev => prev.map(r => (r.id === financeId ? { ...r, isPaid } : r)))
+        // Пересчитываем бюджет/«Получено» с сервера
+        fetchBudgetData()
       }
     } catch (err) {
       console.error('Error marking invoice as paid:', err)
