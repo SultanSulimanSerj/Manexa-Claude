@@ -60,7 +60,8 @@ interface Message {
 }
 
 interface FinanceStats {
-  totalIncome: number
+  invoiced: number
+  received: number
   totalExpenses: number
   profit: number
   margin: number
@@ -245,10 +246,12 @@ export default function ProjectDetailPage() {
         const data = await response.json()
         const finances = data.finances || []
         
-        const totalIncome = finances.filter((f: any) => f.type === 'INCOME').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
+        const invoicedTotal = finances.filter((f: any) => f.type === 'INCOME').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
+        const received = finances.filter((f: any) => f.type === 'INCOME' && f.isPaid).reduce((sum: number, f: any) => sum + Number(f.amount), 0)
         const totalExpenses = finances.filter((f: any) => f.type === 'EXPENSE').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
-        const profit = totalIncome - totalExpenses
-        const margin = totalIncome > 0 ? ((profit / totalIncome) * 100) : 0
+        // Прибыль и маржа считаем по фактически полученным деньгам
+        const profit = received - totalExpenses
+        const margin = received > 0 ? ((profit / received) * 100) : 0
 
         // Структура расходов по категориям (для диаграммы)
         const catMap = new Map<string, number>()
@@ -263,7 +266,8 @@ export default function ProjectDetailPage() {
           .sort((a, b) => b.amount - a.amount)
 
         setFinanceStats({
-          totalIncome,
+          invoiced: invoicedTotal,
+          received,
           totalExpenses,
           profit,
           margin,
@@ -819,14 +823,24 @@ export default function ProjectDetailPage() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-gray-600">Доходы</span>
+                  <FileText className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Выставлено</span>
                 </div>
-                <p className="text-xl font-bold text-green-600">
-                  {financeStats.totalIncome.toLocaleString()} ₽
+                <p className="text-xl font-bold text-gray-900">
+                  {financeStats.invoiced.toLocaleString()} ₽
                 </p>
               </div>
-              
+
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-gray-600">Получено</span>
+                </div>
+                <p className="text-xl font-bold text-green-600">
+                  {financeStats.received.toLocaleString()} ₽
+                </p>
+              </div>
+
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <TrendingDown className="h-4 w-4 text-red-600" />

@@ -7,7 +7,7 @@ import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/use-toast'
-import { Plus, TrendingUp, TrendingDown, X, Trash2, ArrowLeft, DollarSign, Percent, Download, Settings, Building2, ChevronRight } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, X, Trash2, ArrowLeft, DollarSign, Percent, Download, Settings, Building2, ChevronRight, FileText, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { confirm } from '@/components/ui/confirm'
@@ -684,6 +684,9 @@ function FinancePageContent() {
   // Долги: не оплачено нам (дебиторка) и к оплате (кредиторка)
   const receivableUnpaid = projectFilteredRecords.filter(r => r.type === 'INCOME' && !r.isPaid).reduce((sum, r) => sum + Number(r.amount), 0)
   const payableUnpaid = projectFilteredRecords.filter(r => r.type === 'EXPENSE' && !r.isPaid).reduce((sum, r) => sum + Number(r.amount), 0)
+  // Выставлено всего (все счета-доходы, оплаченные и нет)
+  const invoicedTotal = projectFilteredRecords.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + Number(r.amount), 0)
+  const overInvoiced = budgetData.budget > 0 && invoicedTotal > budgetData.budget
 
   // Сводка по проектам для режима "все проекты"
   const projectsForSummary = projectSearch.trim()
@@ -863,14 +866,21 @@ function FinancePageContent() {
 
         {/* Режим "один проект": KPI по проекту */}
         {currentProject && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <KpiCard title="Бюджет" value={formatMoney(budgetData.budget)} icon={<DollarSign className="h-5 w-5" />} status="neutral" />
-            <KpiCard title="Потрачено" value={formatMoney(budgetData.spent)} change={budgetData.budget > 0 ? Number(((budgetData.spent / budgetData.budget) * 100).toFixed(1)) : 0} changeLabel="от бюджета" icon={<TrendingDown className="h-5 w-5" />} status={budgetData.spent > budgetData.budget ? 'negative' : 'neutral'} />
-            <KpiCard title="Остаток" value={formatMoney(budgetData.budget - budgetData.spent)} icon={<Percent className="h-5 w-5" />} status={budgetData.budget - budgetData.spent >= 0 ? 'positive' : 'negative'} />
-            <KpiCard title="Получено" value={formatMoney(budgetData.received)} icon={<TrendingUp className="h-5 w-5" />} status="positive" />
-            <KpiCard title="Не оплачено нам" value={formatMoney(receivableUnpaid)} icon={<TrendingUp className="h-5 w-5" />} status={receivableUnpaid > 0 ? 'negative' : 'neutral'} />
-            <KpiCard title="К оплате" value={formatMoney(payableUnpaid)} icon={<TrendingDown className="h-5 w-5" />} status={payableUnpaid > 0 ? 'negative' : 'neutral'} />
-          </div>
+          <>
+            {overInvoiced && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                Выставлено счетов ({formatMoney(invoicedTotal)}) больше стоимости договора ({formatMoney(budgetData.budget)}). Проверьте счета.
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <KpiCard title="Договор" value={formatMoney(budgetData.budget)} icon={<DollarSign className="h-5 w-5" />} status="neutral" />
+              <KpiCard title="Выставлено" value={formatMoney(invoicedTotal)} icon={<FileText className="h-5 w-5" />} status="neutral" />
+              <KpiCard title="Получено" value={formatMoney(budgetData.received)} change={budgetData.budget > 0 ? Number(((budgetData.received / budgetData.budget) * 100).toFixed(1)) : undefined} changeLabel="от договора" icon={<TrendingUp className="h-5 w-5" />} status="positive" />
+              <KpiCard title="Не оплачено нам" value={formatMoney(receivableUnpaid)} icon={<Clock className="h-5 w-5" />} status={receivableUnpaid > 0 ? 'negative' : 'neutral'} />
+              <KpiCard title="Потрачено" value={formatMoney(budgetData.spent)} icon={<TrendingDown className="h-5 w-5" />} status="neutral" />
+              <KpiCard title="К оплате" value={formatMoney(payableUnpaid)} icon={<Clock className="h-5 w-5" />} status={payableUnpaid > 0 ? 'negative' : 'neutral'} />
+            </div>
+          </>
         )}
 
         {/* Фильтры, освоение, структура, детализация — только при выбранном проекте */}
