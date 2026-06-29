@@ -9,14 +9,27 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Settings, Save, User, Bell, Shield, Database, Globe, LogOut, Clock, AlertTriangle, Wallet, FileText, Loader2 } from 'lucide-react'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
 import { CompanyBrandingSettings } from '@/components/settings/CompanyBrandingSettings'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 
 const userPrefsKey = (userId: string) => `manexa_user_prefs_${userId}`
 
+const SETTINGS_TABS = [
+  { key: 'profile', label: 'Профиль' },
+  { key: 'company', label: 'Компания' },
+  { key: 'notifications', label: 'Уведомления' },
+  { key: 'security', label: 'Безопасность' },
+  { key: 'system', label: 'Система' },
+] as const
+type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
+
 export default function SettingsPage() {
   const { data: session, update } = useSession()
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
+  const canManageCompany = ['OWNER', 'ADMIN'].includes((session?.user?.role as string) || '')
   const [settings, setSettings] = useState({
     name: '',
     companyName: '',
@@ -186,8 +199,8 @@ export default function SettingsPage() {
         }),
       })
 
-      // Отправляем реквизиты компании
-      const companyResponse = await fetch(`/api/company/${session?.user?.companyId}`, {
+      // Отправляем реквизиты компании (только при наличии прав)
+      const companyResponse = canManageCompany ? await fetch(`/api/company/${session?.user?.companyId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -208,12 +221,12 @@ export default function SettingsPage() {
           contactEmail: settings.companyRequisites.contactEmail,
           contactPhone: settings.companyRequisites.contactPhone
         }),
-      })
+      }) : null
 
-      if (userResponse.ok && companyResponse.ok) {
+      if (userResponse.ok && (!companyResponse || companyResponse.ok)) {
         const updatedUser = await userResponse.json()
-        const updatedCompany = await companyResponse.json()
-        
+        const updatedCompany = companyResponse ? await companyResponse.json() : null
+
         // Убираем логи для чистоты
 
         // Обновляем состояние из API ответа
@@ -222,23 +235,23 @@ export default function SettingsPage() {
           name: updatedUser.name || prev.name,
           phone: updatedUser.phone || prev.phone,
           address: updatedUser.address || prev.address,
-          companyName: updatedCompany.company?.name || prev.companyName, // Обновляем название компании
+          companyName: updatedCompany?.company?.name || prev.companyName, // Обновляем название компании
           companyRequisites: {
             ...prev.companyRequisites,
-            legalName: updatedCompany.company?.legalName || prev.companyRequisites.legalName, // Исправлено: используем legalName, а не name
-            inn: updatedCompany.company?.inn || prev.companyRequisites.inn,
-            kpp: updatedCompany.company?.kpp || prev.companyRequisites.kpp,
-            ogrn: updatedCompany.company?.ogrn || prev.companyRequisites.ogrn,
-            legalAddress: updatedCompany.company?.legalAddress || prev.companyRequisites.legalAddress,
-            actualAddress: updatedCompany.company?.actualAddress || prev.companyRequisites.actualAddress,
-            bankAccount: updatedCompany.company?.bankAccount || prev.companyRequisites.bankAccount,
-            bankName: updatedCompany.company?.bankName || prev.companyRequisites.bankName,
-            bankBik: updatedCompany.company?.bankBik || prev.companyRequisites.bankBik,
-            correspondentAccount: updatedCompany.company?.correspondentAccount || prev.companyRequisites.correspondentAccount,
-            directorName: updatedCompany.company?.directorName || prev.companyRequisites.directorName,
-            directorPosition: updatedCompany.company?.directorPosition || prev.companyRequisites.directorPosition, // Добавляем directorPosition
-            contactEmail: updatedCompany.company?.contactEmail || prev.companyRequisites.contactEmail,
-            contactPhone: updatedCompany.company?.contactPhone || prev.companyRequisites.contactPhone
+            legalName: updatedCompany?.company?.legalName || prev.companyRequisites.legalName, // Исправлено: используем legalName, а не name
+            inn: updatedCompany?.company?.inn || prev.companyRequisites.inn,
+            kpp: updatedCompany?.company?.kpp || prev.companyRequisites.kpp,
+            ogrn: updatedCompany?.company?.ogrn || prev.companyRequisites.ogrn,
+            legalAddress: updatedCompany?.company?.legalAddress || prev.companyRequisites.legalAddress,
+            actualAddress: updatedCompany?.company?.actualAddress || prev.companyRequisites.actualAddress,
+            bankAccount: updatedCompany?.company?.bankAccount || prev.companyRequisites.bankAccount,
+            bankName: updatedCompany?.company?.bankName || prev.companyRequisites.bankName,
+            bankBik: updatedCompany?.company?.bankBik || prev.companyRequisites.bankBik,
+            correspondentAccount: updatedCompany?.company?.correspondentAccount || prev.companyRequisites.correspondentAccount,
+            directorName: updatedCompany?.company?.directorName || prev.companyRequisites.directorName,
+            directorPosition: updatedCompany?.company?.directorPosition || prev.companyRequisites.directorPosition, // Добавляем directorPosition
+            contactEmail: updatedCompany?.company?.contactEmail || prev.companyRequisites.contactEmail,
+            contactPhone: updatedCompany?.company?.contactPhone || prev.companyRequisites.contactPhone
           }
         }))
 
@@ -259,7 +272,8 @@ export default function SettingsPage() {
         setRefreshKey(prev => prev + 1) // Принудительно обновляем компонент
         setTimeout(() => setSaved(false), 3000)
       } else {
-        const errorData = await (userResponse.ok ? companyResponse : userResponse).json()
+        const failed = userResponse.ok && companyResponse ? companyResponse : userResponse
+        const errorData = await failed.json().catch(() => ({}))
         toast.error(`Ошибка при сохранении настроек: ${errorData.error || 'Неизвестная ошибка'}`)
       }
     } catch (error) {
@@ -276,45 +290,57 @@ export default function SettingsPage() {
 
   return (
     <Layout>
-      <div key={refreshKey} className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Настройки</h1>
-                <p className="text-gray-600">Управление настройками системы</p>
-              </div>
-              <div className="flex space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={handleLogout}
-                  className="text-red-600 border-red-300 hover:bg-red-50"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Выйти
-                </Button>
-                <Button
-                  className="gradient-primary hover:opacity-90"
-                  onClick={handleSave}
-                  disabled={loading}
-                >
+      <div key={refreshKey} className="space-y-6">
+        <PageHeader
+          title="Настройки"
+          description="Профиль, компания и уведомления"
+          actions={
+            <>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="text-red-600 border-red-300 hover:bg-red-50"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Выйти
+              </Button>
+              {(activeTab === 'profile' || activeTab === 'company') && (
+                <Button onClick={handleSave} disabled={loading}>
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Сохранение...' : 'Сохранить'}
                 </Button>
-              </div>
-            </div>
-          </div>
+              )}
+            </>
+          }
+        />
+
+        <div className="border-b border-gray-200">
+          <nav className="flex gap-1 -mb-px overflow-x-auto">
+            {SETTINGS_TABS.filter((t) => t.key !== 'company' || canManageCompany).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === t.key
+                    ? 'border-neutral-900 text-neutral-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {saved && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg animate-fade-in">
-              <p className="text-green-800">Настройки успешно сохранены!</p>
-            </div>
-          )}
+        {saved && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg animate-fade-in">
+            <p className="text-green-800">Настройки успешно сохранены!</p>
+          </div>
+        )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6 max-w-4xl">
+            {activeTab === 'profile' && (
+            <>
             {/* Основная информация */}
             <Card className="animate-fade-in">
               <CardHeader>
@@ -372,63 +398,25 @@ export default function SettingsPage() {
                     className="mt-1"
                   />
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Уведомления */}
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Bell className="h-5 w-5 mr-2 text-primary" />
-                  Уведомления
-                </CardTitle>
-                <CardDescription>
-                  Email, SMS и Push — в разработке (пока только in-app уведомления в системе).
-                  Для уведомлений о сроках и бюджете используйте блок ниже.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between opacity-60">
-                  <div>
-                    <Label>Email уведомления</Label>
-                    <p className="text-sm text-gray-500">Скоро — пока недоступно</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    disabled
-                    className="h-4 w-4 text-primary border-gray-300 rounded cursor-not-allowed"
-                  />
-                </div>
-                <div className="flex items-center justify-between opacity-60">
-                  <div>
-                    <Label>SMS уведомления</Label>
-                    <p className="text-sm text-gray-500">Скоро — пока недоступно</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    disabled
-                    className="h-4 w-4 text-primary border-gray-300 rounded cursor-not-allowed"
-                  />
-                </div>
-                <div className="flex items-center justify-between opacity-60">
-                  <div>
-                    <Label>Push уведомления</Label>
-                    <p className="text-sm text-gray-500">Скоро — пока недоступно</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    disabled
-                    className="h-4 w-4 text-primary border-gray-300 rounded cursor-not-allowed"
-                  />
+                <div className="pt-2 border-t">
+                  <Label>Пароль</Label>
+                  <p className="text-sm text-gray-500 mb-2">Смена пароля для входа в систему</p>
+                  <Link href="/auth/change-password">
+                    <Button variant="outline" size="sm">
+                      <Shield className="h-4 w-4 mr-2" />
+                      Сменить пароль
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
+            </>
+            )}
 
+            {activeTab === 'notifications' && (
+            <>
             {/* Уведомления о сроках */}
-            <Card className="animate-fade-in lg:col-span-2">
+            <Card className="animate-fade-in">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Clock className="h-5 w-5 mr-2 text-primary" />
@@ -615,7 +603,11 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
+            </>
+            )}
 
+            {activeTab === 'security' && (
+            <>
             {/* Безопасность */}
             <Card className="animate-fade-in">
               <CardHeader>
@@ -672,6 +664,11 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            </>
+            )}
+
+            {activeTab === 'company' && canManageCompany && (
+            <>
             {/* Реквизиты компании */}
             <Card className="animate-fade-in">
               <CardHeader>
@@ -898,7 +895,11 @@ export default function SettingsPage() {
             </Card>
 
             <CompanyBrandingSettings companyId={session?.user?.companyId} />
+            </>
+            )}
 
+            {activeTab === 'system' && (
+            <>
             {/* Система */}
             <Card className="animate-fade-in">
               <CardHeader>
@@ -935,7 +936,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+            </>
+            )}
         </div>
       </div>
     </Layout>
