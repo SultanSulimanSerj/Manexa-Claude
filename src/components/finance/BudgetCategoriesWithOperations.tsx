@@ -227,7 +227,7 @@ export function BudgetCategoriesWithOperations({
                                   item.isPaid ? 'border-gray-200 text-gray-500 hover:bg-gray-50' : 'border-green-200 text-green-700 hover:bg-green-50'
                                 }`}
                               >
-                                {item.isPaid ? 'Снять оплату' : 'Оплатить'}
+                                {item.isPaid ? 'Снять оплату' : 'Отметить оплату'}
                               </button>
                             </td>
                           )}
@@ -368,7 +368,7 @@ export function BudgetCategoriesWithOperations({
                                   e.isPaid ? 'border-green-200 text-green-700 bg-green-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
                                 }`}
                               >
-                                {e.isPaid ? 'Оплачено' : 'Оплатить'}
+                                {e.isPaid ? 'Оплачено' : 'Отметить оплату'}
                               </button>
                             ) : e.isPaid ? (
                               <Badge className="bg-green-100 text-green-800">Оплачено</Badge>
