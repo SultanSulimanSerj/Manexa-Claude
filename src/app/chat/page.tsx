@@ -641,12 +641,13 @@ export default function ChatPage() {
               size="sm"
               disabled={uploading}
               title="Прикрепить файл"
+              aria-label="Прикрепить файл"
               onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" /> : <Paperclip className="h-4 w-4" />}
             </Button>
             <div className="relative">
-              <Button variant="ghost" size="sm" title="Эмодзи" onClick={() => setShowEmoji((v) => !v)}>
+              <Button variant="ghost" size="sm" title="Эмодзи" aria-label="Эмодзи" onClick={() => setShowEmoji((v) => !v)}>
                 <Smile className="h-4 w-4" />
               </Button>
               {showEmoji && (

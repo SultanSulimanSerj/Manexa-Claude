@@ -6,7 +6,7 @@ import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
-import { Bell, Check, X, Trash2, Eye, EyeOff, Filter } from 'lucide-react'
+import { Bell, Check, X, Trash2, Eye, EyeOff, Filter, Info, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -160,13 +160,14 @@ export default function NotificationsPage() {
   }
 
   const getTypeIcon = (type: string) => {
-    const icons = {
-      'INFO': 'ℹ️',
-      'WARNING': '⚠️',
-      'ERROR': '❌',
-      'SUCCESS': '✅'
+    const map = {
+      INFO: { Icon: Info, className: 'text-gray-500' },
+      WARNING: { Icon: AlertTriangle, className: 'text-amber-500' },
+      ERROR: { Icon: XCircle, className: 'text-red-500' },
+      SUCCESS: { Icon: CheckCircle2, className: 'text-green-500' },
     }
-    return icons[type as keyof typeof icons] || icons.INFO
+    const { Icon, className } = map[type as keyof typeof map] || map.INFO
+    return <Icon className={`h-5 w-5 ${className}`} aria-hidden="true" />
   }
 
   if (loading) {
@@ -285,7 +286,7 @@ export default function NotificationsPage() {
                         onChange={() => toggleSelection(notification.id)}
                         className="mt-1"
                       />
-                      <span className="text-lg">
+                      <span className="mt-0.5 shrink-0">
                         {getTypeIcon(notification.type)}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -318,7 +319,9 @@ export default function NotificationsPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => markAsRead(notification.id)}
-                          className="h-8 w-8 p-0"
+                          className="h-9 w-9 p-0"
+                          aria-label="Отметить прочитанным"
+                          title="Отметить прочитанным"
                         >
                           <Check className="h-4 w-4" />
                         </Button>
@@ -327,7 +330,9 @@ export default function NotificationsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => deleteNotification(notification.id)}
-                        className="h-8 w-8 p-0 text-gray-400 hover:text-red-500"
+                        className="h-9 w-9 p-0 text-gray-400 hover:text-red-500"
+                        aria-label="Удалить уведомление"
+                        title="Удалить уведомление"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
