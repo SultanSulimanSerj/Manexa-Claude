@@ -123,6 +123,8 @@ export default function Navigation() {
           size="sm"
           onClick={() => setIsOpen(!isOpen)}
           className="bg-white/80 backdrop-blur-sm"
+          aria-label={isOpen ? 'Закрыть меню' : 'Открыть меню'}
+          aria-expanded={isOpen}
         >
           {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>

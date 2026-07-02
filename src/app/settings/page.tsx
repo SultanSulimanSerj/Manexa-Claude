@@ -379,7 +379,7 @@ export default function SettingsPage() {
 
         <div className="border-b border-gray-200">
           <nav className="flex gap-1 -mb-px overflow-x-auto">
-            {SETTINGS_TABS.filter((t) => t.key !== 'company' || canManageCompany).map((t) => (
+            {SETTINGS_TABS.filter((t) => (t.key !== 'company' && t.key !== 'system') || canManageCompany).map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
@@ -1002,7 +1002,7 @@ export default function SettingsPage() {
             </>
             )}
 
-            {activeTab === 'system' && (
+            {activeTab === 'system' && canManageCompany && (
             <>
             {/* Система */}
             <Card className="animate-fade-in">
