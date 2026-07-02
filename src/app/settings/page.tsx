@@ -69,6 +69,69 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const router = useRouter()
+
+  // Двухфакторная аутентификация (TOTP)
+  const [twoFA, setTwoFA] = useState<{
+    enabled: boolean
+    init: { qrDataUrl: string; secret: string } | null
+    disabling: boolean
+    code: string
+    busy: boolean
+  }>({ enabled: false, init: null, disabling: false, code: '', busy: false })
+
+  useEffect(() => {
+    fetch('/api/2fa')
+      .then((r) => (r.ok ? r.json() : { enabled: false }))
+      .then((d) => setTwoFA((s) => ({ ...s, enabled: !!d.enabled })))
+      .catch(() => {})
+  }, [])
+
+  const twoFAAction = async (action: string, extra?: Record<string, unknown>) => {
+    const res = await fetch('/api/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...extra }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Ошибка')
+    return data
+  }
+
+  const startEnable2FA = async () => {
+    setTwoFA((s) => ({ ...s, busy: true }))
+    try {
+      const data = await twoFAAction('init')
+      setTwoFA((s) => ({ ...s, init: { qrDataUrl: data.qrDataUrl, secret: data.secret }, code: '' }))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setTwoFA((s) => ({ ...s, busy: false }))
+    }
+  }
+
+  const confirmEnable2FA = async () => {
+    setTwoFA((s) => ({ ...s, busy: true }))
+    try {
+      await twoFAAction('verify', { code: twoFA.code })
+      toast.success('2FA включена')
+      setTwoFA({ enabled: true, init: null, disabling: false, code: '', busy: false })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка')
+      setTwoFA((s) => ({ ...s, busy: false }))
+    }
+  }
+
+  const confirmDisable2FA = async () => {
+    setTwoFA((s) => ({ ...s, busy: true }))
+    try {
+      await twoFAAction('disable', { code: twoFA.code })
+      toast.success('2FA отключена')
+      setTwoFA({ enabled: false, init: null, disabling: false, code: '', busy: false })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка')
+      setTwoFA((s) => ({ ...s, busy: false }))
+    }
+  }
   
   // Настройки уведомлений о сроках
   const [deadlineSettings, setDeadlineSettings] = useState({
@@ -584,7 +647,6 @@ export default function SettingsPage() {
                       <Button
                         onClick={handleSaveDeadlineSettings}
                         disabled={savingDeadlineSettings}
-                        className="gradient-primary hover:opacity-90"
                       >
                         {savingDeadlineSettings ? (
                           <>
@@ -613,54 +675,96 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Shield className="h-5 w-5 mr-2 text-primary" />
-                  Безопасность
+                  Двухфакторная аутентификация
                 </CardTitle>
                 <CardDescription>
-                  Настройки 2FA и таймаута сессии — в разработке, пока не применяются на сервере.
+                  Дополнительная защита входа кодом из приложения-аутентификатора (Google Authenticator, 1Password и т.п.).
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 opacity-60 pointer-events-none">
+              <CardContent className="space-y-4">
+                {/* Статус */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Двухфакторная аутентификация</Label>
-                    <p className="text-sm text-gray-500">Дополнительная защита аккаунта</p>
+                    <Label>Статус</Label>
+                    <p className="text-sm text-gray-500">
+                      {twoFA.enabled ? 'Включена — при входе запрашивается код' : 'Отключена'}
+                    </p>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.security.twoFactor}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      security: {...settings.security, twoFactor: e.target.checked}
-                    })}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${
+                      twoFA.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {twoFA.enabled ? 'Включена' : 'Выключена'}
+                  </span>
                 </div>
-                <div>
-                  <Label htmlFor="sessionTimeout">Таймаут сессии (минуты)</Label>
-                  <Input
-                    id="sessionTimeout"
-                    type="number"
-                    value={settings.security.sessionTimeout}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      security: {...settings.security, sessionTimeout: parseInt(e.target.value)}
-                    })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="passwordExpiry">Срок действия пароля (дни)</Label>
-                  <Input
-                    id="passwordExpiry"
-                    type="number"
-                    value={settings.security.passwordExpiry}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      security: {...settings.security, passwordExpiry: parseInt(e.target.value)}
-                    })}
-                    className="mt-1"
-                  />
-                </div>
+
+                {/* Включение: шаг 1 — кнопка */}
+                {!twoFA.enabled && !twoFA.init && (
+                  <Button onClick={startEnable2FA} disabled={twoFA.busy}>
+                    {twoFA.busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Shield className="h-4 w-4 mr-2" />}
+                    Включить 2FA
+                  </Button>
+                )}
+
+                {/* Включение: шаг 2 — QR + код */}
+                {!twoFA.enabled && twoFA.init && (
+                  <div className="space-y-3 rounded-lg border p-4">
+                    <p className="text-sm text-gray-700">
+                      1. Отсканируйте QR в приложении-аутентификаторе:
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={twoFA.init.qrDataUrl} alt="QR 2FA" className="h-40 w-40" />
+                    <p className="text-xs text-gray-500">
+                      Или введите ключ вручную: <span className="font-mono">{twoFA.init.secret}</span>
+                    </p>
+                    <p className="text-sm text-gray-700">2. Введите 6-значный код из приложения:</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={twoFA.code}
+                        onChange={(e) => setTwoFA((s) => ({ ...s, code: e.target.value }))}
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="123456"
+                        className="w-32"
+                      />
+                      <Button onClick={confirmEnable2FA} disabled={twoFA.busy || twoFA.code.length < 6}>
+                        Подтвердить
+                      </Button>
+                      <Button variant="outline" onClick={() => setTwoFA((s) => ({ ...s, init: null, code: '' }))} disabled={twoFA.busy}>
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Отключение */}
+                {twoFA.enabled && !twoFA.disabling && (
+                  <Button variant="outline" onClick={() => setTwoFA((s) => ({ ...s, disabling: true, code: '' }))}>
+                    Отключить 2FA
+                  </Button>
+                )}
+                {twoFA.enabled && twoFA.disabling && (
+                  <div className="space-y-3 rounded-lg border p-4">
+                    <p className="text-sm text-gray-700">Введите текущий код из приложения для отключения:</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={twoFA.code}
+                        onChange={(e) => setTwoFA((s) => ({ ...s, code: e.target.value }))}
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="123456"
+                        className="w-32"
+                      />
+                      <Button variant="destructive" onClick={confirmDisable2FA} disabled={twoFA.busy || twoFA.code.length < 6}>
+                        Отключить
+                      </Button>
+                      <Button variant="outline" onClick={() => setTwoFA((s) => ({ ...s, disabling: false, code: '' }))} disabled={twoFA.busy}>
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

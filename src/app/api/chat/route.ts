@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true
             }
+          },
+          attachments: {
+            select: { id: true, fileName: true, fileSize: true, mimeType: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -84,7 +87,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { content, projectId, mentions } = body
+    const { content, projectId, mentions, attachments } = body
+
+    // Валидация вложений (метаданные из /api/chat/attachments)
+    const validAttachments = Array.isArray(attachments)
+      ? attachments
+          .filter(
+            (a: any) =>
+              a && typeof a.filePath === 'string' && typeof a.fileName === 'string' && typeof a.mimeType === 'string'
+          )
+          .slice(0, 10)
+          .map((a: any) => ({
+            fileName: String(a.fileName).slice(0, 200),
+            filePath: String(a.filePath),
+            fileSize: Number(a.fileSize) || 0,
+            mimeType: String(a.mimeType),
+          }))
+      : []
+
+    // Пустое сообщение без вложений не принимаем
+    if ((!content || !content.trim()) && validAttachments.length === 0) {
+      return NextResponse.json({ error: 'Пустое сообщение' }, { status: 400 })
+    }
 
     if (projectId) {
       const hasAccess = await verifyProjectCompanyAccess(user, projectId)
@@ -96,11 +120,12 @@ export async function POST(request: NextRequest) {
     const message = await prisma.chatMessage.create({
       data: {
         id: generateId(),
-        content,
+        content: content || '',
         projectId: projectId || null,
         userId: user.id,
         companyId: user.companyId || null,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        ...(validAttachments.length > 0 && { attachments: { create: validAttachments } }),
       },
       include: {
         user: {
@@ -115,6 +140,9 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true
           }
+        },
+        attachments: {
+          select: { id: true, fileName: true, fileSize: true, mimeType: true }
         }
       }
     })

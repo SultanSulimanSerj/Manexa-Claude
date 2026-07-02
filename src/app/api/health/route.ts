@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
     const avgResponseTime = performanceMonitor.getAverageResponseTime()
     const errorRate = performanceMonitor.getErrorRate()
     
+    // Прогоняем проверки (троттлинг внутри — не чаще раза в минуту)
+    await alertManager.runScheduledChecks().catch(() => {})
+
     // Получаем активные алерты
     const activeAlerts = alertManager.getAlerts(undefined, false)
     const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical')

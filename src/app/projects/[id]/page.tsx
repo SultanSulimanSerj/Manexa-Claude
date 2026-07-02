@@ -9,6 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 const EXPENSE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
@@ -608,8 +609,8 @@ export default function ProjectDetailPage() {
           key={`mention-${match.index}`}
           className={`${
             isMentioningMe 
-              ? 'bg-blue-200 text-blue-900 font-semibold' 
-              : 'bg-blue-100 text-blue-700 font-medium'
+              ? 'bg-gray-900 text-white font-semibold' 
+              : 'bg-gray-100 text-gray-700 font-medium'
           } px-1 rounded`}
         >
           @{match[1]}
@@ -676,11 +677,9 @@ export default function ProjectDetailPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Проект" description="Загрузка..." back="/projects" />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -853,7 +852,7 @@ export default function ProjectDetailPage() {
               
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-blue-600" />
+                  <DollarSign className="h-4 w-4 text-gray-500" />
                   <span className="text-sm text-gray-600">Прибыль</span>
                 </div>
                 <p className={`text-xl font-bold ${financeStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -965,8 +964,8 @@ export default function ProjectDetailPage() {
                     <p className="text-xs text-gray-500">готово</p>
                   </div>
                   {workStagesStats.inProgress > 0 && (
-                    <div className="px-3 py-1 bg-blue-50 rounded-lg">
-                      <p className="text-xl font-bold text-blue-600">{workStagesStats.inProgress}</p>
+                    <div className="px-3 py-1 bg-gray-50 rounded-lg">
+                      <p className="text-xl font-bold text-gray-900">{workStagesStats.inProgress}</p>
                       <p className="text-xs text-gray-500">в работе</p>
                     </div>
                   )}
@@ -1022,7 +1021,7 @@ export default function ProjectDetailPage() {
                     e.stopPropagation()
                     handleEditClient()
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 hover:bg-blue-50 rounded"
+                  className="text-sm text-gray-700 hover:text-gray-900 flex items-center gap-1 px-2 py-1 hover:bg-gray-50 rounded"
                 >
                   <Edit className="h-4 w-4" />
                   Редактировать
@@ -1109,7 +1108,7 @@ export default function ProjectDetailPage() {
                       e.stopPropagation()
                       handleEditClient()
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
                   >
                     Добавить данные клиента
                   </button>
@@ -1158,7 +1157,7 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full rounded-full transition-all ${isOverdue ? 'bg-red-500' : 'bg-blue-500'}`}
+                    className={`h-full rounded-full transition-all ${isOverdue ? 'bg-red-500' : 'bg-gray-900'}`}
                     style={{ width: `${timeProgress}%` }}
                   />
                 </div>
@@ -1274,7 +1273,7 @@ export default function ProjectDetailPage() {
                 fetchAvailableUsers()
                 setShowMembersModal(true)
               }}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" />
               Добавить участника
@@ -1287,16 +1286,16 @@ export default function ProjectDetailPage() {
                 return (
                   <div key={member.user.id} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
                     <div 
-                      className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer"
+                      className="w-6 h-6 bg-primary rounded-full flex items-center justify-center cursor-pointer"
                       onClick={() => handleShowContact(member)}
                       title="Показать контакты"
                     >
-                      <span className="text-xs text-white font-medium">
+                      <span className="text-xs text-primary-foreground font-medium">
                         {member.user.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <span 
-                      className="text-sm text-gray-700 cursor-pointer hover:text-blue-600"
+                      className="text-sm text-gray-700 cursor-pointer hover:text-gray-900"
                       onClick={() => handleShowContact(member)}
                       title="Показать контакты"
                     >
@@ -1339,8 +1338,8 @@ export default function ProjectDetailPage() {
               <div className="space-y-4">
                 {messages.map((message) => (
                   <div key={message.id} className="flex gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs text-white font-medium">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs text-primary-foreground font-medium">
                         {message.user.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
@@ -1392,10 +1391,10 @@ export default function ProjectDetailPage() {
                           key={member.user.id}
                           type="button"
                           onClick={() => insertMention(member.user.name)}
-                          className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 transition-colors"
                         >
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs text-white font-medium">
+                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs text-primary-foreground font-medium">
                               {member.user.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -1426,12 +1425,12 @@ export default function ProjectDetailPage() {
                   }
                 }}
                 placeholder="Написать сообщение... (используйте @ для упоминания)"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
               <button
                 type="submit"
                 disabled={!newMessage.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Send className="h-4 w-4" />
                 Отправить
@@ -1457,7 +1456,7 @@ export default function ProjectDetailPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     required
                   />
                 </div>
@@ -1467,7 +1466,7 @@ export default function ProjectDetailPage() {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     rows={3}
                   />
                 </div>
@@ -1478,7 +1477,7 @@ export default function ProjectDetailPage() {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({...formData, status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     >
                       <option value="PLANNING">Планирование</option>
                       <option value="ACTIVE">Активный</option>
@@ -1493,7 +1492,7 @@ export default function ProjectDetailPage() {
                     <select
                       value={formData.priority}
                       onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     >
                       <option value="LOW">Низкий</option>
                       <option value="MEDIUM">Средний</option>
@@ -1510,7 +1509,7 @@ export default function ProjectDetailPage() {
                       type="number"
                       value={formData.budget}
                       onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       💡 Изменение бюджета обновит финансовую запись планируемого дохода
@@ -1523,7 +1522,7 @@ export default function ProjectDetailPage() {
                       type="date"
                       value={formData.startDate}
                       onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     />
                   </div>
                 </div>
@@ -1534,7 +1533,7 @@ export default function ProjectDetailPage() {
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                   />
                 </div>
 
@@ -1549,7 +1548,7 @@ export default function ProjectDetailPage() {
                         type="text"
                         value={formData.objectAddress}
                         onChange={(e) => setFormData({...formData, objectAddress: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                         placeholder="г. Москва, ул. Примерная, д. 1"
                       />
                     </div>
@@ -1561,7 +1560,7 @@ export default function ProjectDetailPage() {
                           type="text"
                           value={formData.contractNumber}
                           onChange={(e) => setFormData({...formData, contractNumber: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                           placeholder="ДОГ-2026/001"
                         />
                       </div>
@@ -1571,7 +1570,7 @@ export default function ProjectDetailPage() {
                           type="date"
                           value={formData.contractDate}
                           onChange={(e) => setFormData({...formData, contractDate: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                         />
                       </div>
                     </div>
@@ -1581,7 +1580,7 @@ export default function ProjectDetailPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90"
                   >
                     Сохранить
                   </button>
@@ -1612,7 +1611,7 @@ export default function ProjectDetailPage() {
                   <select
                     value={selectedUserId}
                     onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
                   >
                     <option value="">Выберите пользователя...</option>
                     {availableUsers
@@ -1629,7 +1628,7 @@ export default function ProjectDetailPage() {
                   <button
                     onClick={handleAddMember}
                     disabled={!selectedUserId || membersLoading}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {membersLoading ? 'Добавление...' : 'Добавить'}
                   </button>
@@ -1657,8 +1656,8 @@ export default function ProjectDetailPage() {
               {selectedMember && (
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-2xl text-white font-medium">
+                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+                    <span className="text-2xl text-primary-foreground font-medium">
                       {selectedMember.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
@@ -1734,7 +1733,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientName}
                       onChange={(e) => setClientFormData({...clientFormData, clientName: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="ООО 'Название компании'"
                     />
                   </div>
@@ -1745,7 +1744,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientLegalName}
                       onChange={(e) => setClientFormData({...clientFormData, clientLegalName: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="Общество с ограниченной ответственностью..."
                     />
                   </div>
@@ -1758,7 +1757,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientInn}
                       onChange={(e) => setClientFormData({...clientFormData, clientInn: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="1234567890"
                     />
                   </div>
@@ -1769,7 +1768,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientKpp}
                       onChange={(e) => setClientFormData({...clientFormData, clientKpp: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="123456789"
                     />
                   </div>
@@ -1780,7 +1779,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientOgrn}
                       onChange={(e) => setClientFormData({...clientFormData, clientOgrn: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="1234567890123"
                     />
                   </div>
@@ -1792,7 +1791,7 @@ export default function ProjectDetailPage() {
                     <textarea
                       value={clientFormData.clientLegalAddress}
                       onChange={(e) => setClientFormData({...clientFormData, clientLegalAddress: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       rows={2}
                       placeholder="г. Москва, ул. Примерная, д. 1, офис 101"
                     />
@@ -1803,7 +1802,7 @@ export default function ProjectDetailPage() {
                     <textarea
                       value={clientFormData.clientActualAddress}
                       onChange={(e) => setClientFormData({...clientFormData, clientActualAddress: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       rows={2}
                       placeholder="г. Москва, ул. Фактическая, д. 2, офис 201"
                     />
@@ -1817,7 +1816,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientDirectorName}
                       onChange={(e) => setClientFormData({...clientFormData, clientDirectorName: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="Иванов Иван Иванович"
                     />
                   </div>
@@ -1828,7 +1827,7 @@ export default function ProjectDetailPage() {
                       type="text"
                       value={clientFormData.clientContactPhone}
                       onChange={(e) => setClientFormData({...clientFormData, clientContactPhone: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                       placeholder="+7 (495) 123-45-67"
                     />
                   </div>
@@ -1840,7 +1839,7 @@ export default function ProjectDetailPage() {
                     type="email"
                     value={clientFormData.clientContactEmail}
                     onChange={(e) => setClientFormData({...clientFormData, clientContactEmail: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     placeholder="info@company.ru"
                   />
                 </div>
@@ -1855,7 +1854,7 @@ export default function ProjectDetailPage() {
                         type="text"
                         value={clientFormData.clientBankAccount}
                         onChange={(e) => setClientFormData({...clientFormData, clientBankAccount: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                         placeholder="40702810000000000001"
                       />
                     </div>
@@ -1866,7 +1865,7 @@ export default function ProjectDetailPage() {
                         type="text"
                         value={clientFormData.clientBankName}
                         onChange={(e) => setClientFormData({...clientFormData, clientBankName: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                         placeholder="ПАО СБЕРБАНК"
                       />
                     </div>
@@ -1879,7 +1878,7 @@ export default function ProjectDetailPage() {
                         type="text"
                         value={clientFormData.clientBankBik}
                         onChange={(e) => setClientFormData({...clientFormData, clientBankBik: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                         placeholder="044525225"
                       />
                     </div>
@@ -1890,7 +1889,7 @@ export default function ProjectDetailPage() {
                         type="text"
                         value={clientFormData.clientCorrespondentAccount}
                         onChange={(e) => setClientFormData({...clientFormData, clientCorrespondentAccount: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                         placeholder="30101810000000000225"
                       />
                     </div>
@@ -1905,7 +1904,7 @@ export default function ProjectDetailPage() {
               <div className="flex gap-3 p-6 border-t sticky bottom-0 bg-white">
                 <button
                   onClick={handleSaveClient}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90"
                 >
                   Сохранить
                 </button>

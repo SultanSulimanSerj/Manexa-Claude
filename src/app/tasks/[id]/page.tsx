@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Layout from '@/components/layout'
-import { 
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import {
   ArrowLeft, 
   Edit, 
   Calendar, 
@@ -389,8 +391,8 @@ export default function TaskDetailPage() {
           key={`mention-${match.index}`}
           className={`${
             isMentioningMe
-              ? 'bg-blue-200 text-blue-900 font-semibold'
-              : 'bg-blue-100 text-blue-700 font-medium'
+              ? 'bg-gray-900 text-white font-semibold'
+              : 'bg-gray-100 text-gray-700 font-medium'
           } px-1 rounded`}
         >
           @{name}
@@ -545,11 +547,9 @@ export default function TaskDetailPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Задача" description="Загрузка..." back="/tasks" />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -566,7 +566,7 @@ export default function TaskDetailPage() {
             <div className="flex gap-3 justify-center mt-4">
               <Link
                 href="/tasks"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 text-sm"
               >
                 Вернуться к списку задач
               </Link>
@@ -593,25 +593,30 @@ export default function TaskDetailPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
+        <PageHeader
+          breadcrumbs={
+            task.project
+              ? [{ label: 'Проекты', href: '/projects' }, { label: task.project.name, href: `/projects/${task.project.id}` }, { label: 'Задача' }]
+              : [{ label: 'Задачи', href: '/tasks' }, { label: 'Задача' }]
+          }
+          back={task.project ? `/projects/${task.project.id}` : '/tasks'}
+          title={task.title}
+          description={task.description || undefined}
+          actions={
+            <button
+              onClick={handleEditTask}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
+            >
+              <Edit className="h-4 w-4" />
+              Редактировать
+            </button>
+          }
+        />
+        {/* Быстрые действия: Статус, Приоритет, Дедлайн */}
         <div>
-          <Link 
-            href={task.project ? `/projects/${task.project.id}` : '/tasks'}
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {task.project ? `Вернуться к проекту "${task.project.name}"` : 'Назад к задачам'}
-          </Link>
-          
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{task.title}</h1>
-              {task.description && (
-                <p className="text-gray-600 text-lg mb-4">{task.description}</p>
-              )}
-              
-              {/* Быстрые действия: Статус, Приоритет, Дедлайн */}
-              <div className="flex flex-wrap items-center gap-3 mt-4">
+              <div className="flex flex-wrap items-center gap-3">
                 {/* Статус */}
                 {editingStatus ? (
                   <div className="relative">
@@ -620,7 +625,7 @@ export default function TaskDetailPage() {
                       onChange={(e) => handleStatusChange(e.target.value)}
                       onBlur={() => setEditingStatus(false)}
                       autoFocus
-                      className="px-3 py-1.5 text-sm font-medium rounded-lg border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg border-2 border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
                     >
                       <option value="TODO">К выполнению</option>
                       <option value="IN_PROGRESS">В работе</option>
@@ -647,7 +652,7 @@ export default function TaskDetailPage() {
                       onChange={(e) => handlePriorityChange(e.target.value)}
                       onBlur={() => setEditingPriority(false)}
                       autoFocus
-                      className="px-3 py-1.5 text-sm font-medium rounded-lg border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg border-2 border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
                     >
                       <option value="LOW">Низкий</option>
                       <option value="MEDIUM">Средний</option>
@@ -674,7 +679,7 @@ export default function TaskDetailPage() {
                       onChange={(e) => handleDueDateChange(e.target.value)}
                       onBlur={() => setEditingDueDate(false)}
                       autoFocus
-                      className="px-3 py-1.5 text-sm font-medium rounded-lg border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg border-2 border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
                     />
                   </div>
                 ) : (
@@ -706,13 +711,6 @@ export default function TaskDetailPage() {
                 )}
               </div>
             </div>
-            <button
-              onClick={handleEditTask}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shrink-0"
-            >
-              <Edit className="h-4 w-4" />
-              Редактировать
-            </button>
           </div>
         </div>
 
@@ -735,7 +733,7 @@ export default function TaskDetailPage() {
                 {!showSubtaskInput && (
                   <button
                     onClick={() => setShowSubtaskInput(true)}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    className="text-sm text-gray-700 hover:text-gray-900 flex items-center gap-1"
                   >
                     <Plus className="h-4 w-4" />
                     Добавить
@@ -752,7 +750,7 @@ export default function TaskDetailPage() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      className="bg-primary h-2 rounded-full transition-all"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
@@ -804,7 +802,7 @@ export default function TaskDetailPage() {
                     onChange={(e) => setNewSubtaskTitle(e.target.value)}
                     placeholder="Название подзадачи..."
                     autoFocus
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                     onBlur={() => {
                       if (!newSubtaskTitle.trim()) {
                         setShowSubtaskInput(false)
@@ -813,7 +811,7 @@ export default function TaskDetailPage() {
                   />
                   <button
                     type="submit"
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
                   >
                     Добавить
                   </button>
@@ -847,7 +845,7 @@ export default function TaskDetailPage() {
                 ) : (
                   comments.map((comment) => (
                     <div key={comment.id} className="flex gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold flex-shrink-0">
                         {comment.user.name[0]?.toUpperCase() || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -891,10 +889,10 @@ export default function TaskDetailPage() {
                             key={user.id}
                             type="button"
                             onClick={() => insertMention(user.name)}
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center gap-2 transition-colors"
+                            className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 transition-colors"
                           >
-                            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs text-white font-medium">
+                            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs text-primary-foreground font-medium">
                                 {user.name.charAt(0).toUpperCase()}
                               </span>
                             </div>
@@ -921,14 +919,14 @@ export default function TaskDetailPage() {
                     }}
                     placeholder="Добавить комментарий... (@ — упомянуть сотрудника)"
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
                   />
                 </div>
                 <div className="flex justify-end mt-2">
                   <button
                     type="submit"
                     disabled={!newComment.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <Send className="h-4 w-4" />
                     Отправить
@@ -960,7 +958,7 @@ export default function TaskDetailPage() {
                     </div>
                     <Link
                       href={`/projects/${task.project.id}`}
-                      className="text-sm font-medium text-blue-600 hover:underline"
+                      className="text-sm font-medium text-gray-700 hover:underline"
                     >
                       {task.project.name}
                     </Link>
@@ -990,7 +988,7 @@ export default function TaskDetailPage() {
                 {!editingAssignees && (
                   <button
                     onClick={() => setEditingAssignees(true)}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="text-sm text-gray-700 hover:text-gray-900"
                   >
                     Изменить
                   </button>
@@ -1011,9 +1009,9 @@ export default function TaskDetailPage() {
                             type="checkbox"
                             checked={isAssigned}
                             onChange={(e) => handleAssigneeToggle(user.id, e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-gray-700 focus:ring-gray-900"
                           />
-                          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold">
+                          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
                             {user.name[0]?.toUpperCase() || '?'}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1041,7 +1039,7 @@ export default function TaskDetailPage() {
                         key={idx}
                         className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg"
                       >
-                        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold">
                           {assignment.user.name?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1077,7 +1075,7 @@ export default function TaskDetailPage() {
                   type="text"
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   required
                 />
               </div>
@@ -1090,7 +1088,7 @@ export default function TaskDetailPage() {
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
               </div>
 
@@ -1102,7 +1100,7 @@ export default function TaskDetailPage() {
                   <select
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   >
                     <option value="TODO">К выполнению</option>
                     <option value="IN_PROGRESS">В работе</option>
@@ -1118,7 +1116,7 @@ export default function TaskDetailPage() {
                   <select
                     value={editForm.priority}
                     onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   >
                     <option value="LOW">Низкий</option>
                     <option value="MEDIUM">Средний</option>
@@ -1135,7 +1133,7 @@ export default function TaskDetailPage() {
                   type="date"
                   value={editForm.dueDate}
                   onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
               </div>
 
@@ -1165,9 +1163,9 @@ export default function TaskDetailPage() {
                             })
                           }
                         }}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="rounded border-gray-300 text-gray-700 focus:ring-gray-900"
                       />
-                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold">
+                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
                         {user.name[0]?.toUpperCase() || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1191,7 +1189,7 @@ export default function TaskDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 flex items-center gap-2"
                 >
                   <Save className="h-4 w-4" />
                   Сохранить

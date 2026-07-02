@@ -70,7 +70,7 @@ export default function NewTemplatePage() {
           <h1 className="mb-2 text-2xl font-bold text-gray-900">Новый шаблон</h1>
           <p className="mb-6 text-sm text-gray-600">
             Загрузите готовый Word-файл (.docx) с расставленными тегами.{' '}
-            <Link href="/templates/guide" className="text-blue-600 hover:underline">
+            <Link href="/templates/guide" className="text-gray-900 hover:underline">
               Открыть справочник тегов
             </Link>
           </p>
@@ -83,7 +83,7 @@ export default function NewTemplatePage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                 placeholder="Договор подряда"
               />
             </div>
@@ -93,7 +93,7 @@ export default function NewTemplatePage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as TemplateDocCategory)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
               >
                 <option value="CONTRACT">{TEMPLATE_CATEGORY_LABELS.CONTRACT}</option>
                 <option value="COMMERCIAL_OFFER">{TEMPLATE_CATEGORY_LABELS.COMMERCIAL_OFFER}</option>
@@ -107,14 +107,14 @@ export default function NewTemplatePage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                 placeholder="Необязательно"
               />
             </div>
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Файл DOCX</label>
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-8 hover:border-blue-400 hover:bg-blue-50">
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-8 hover:border-gray-400 hover:bg-gray-50">
                 <Upload className="mb-2 h-8 w-8 text-gray-400" />
                 <span className="text-sm text-gray-600">
                   {file ? file.name : 'Нажмите, чтобы выбрать .docx'}
@@ -146,7 +146,7 @@ export default function NewTemplatePage() {
             <button
               type="submit"
               disabled={loading || !name.trim() || !file}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? 'Создание...' : 'Создать и перейти к редактору'}
             </button>

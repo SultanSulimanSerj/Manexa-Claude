@@ -163,7 +163,7 @@ export default function TemplateEditPage() {
       <Layout>
         <div className="mx-auto max-w-2xl py-12 text-center">
           <p className="mb-4 text-lg font-medium text-gray-900">{error || 'Шаблон не найден'}</p>
-          <Link href="/templates" className="text-blue-600 hover:underline">
+          <Link href="/templates" className="text-gray-900 hover:underline">
             Вернуться к шаблонам
           </Link>
         </div>
@@ -250,7 +250,7 @@ export default function TemplateEditPage() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
         <strong>Как подготовить шаблон:</strong> скачайте{' '}
         <a href="/api/templates/base/contract" className="font-medium underline">
           базовый шаблон

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 import { PermissionGuard } from '@/components/permission-guard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -114,11 +116,9 @@ export default function MonitoringPage() {
         </Layout>
       }>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Загрузка данных мониторинга...</p>
-            </div>
+          <div className="space-y-6">
+            <PageHeader title="Мониторинг системы" description="Загрузка..." />
+            <SkeletonList rows={5} />
           </div>
         </Layout>
       </PermissionGuard>
@@ -159,17 +159,15 @@ export default function MonitoringPage() {
     }>
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Мониторинг системы</h1>
-            <p className="text-gray-600 mt-2">
-              Последнее обновление: {new Date(healthData?.timestamp || '').toLocaleString()}
-            </p>
-          </div>
-          <Button onClick={fetchHealthData} variant="outline">
-            Обновить
-          </Button>
-        </div>
+        <PageHeader
+          title="Мониторинг системы"
+          description={`Последнее обновление: ${new Date(healthData?.timestamp || '').toLocaleString()}`}
+          actions={
+            <Button onClick={fetchHealthData} variant="outline">
+              Обновить
+            </Button>
+          }
+        />
 
         {/* Общий статус */}
         <Card>

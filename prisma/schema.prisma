@@ -54,6 +54,7 @@ model User {
   // 2FA (TOTP) — обязательна для платформенных ролей
   totpSecret    String?
   totpEnabled   Boolean   @default(false)
+  lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -85,6 +86,7 @@ model User {
   uploadedPhotos        StagePhoto[]         @relation("StagePhotoUploadedBy")
   createdMaterials      Material[]           @relation("MaterialCreator")
   createdStockMovements StockMovement[]      @relation("StockMovementCreator")
+  managedCompanies      Company[]            @relation("CompanyManager")
 
   @@index([companyId])
   @@index([role])
@@ -127,10 +129,15 @@ model Company {
   signatureFilePath    String?
   signatureMimeType    String?
   isActive             Boolean  @default(true)
+  // CRM (внутренние поля платформы)
+  assignedManagerId    String?
+  tags                 String[] @default([])
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   // Relations
+  assignedManager      User?    @relation("CompanyManager", fields: [assignedManagerId], references: [id])
+  notes                CompanyNote[]
   users                User[]
   projects             Project[]
   templates            DocumentTemplate[]
@@ -198,6 +205,7 @@ model Subscription {
   currentPeriodStart DateTime           @default(now())
   currentPeriodEnd   DateTime
   canceledAt         DateTime?
+  suspendedAt        DateTime?
   notes              String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -248,6 +256,47 @@ model PlatformAuditLog {
   @@index([actorId])
   @@index([targetType, targetId])
   @@index([createdAt])
+}
+
+model CompanyNote {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  authorId    String
+  authorEmail String?
+  text        String
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, createdAt])
+}
+
+model Announcement {
+  id            String   @id @default(cuid())
+  title         String
+  body          String
+  level         String   @default("INFO") // INFO, WARNING, CRITICAL
+  isActive      Boolean  @default(true)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdById   String
+  createdByEmail String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  dismissals    AnnouncementDismissal[]
+
+  @@index([isActive])
+}
+
+model AnnouncementDismissal {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  createdAt      DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId])
 }
 
 model ImpersonationToken {
@@ -641,8 +690,23 @@ model ChatMessage {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id])
 
+  attachments ChatAttachment[]
+
   @@index([companyId])
   @@index([projectId, createdAt])
+}
+
+model ChatAttachment {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName  String
+  filePath  String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime    @default(now())
+
+  @@index([messageId])
 }
 
 model Finance {

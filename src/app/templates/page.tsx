@@ -4,6 +4,7 @@
 import { confirm } from '@/components/ui/confirm'
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { FileText, Search, Filter, Eye, FileType, Pencil, Plus, Trash2, Star } from 'lucide-react'
 import Link from 'next/link'
@@ -120,48 +121,45 @@ export default function TemplatesPage() {
   return (
     <Layout>
       <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Шаблоны документов</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Загрузите DOCX-шаблоны для договоров, КП и счетов — они применяются автоматически при
-              создании документов.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/templates/guide"
-              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
-            >
-              Справочник тегов
-            </Link>
-            <Link
-              href="/templates/new"
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              Добавить шаблон
-            </Link>
-          </div>
-        </div>
+      <div className="mb-6 space-y-6">
+        <PageHeader
+          title="Шаблоны документов"
+          description="Загрузите DOCX-шаблоны для договоров, КП и счетов — они применяются автоматически при создании документов."
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/templates/guide"
+                className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Справочник тегов
+              </Link>
+              <Link
+                href="/templates/new"
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" />
+                Добавить шаблон
+              </Link>
+            </div>
+          }
+        />
 
         {/* Информационное сообщение */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <FileText className="h-5 w-5 text-blue-400" />
+              <FileText className="h-5 w-5 text-gray-400" />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">Как это работает</h3>
-              <div className="mt-1 text-sm text-blue-700">
+              <h3 className="text-sm font-medium text-gray-900">Как это работает</h3>
+              <div className="mt-1 text-sm text-gray-600">
                 <p>
                   Скачайте образец, расставьте теги в Word, загрузите шаблон и отметьте «Использовать
                   по умолчанию». Новые договоры, КП и счета в проектах будут формироваться по вашему
                   шаблону.
                 </p>
                 <p className="mt-2">
-                  <Link href="/templates/guide" className="font-medium underline hover:text-blue-900">
+                  <Link href="/templates/guide" className="font-medium underline hover:text-gray-900">
                     Открыть справочник тегов и инструкцию
                   </Link>
                 </p>
@@ -179,14 +177,14 @@ export default function TemplatesPage() {
               placeholder="Поиск по названию или описанию..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
 
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
           >
             <option value="all">Все категории</option>
             <option value="CONTRACT">Договор</option>
@@ -203,7 +201,7 @@ export default function TemplatesPage() {
                 <p className="text-sm text-gray-600">Всего шаблонов</p>
                 <p className="text-2xl font-bold text-gray-900">{templates.length}</p>
               </div>
-              <FileText className="h-8 w-8 text-blue-500" />
+              <FileText className="h-8 w-8 text-gray-400" />
             </div>
           </div>
 
@@ -211,11 +209,11 @@ export default function TemplatesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Договоров</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-gray-900">
                   {templates.filter((t) => t.category === 'CONTRACT').length}
                 </p>
               </div>
-              <FileType className="h-8 w-8 text-green-500" />
+              <FileType className="h-8 w-8 text-gray-400" />
             </div>
           </div>
 
@@ -223,11 +221,11 @@ export default function TemplatesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Категорий</p>
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-2xl font-bold text-gray-900">
                   {new Set(templates.map((t) => t.category)).size}
                 </p>
               </div>
-              <Filter className="h-8 w-8 text-purple-500" />
+              <Filter className="h-8 w-8 text-gray-400" />
             </div>
           </div>
 
@@ -235,11 +233,11 @@ export default function TemplatesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Документов создано</p>
-                <p className="text-2xl font-bold text-orange-600">
+                <p className="text-2xl font-bold text-gray-900">
                   {templates.reduce((sum, t) => sum + t._count.documents, 0)}
                 </p>
               </div>
-              <FileText className="h-8 w-8 text-orange-500" />
+              <FileText className="h-8 w-8 text-gray-400" />
             </div>
           </div>
         </div>
@@ -258,7 +256,7 @@ export default function TemplatesPage() {
             {!searchQuery && (
               <Link
                 href="/templates/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4" />
                 Добавить первый шаблон
@@ -315,7 +313,7 @@ export default function TemplatesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                      <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
                         {categoryLabels[template.category] || template.category}
                       </span>
                     </td>
@@ -357,14 +355,14 @@ export default function TemplatesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/templates/${template.id}`}
-                          className="p-1 text-gray-600 hover:text-blue-600"
+                          className="p-1 text-gray-600 hover:text-gray-900"
                           title="Просмотр"
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
                           href={`/templates/${template.id}/edit`}
-                          className="p-1 text-gray-600 hover:text-green-600"
+                          className="p-1 text-gray-600 hover:text-gray-900"
                           title="Редактировать"
                         >
                           <Pencil className="h-4 w-4" />

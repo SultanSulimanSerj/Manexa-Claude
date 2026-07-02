@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { Bell, Check, X, Trash2, Eye, EyeOff, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -169,11 +172,9 @@ export default function NotificationsPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Загрузка уведомлений...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Уведомления" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -183,33 +184,24 @@ export default function NotificationsPage() {
     <Layout>
       <div className="space-y-6">
         <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Уведомления</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              {notifications.length} уведомлений, {unreadCount} непрочитанных
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowAll(!showAll)}
-            >
-              {showAll ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-              {showAll ? 'Только непрочитанные' : 'Все уведомления'}
-            </Button>
-            {unreadCount > 0 && (
-              <Button
-                variant="outline"
-                onClick={markAllAsRead}
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Отметить все как прочитанные
+        <PageHeader
+          title="Уведомления"
+          description={`${notifications.length} уведомлений, ${unreadCount} непрочитанных`}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowAll(!showAll)}>
+                {showAll ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                {showAll ? 'Только непрочитанные' : 'Все уведомления'}
               </Button>
-            )}
-          </div>
-        </div>
+              {unreadCount > 0 && (
+                <Button variant="outline" onClick={markAllAsRead}>
+                  <Check className="h-4 w-4 mr-2" />
+                  Отметить все как прочитанные
+                </Button>
+              )}
+            </div>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 border">
@@ -218,54 +210,31 @@ export default function NotificationsPage() {
               <Filter className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">Фильтр по типу:</span>
             </div>
-            <button
-              onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                typeFilter === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Все
-            </button>
-            <button
-              onClick={() => setTypeFilter('INFO')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                typeFilter === 'INFO' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Информация
-            </button>
-            <button
-              onClick={() => setTypeFilter('WARNING')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                typeFilter === 'WARNING' ? 'bg-yellow-50 text-yellow-600' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Предупреждения
-            </button>
-            <button
-              onClick={() => setTypeFilter('ERROR')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                typeFilter === 'ERROR' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Ошибки
-            </button>
-            <button
-              onClick={() => setTypeFilter('SUCCESS')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                typeFilter === 'SUCCESS' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Успех
-            </button>
+            {[
+              { v: 'all', label: 'Все' },
+              { v: 'INFO', label: 'Информация' },
+              { v: 'WARNING', label: 'Предупреждения' },
+              { v: 'ERROR', label: 'Ошибки' },
+              { v: 'SUCCESS', label: 'Успех' },
+            ].map((f) => (
+              <button
+                key={f.v}
+                onClick={() => setTypeFilter(f.v)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  typeFilter === f.v ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Bulk Actions */}
         {selectedNotifications.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-blue-700">
+              <span className="text-sm text-gray-700">
                 Выбрано {selectedNotifications.length} уведомлений
               </span>
               <div className="flex gap-2">
@@ -292,27 +261,20 @@ export default function NotificationsPage() {
         {/* Notifications List */}
         <div className="space-y-2">
           {notifications.length === 0 ? (
-            <div className="text-center py-12">
-              <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {showAll ? 'Нет уведомлений' : 'Нет непрочитанных уведомлений'}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {showAll 
-                  ? 'Все уведомления будут отображаться здесь'
-                  : 'Новые уведомления появятся здесь'
-                }
-              </p>
-            </div>
+            <EmptyState
+              icon={Bell}
+              title={showAll ? 'Нет уведомлений' : 'Нет непрочитанных уведомлений'}
+              description={showAll ? 'Все уведомления будут отображаться здесь' : 'Новые уведомления появятся здесь'}
+            />
           ) : (
             notifications.map((notification) => (
               <Card
                 key={notification.id}
                 className={`transition-all duration-200 ${
-                  notification.isRead 
-                    ? 'bg-gray-50 border-gray-200' 
-                    : 'bg-white border-blue-200 shadow-sm'
-                } ${selectedNotifications.includes(notification.id) ? 'ring-2 ring-blue-500' : ''}`}
+                  notification.isRead
+                    ? 'bg-gray-50 border-gray-200'
+                    : 'bg-white border-gray-300 shadow-sm'
+                } ${selectedNotifications.includes(notification.id) ? 'ring-2 ring-gray-900' : ''}`}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -337,7 +299,7 @@ export default function NotificationsPage() {
                             {notification.type}
                           </span>
                           {!notification.isRead && (
-                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            <span className="w-2 h-2 bg-gray-900 rounded-full"></span>
                           )}
                         </div>
                         <p className={`text-sm ${

@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { Building2, LayoutDashboard, CreditCard, Users, ScrollText, LogOut } from 'lucide-react'
+import { Building2, LayoutDashboard, CreditCard, Receipt, Megaphone, Users, ScrollText, LogOut } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/platform', label: 'Дашборд', icon: LayoutDashboard, exact: true },
   { href: '/platform/companies', label: 'Компании', icon: Building2 },
   { href: '/platform/billing', label: 'Подписки', icon: CreditCard },
+  { href: '/platform/payments', label: 'Платежи', icon: Receipt },
+  { href: '/platform/announcements', label: 'Анонсы', icon: Megaphone },
   { href: '/platform/users', label: 'Пользователи', icon: Users },
   { href: '/platform/audit', label: 'Аудит', icon: ScrollText },
 ]

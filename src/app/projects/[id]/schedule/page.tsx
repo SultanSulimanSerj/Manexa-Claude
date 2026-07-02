@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/layout'
-import { 
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
+import {
   ArrowLeft, 
   Plus, 
   Calendar, 
@@ -634,8 +636,9 @@ export default function ProjectSchedulePage() {
   if (loading) {
     return (
       <Layout>
-        <div className="p-8 flex justify-center items-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="space-y-6">
+          <PageHeader title="График работ" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -643,22 +646,17 @@ export default function ProjectSchedulePage() {
 
   return (
     <Layout>
-      <div className="p-4 md:p-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push(`/projects/${projectId}`)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">График работ</h1>
-              <p className="text-gray-500">{projectName}</p>
-            </div>
-          </div>
-          
+      <div className="space-y-6">
+        <PageHeader
+          breadcrumbs={[
+            { label: 'Проекты', href: '/projects' },
+            { label: projectName || 'Проект', href: `/projects/${projectId}` },
+            { label: 'График работ' },
+          ]}
+          back={`/projects/${projectId}`}
+          title="График работ"
+          description={projectName}
+          actions={
           <div className="flex items-center gap-3">
             {/* Навигация по времени */}
             <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2">
@@ -696,13 +694,14 @@ export default function ProjectSchedulePage() {
             
             <button
               onClick={openCreateModal}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
             >
               <Plus className="w-4 h-4" />
               Добавить этап
             </button>
           </div>
-        </div>
+          }
+        />
 
         {/* Gantt Chart */}
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
@@ -717,7 +716,7 @@ export default function ProjectSchedulePage() {
                   <div 
                     key={i} 
                     className={`flex-1 min-w-[30px] p-2 text-center text-xs border-r last:border-r-0 ${
-                      isToday(date) ? 'bg-blue-50 font-bold text-blue-600' : 
+                      isToday(date) ? 'bg-gray-100 font-bold text-gray-900' : 
                       isWeekend(date) ? 'bg-gray-50 text-gray-400' : 'text-gray-500'
                     }`}
                   >
@@ -741,7 +740,7 @@ export default function ProjectSchedulePage() {
               <p className="text-sm mb-4">Добавьте первый этап для планирования графика</p>
               <button
                 onClick={openCreateModal}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
               >
                 <Plus className="w-4 h-4" />
                 Добавить этап
@@ -807,7 +806,7 @@ export default function ProjectSchedulePage() {
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEditModal(stage)}
-                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                            className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
@@ -828,7 +827,7 @@ export default function ProjectSchedulePage() {
                             <div 
                               key={i} 
                               className={`flex-1 min-w-[30px] border-r last:border-r-0 ${
-                                isToday(date) ? 'bg-blue-50/50' : 
+                                isToday(date) ? 'bg-gray-50' : 
                                 isWeekend(date) ? 'bg-gray-50' : ''
                               }`}
                             />
@@ -838,7 +837,7 @@ export default function ProjectSchedulePage() {
                         {/* Линия "сегодня" */}
                         {dateRange.some(d => isToday(d)) && (
                           <div 
-                            className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-10"
+                            className="absolute top-0 bottom-0 w-0.5 bg-gray-900 z-10"
                             style={{
                               left: `${((new Date().getTime() - dateRange[0].getTime()) / 
                                 (dateRange[dateRange.length - 1].getTime() - dateRange[0].getTime())) * 100}%`
@@ -878,7 +877,7 @@ export default function ProjectSchedulePage() {
                               onClick={() => setActiveTab('checklist')}
                               className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
                                 activeTab === 'checklist' 
-                                  ? 'bg-blue-600 text-white' 
+                                  ? 'bg-primary text-primary-foreground' 
                                   : 'bg-white text-gray-600 hover:bg-gray-100'
                               }`}
                             >
@@ -886,7 +885,7 @@ export default function ProjectSchedulePage() {
                               Чек-лист
                               {stageChecklist.length > 0 && (
                                 <span className={`ml-1 px-1.5 py-0.5 text-xs rounded ${
-                                  activeTab === 'checklist' ? 'bg-blue-500' : 'bg-gray-200'
+                                  activeTab === 'checklist' ? 'bg-gray-900' : 'bg-gray-200'
                                 }`}>
                                   {completedCount}/{stageChecklist.length}
                                 </span>
@@ -896,7 +895,7 @@ export default function ProjectSchedulePage() {
                               onClick={() => setActiveTab('photos')}
                               className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
                                 activeTab === 'photos' 
-                                  ? 'bg-blue-600 text-white' 
+                                  ? 'bg-primary text-primary-foreground' 
                                   : 'bg-white text-gray-600 hover:bg-gray-100'
                               }`}
                             >
@@ -904,7 +903,7 @@ export default function ProjectSchedulePage() {
                               Фото-отчёт
                               {(stagePhotos[stage.id]?.length || 0) > 0 && (
                                 <span className={`ml-1 px-1.5 py-0.5 text-xs rounded ${
-                                  activeTab === 'photos' ? 'bg-blue-500' : 'bg-gray-200'
+                                  activeTab === 'photos' ? 'bg-gray-900' : 'bg-gray-200'
                                 }`}>
                                   {stagePhotos[stage.id]?.length}
                                 </span>
@@ -975,7 +974,7 @@ export default function ProjectSchedulePage() {
                                     <button
                                       onClick={() => handleAddChecklistItem(stage.id)}
                                       disabled={addingItem || !newItemTitle.trim()}
-                                      className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1"
                                     >
                                       {addingItem ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1003,7 +1002,7 @@ export default function ProjectSchedulePage() {
                                 <>
                                   {/* Кнопка загрузки */}
                                   <div className="mb-3">
-                                    <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                                    <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                                       <input
                                         type="file"
                                         accept="image/*"
@@ -1080,7 +1079,7 @@ export default function ProjectSchedulePage() {
         {/* Легенда */}
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <div className="w-3 h-3 rounded-full bg-gray-900" />
             <span>Сегодня</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1311,7 +1310,7 @@ export default function ProjectSchedulePage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
                 >
                   {editingStage ? 'Сохранить' : 'Создать'}
                 </button>

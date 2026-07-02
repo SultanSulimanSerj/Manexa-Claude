@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession, signIn } from 'next-auth/react'
-import { ArrowLeft, Archive, ArchiveRestore, KeyRound, UserX, UserCheck, Eye } from 'lucide-react'
+import { ArrowLeft, Archive, ArchiveRestore, KeyRound, UserX, UserCheck, Eye, Pencil } from 'lucide-react'
 
 interface CompanyDetail {
   id: string
@@ -44,7 +44,36 @@ interface CompanyDetail {
     position: string | null
     isActive: boolean
   }[]
+  assignedManagerId: string | null
+  assignedManager: { id: string; name: string | null; email: string } | null
+  tags: string[]
+  notes: { id: string; authorId: string; authorEmail: string | null; text: string; createdAt: string }[]
   _count: { projects: number; documents: number; tasks: number; estimates: number; finances: number }
+}
+
+interface ManagerOption {
+  id: string
+  name: string | null
+  email: string
+}
+
+interface Usage {
+  storageBytes: number
+  storageMb: number
+  maxStorageMb: number | null
+  lastLoginAt: string | null
+}
+
+interface ReqForm {
+  name: string
+  legalName: string
+  inn: string
+  kpp: string
+  ogrn: string
+  legalAddress: string
+  directorName: string
+  contactPhone: string
+  contactEmail: string
 }
 
 const SUB_STATUS: Record<string, { label: string; className: string }> = {
@@ -68,20 +97,70 @@ export default function PlatformCompanyPage() {
   const { data: session } = useSession()
   const canImpersonate = (session?.user as any)?.role === 'PLATFORM_ADMIN'
   const [company, setCompany] = useState<CompanyDetail | null>(null)
+  const [usage, setUsage] = useState<Usage | null>(null)
+  const [editReq, setEditReq] = useState<ReqForm | null>(null)
+  const [savingReq, setSavingReq] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tempPassword, setTempPassword] = useState<{ email: string; password: string } | null>(null)
   const [paymentForm, setPaymentForm] = useState({ months: '1', amount: '', invoiceNumber: '', comment: '' })
   const [plans, setPlans] = useState<{ code: string; name: string; priceMonthly: string }[]>([])
+  const [managers, setManagers] = useState<ManagerOption[]>([])
+  const [noteText, setNoteText] = useState('')
+  const [tagInput, setTagInput] = useState('')
   const [busy, setBusy] = useState(false)
 
   const fetchCompany = useCallback(() => {
     fetch(`/api/platform/companies/${companyId}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Компания не найдена'))))
-      .then((data) => setCompany(data.company))
+      .then((data) => {
+        setCompany(data.company)
+        setUsage(data.usage || null)
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [companyId])
+
+  const startEditReq = () => {
+    if (!company) return
+    setEditReq({
+      name: company.name || '',
+      legalName: company.legalName || '',
+      inn: company.inn || '',
+      kpp: company.kpp || '',
+      ogrn: company.ogrn || '',
+      legalAddress: company.legalAddress || '',
+      directorName: company.directorName || '',
+      contactPhone: company.contactPhone || '',
+      contactEmail: company.contactEmail || '',
+    })
+  }
+
+  const saveReq = async () => {
+    if (!editReq) return
+    if (!editReq.name.trim()) {
+      toast.error('Название обязательно')
+      return
+    }
+    setSavingReq(true)
+    try {
+      const res = await fetch(`/api/platform/companies/${companyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editReq),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка сохранения')
+        return
+      }
+      toast.success('Реквизиты сохранены')
+      setEditReq(null)
+      fetchCompany()
+    } finally {
+      setSavingReq(false)
+    }
+  }
 
   useEffect(() => {
     fetchCompany()
@@ -89,7 +168,84 @@ export default function PlatformCompanyPage() {
       .then((res) => (res.ok ? res.json() : { plans: [] }))
       .then((data) => setPlans((data.plans || []).filter((p: any) => p.isActive)))
       .catch(() => {})
+    fetch('/api/platform/users?managers=1')
+      .then((res) => (res.ok ? res.json() : { users: [] }))
+      .then((data) => setManagers((data.users || []).filter((u: any) => u.isActive)))
+      .catch(() => {})
   }, [fetchCompany])
+
+  const patchCompany = async (data: Record<string, unknown>) => {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/platform/companies/${companyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        toast.error(result.error || 'Ошибка')
+        return
+      }
+      fetchCompany()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const addTag = () => {
+    const t = tagInput.trim()
+    if (!t || !company) return
+    if (company.tags.includes(t)) {
+      setTagInput('')
+      return
+    }
+    patchCompany({ tags: [...company.tags, t] })
+    setTagInput('')
+  }
+
+  const removeTag = (t: string) => {
+    if (!company) return
+    patchCompany({ tags: company.tags.filter((x) => x !== t) })
+  }
+
+  const addNote = async () => {
+    const text = noteText.trim()
+    if (!text) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/platform/companies/${companyId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка')
+        return
+      }
+      setNoteText('')
+      fetchCompany()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deleteNote = async (noteId: string) => {
+    if (!(await confirm('Удалить заметку?'))) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/platform/companies/${companyId}/notes?noteId=${noteId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка')
+        return
+      }
+      fetchCompany()
+    } finally {
+      setBusy(false)
+    }
+  }
 
 
   const subscriptionAction = async (body: Record<string, unknown>, confirmText?: string) => {
@@ -269,7 +425,17 @@ export default function PlatformCompanyPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Реквизиты */}
         <div className="rounded-xl border bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Реквизиты</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Реквизиты</h2>
+            <button
+              type="button"
+              onClick={startEditReq}
+              className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Изменить
+            </button>
+          </div>
           <dl className="space-y-1.5 text-sm">
             {[
               ['Юр. название', company.legalName],
@@ -433,7 +599,135 @@ export default function PlatformCompanyPage() {
                 <dd className="font-medium text-gray-900">{value}</dd>
               </div>
             ))}
+            {usage && (
+              <>
+                <div className="flex justify-between border-t pt-1.5">
+                  <dt className="text-gray-500">Хранилище</dt>
+                  <dd className="font-medium text-gray-900">
+                    {usage.storageMb.toLocaleString('ru-RU')} МБ
+                    {usage.maxStorageMb
+                      ? ` / ${usage.maxStorageMb >= 1024 ? `${Math.round(usage.maxStorageMb / 1024)} ГБ` : `${usage.maxStorageMb} МБ`}`
+                      : ' / безлимит'}
+                  </dd>
+                </div>
+                {usage.maxStorageMb && (
+                  (() => {
+                    const pct = Math.min(100, Math.round((usage.storageMb / usage.maxStorageMb!) * 100))
+                    const over = usage.storageMb > usage.maxStorageMb!
+                    return (
+                      <div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                          <div
+                            className={`h-full rounded-full ${over ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-gray-900'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {over && <p className="mt-1 text-xs text-red-600">Превышен лимит тарифа</p>}
+                      </div>
+                    )
+                  })()
+                )}
+                <div className="flex justify-between border-t pt-1.5">
+                  <dt className="text-gray-500">Последний вход</dt>
+                  <dd className="font-medium text-gray-900">
+                    {usage.lastLoginAt ? new Date(usage.lastLoginAt).toLocaleString('ru-RU') : '—'}
+                  </dd>
+                </div>
+              </>
+            )}
           </dl>
+        </div>
+      </div>
+
+      {/* CRM */}
+      <div className="rounded-xl border bg-white p-4">
+        <h2 className="mb-3 text-sm font-semibold text-gray-900">CRM</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Ответственный менеджер */}
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Ответственный менеджер</label>
+            <select
+              value={company.assignedManagerId || ''}
+              disabled={busy}
+              onChange={(e) => patchCompany({ assignedManagerId: e.target.value || null })}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+            >
+              <option value="">— не назначен —</option>
+              {managers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name || m.email}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Теги */}
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Теги</label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {company.tags.map((t) => (
+                <span key={t} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                  {t}
+                  <button type="button" disabled={busy} onClick={() => removeTag(t)} className="text-gray-400 hover:text-red-500">
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                placeholder="+ тег"
+                className="w-24 rounded border px-2 py-0.5 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Заметки */}
+        <div className="mt-4 border-t pt-4">
+          <p className="mb-2 text-xs font-medium text-gray-700">Заметки</p>
+          <div className="flex gap-2">
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              rows={2}
+              placeholder="Добавить заметку (комментарий по работе с компанией)…"
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              disabled={busy || !noteText.trim()}
+              onClick={addNote}
+              className="shrink-0 self-start rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Добавить
+            </button>
+          </div>
+          {company.notes.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {company.notes.map((n) => (
+                <li key={n.id} className="rounded-lg bg-gray-50 p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      {n.authorEmail || 'платформа'} · {new Date(n.createdAt).toLocaleString('ru-RU')}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => deleteNote(n.id)}
+                      className="text-xs text-gray-400 hover:text-red-500"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-gray-900">{n.text}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-gray-400">Заметок пока нет</p>
+          )}
         </div>
       </div>
 
@@ -509,6 +803,58 @@ export default function PlatformCompanyPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Редактирование реквизитов */}
+      {editReq && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => !savingReq && setEditReq(null)}
+        >
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-lg font-bold text-gray-900">Реквизиты компании</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ['name', 'Название', 'col-span-2'],
+                ['legalName', 'Юр. название', 'col-span-2'],
+                ['inn', 'ИНН', ''],
+                ['kpp', 'КПП', ''],
+                ['ogrn', 'ОГРН', ''],
+                ['directorName', 'Директор', ''],
+                ['legalAddress', 'Юр. адрес', 'col-span-2'],
+                ['contactPhone', 'Телефон', ''],
+                ['contactEmail', 'Email', ''],
+              ] as [keyof ReqForm, string, string][]).map(([key, label, span]) => (
+                <div key={key} className={span}>
+                  <label className="mb-1 block text-xs text-gray-500">{label}</label>
+                  <input
+                    value={editReq[key]}
+                    onChange={(e) => setEditReq({ ...editReq, [key]: e.target.value })}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditReq(null)}
+                disabled={savingReq}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={saveReq}
+                disabled={savingReq}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {savingReq ? 'Сохранение…' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
