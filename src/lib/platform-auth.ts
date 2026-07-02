@@ -4,7 +4,7 @@ import { prisma } from './prisma'
 import { UserRole, isPlatformRole, hasPermission, type Permissions } from './permissions'
 
 // Сессия платформенных ролей живёт меньше обычной
-export const PLATFORM_SESSION_MAX_AGE_SEC = 4 * 60 * 60 // 4 часа
+export const PLATFORM_SESSION_MAX_AGE_SEC = 8 * 60 * 60 // 8 часов
 
 export interface PlatformUserContext {
   id: string

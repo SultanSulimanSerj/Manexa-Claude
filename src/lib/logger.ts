@@ -55,6 +55,8 @@ class Logger {
         await import('fs').then(fs => fs.promises.rename(filePath, newPath))
       }
     } catch (error) {
+      // Файл ещё не создан (первая запись за день) — это норма, не ошибка
+      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return
       console.error('Failed to rotate log file:', error)
     }
   }

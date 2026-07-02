@@ -114,7 +114,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const newStatus = action === 'suspend' ? 'SUSPENDED' : 'ACTIVE'
     await prisma.subscription.update({
       where: { id: subscription.id },
-      data: { status: newStatus },
+      data: {
+        status: newStatus,
+        suspendedAt: action === 'suspend' ? new Date() : null,
+      },
     })
     invalidateCompanyAccessCache(subscription.companyId)
 

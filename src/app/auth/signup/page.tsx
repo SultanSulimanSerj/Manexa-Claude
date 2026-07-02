@@ -125,11 +125,11 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <UserPlus className="h-6 w-6 text-white" />
+          <div className="mx-auto w-12 h-12 bg-primary rounded-full flex items-center justify-center mb-4">
+            <UserPlus className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl">Регистрация</CardTitle>
           <CardDescription>
@@ -441,7 +441,7 @@ export default function SignUpPage() {
             >
               {loading ? (
                 <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                   Регистрация...
                 </div>
               ) : (
@@ -456,7 +456,7 @@ export default function SignUpPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Уже есть аккаунт?{' '}
-              <Link href="/auth/signin" className="text-blue-600 hover:text-blue-500 font-medium">
+              <Link href="/auth/signin" className="text-gray-900 hover:underline font-medium">
                 Войти
               </Link>
             </p>

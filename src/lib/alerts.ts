@@ -1,6 +1,7 @@
 import { logger } from './logger'
 import { performanceMonitor } from './monitoring'
 import { sendMail } from './mail'
+import { prisma } from './prisma'
 
 export interface AlertConfig {
   enabled: boolean
@@ -26,6 +27,7 @@ export interface Alert {
 class AlertManager {
   private alerts: Alert[] = []
   private config: AlertConfig
+  private lastCheckAt = 0
 
   constructor() {
     this.config = {
@@ -192,14 +194,70 @@ class AlertManager {
     }
   }
 
+  /** Прогон всех проверок с троттлингом (вызывается из /api/health). */
+  async runScheduledChecks(minIntervalMs = 60_000) {
+    if (Date.now() - this.lastCheckAt < minIntervalMs) return
+    this.lastCheckAt = Date.now()
+    await Promise.allSettled([
+      this.checkPerformanceAlerts(),
+      this.checkMemoryAlerts(),
+      this.checkDatabaseAlerts(),
+      this.checkSecurityAlerts(),
+    ])
+  }
+
   async checkDatabaseAlerts() {
-    // TODO: Implement database monitoring
-    // Check connection pool, slow queries, etc.
+    const start = Date.now()
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      const latency = Date.now() - start
+      if (latency > 1000) {
+        await this.createAlert(
+          'system',
+          latency > 3000 ? 'critical' : 'high',
+          `Медленный ответ БД: ${latency}ms`,
+          { latency }
+        )
+      }
+    } catch (error) {
+      await this.createAlert('system', 'critical', 'База данных недоступна', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   async checkSecurityAlerts() {
-    // TODO: Implement security monitoring
-    // Check for suspicious activities, failed logins, etc.
+    try {
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      const [impersonations, passwordResets] = await Promise.all([
+        prisma.platformAuditLog.count({
+          where: { action: 'IMPERSONATE_START', createdAt: { gte: hourAgo } },
+        }),
+        prisma.platformAuditLog.count({
+          where: { action: { in: ['PASSWORD_RESET', 'PLATFORM_MANAGER_PASSWORD_RESET'] }, createdAt: { gte: hourAgo } },
+        }),
+      ])
+
+      if (impersonations > 10) {
+        await this.createAlert(
+          'security',
+          'high',
+          `Подозрительно много входов от имени пользователей за час: ${impersonations}`,
+          { impersonations }
+        )
+      }
+      if (passwordResets > 20) {
+        await this.createAlert(
+          'security',
+          'high',
+          `Подозрительно много сбросов паролей за час: ${passwordResets}`,
+          { passwordResets }
+        )
+      }
+    } catch (error) {
+      // Мониторинг безопасности не должен ронять пайплайн алертов
+      console.error('checkSecurityAlerts failed:', error)
+    }
   }
 
   getAlerts(severity?: Alert['severity'], resolved?: boolean): Alert[] {

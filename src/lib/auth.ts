@@ -112,6 +112,12 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
+        // Фиксируем время входа (для метрик активности компаний в админке)
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        }).catch(() => {})
+
         return {
           id: user.id,
           email: user.email,

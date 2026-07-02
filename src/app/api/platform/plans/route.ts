@@ -69,3 +69,45 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ plan })
 }
+
+/** Удаление тарифа (только PLATFORM_ADMIN). Запрещено, если есть подписки — деактивируйте. */
+export async function DELETE(request: NextRequest) {
+  const { allowed, user, error } = await checkPlatformPermission(request, 'canManagePlatformManagers')
+  if (!allowed || !user) {
+    return NextResponse.json({ error: error || 'Не найдено' }, { status: 404 })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  if (!id) {
+    return NextResponse.json({ error: 'Требуется id' }, { status: 400 })
+  }
+
+  const plan = await prisma.plan.findUnique({
+    where: { id },
+    include: { _count: { select: { subscriptions: true } } },
+  })
+  if (!plan) {
+    return NextResponse.json({ error: 'Тариф не найден' }, { status: 404 })
+  }
+  if (plan._count.subscriptions > 0) {
+    return NextResponse.json(
+      { error: `На тарифе ${plan._count.subscriptions} подписок. Деактивируйте вместо удаления.` },
+      { status: 400 }
+    )
+  }
+
+  await prisma.plan.delete({ where: { id } })
+
+  await logPlatformAction({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: 'PLAN_DELETE',
+    targetType: 'Plan',
+    targetId: id,
+    metadata: { code: plan.code },
+    request,
+  })
+
+  return NextResponse.json({ success: true })
+}

@@ -15,6 +15,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const company = await prisma.company.findUnique({
     where: { id: params.id },
     include: {
+      assignedManager: { select: { id: true, name: true, email: true } },
+      notes: { orderBy: { createdAt: 'desc' }, take: 100 },
       subscription: {
         include: {
           plan: true,
@@ -30,6 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           position: true,
           isActive: true,
           createdAt: true,
+          lastLoginAt: true,
         },
         orderBy: { createdAt: 'asc' },
       },
@@ -49,7 +52,51 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Компания не найдена' }, { status: 404 })
   }
 
-  return NextResponse.json({ company })
+  // Использование хранилища: документы + версии + фото этапов + вложения согласований
+  const [docs, versions, photos, approvalFiles] = await prisma.$transaction([
+    prisma.document.aggregate({
+      where: { companyId: params.id },
+      _sum: { fileSize: true, pdfFileSize: true, edoXmlFileSize: true },
+    }),
+    prisma.documentVersion.aggregate({
+      where: { companyId: params.id },
+      _sum: { fileSize: true, pdfFileSize: true },
+    }),
+    prisma.stagePhoto.aggregate({
+      where: { stage: { project: { companyId: params.id } } },
+      _sum: { size: true },
+    }),
+    prisma.approvalAttachment.aggregate({
+      where: { approval: { companyId: params.id } },
+      _sum: { fileSize: true },
+    }),
+  ])
+  const storageBytes =
+    Number(docs._sum.fileSize || 0) +
+    Number(docs._sum.pdfFileSize || 0) +
+    Number(docs._sum.edoXmlFileSize || 0) +
+    Number(versions._sum.fileSize || 0) +
+    Number(versions._sum.pdfFileSize || 0) +
+    Number(photos._sum.size || 0) +
+    Number(approvalFiles._sum.fileSize || 0)
+
+  // Последний вход по компании = максимум среди пользователей
+  const lastLoginAt = company.users.reduce<Date | null>((max, u) => {
+    if (!u.lastLoginAt) return max
+    return !max || u.lastLoginAt > max ? u.lastLoginAt : max
+  }, null)
+
+  const maxStorageMb = company.subscription?.plan?.maxStorageMb ?? null
+
+  return NextResponse.json({
+    company,
+    usage: {
+      storageBytes,
+      storageMb: Math.round((storageBytes / (1024 * 1024)) * 10) / 10,
+      maxStorageMb,
+      lastLoginAt,
+    },
+  })
 }
 
 /** Обновление реквизитов компании. */
@@ -65,11 +112,20 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     'legalAddress', 'actualAddress', 'city', 'directorName', 'directorPosition',
     'contactPhone', 'contactEmail', 'phone', 'website',
     'bankAccount', 'bankName', 'bankBik', 'correspondentAccount',
+    'assignedManagerId', 'tags',
   ] as const
 
   const data: Record<string, unknown> = {}
   for (const field of ALLOWED_FIELDS) {
-    if (field in body) data[field] = body[field]
+    if (!(field in body)) continue
+    const value = body[field]
+    // Строковые поля: пустая строка → null (не храним пустышки)
+    if (typeof value === 'string' && field !== 'name') {
+      const trimmed = value.trim()
+      data[field] = trimmed === '' ? null : trimmed
+    } else {
+      data[field] = value
+    }
   }
 
   if (Object.keys(data).length === 0) {

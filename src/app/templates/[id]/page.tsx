@@ -106,7 +106,7 @@ export default function TemplateDetailPage() {
       <Layout>
         <div className="mx-auto max-w-2xl py-12 text-center">
           <p className="mb-4 text-lg font-medium text-gray-900">{error || 'Шаблон не найден'}</p>
-          <Link href="/templates" className="text-blue-600 hover:underline">
+          <Link href="/templates" className="text-gray-900 hover:underline">
             Вернуться к шаблонам
           </Link>
         </div>
@@ -213,7 +213,7 @@ export default function TemplateDetailPage() {
             {!template.isSystem && (
               <Link
                 href={`/templates/${template.id}/edit`}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <Pencil className="h-4 w-4" />
                 Редактировать шаблон

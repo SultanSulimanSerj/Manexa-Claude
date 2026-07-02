@@ -19,6 +19,8 @@ import {
   Loader2
 } from 'lucide-react'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 import { PermissionGuard } from '@/components/permission-guard'
 import { ErrorBanner } from '@/components/ui/error-banner'
 
@@ -273,7 +275,7 @@ export default function ReportsPage() {
       description: 'Анализ доходов и расходов по проектам',
       type: 'financial',
       icon: DollarSign,
-      color: 'bg-green-100 text-green-800',
+      color: 'bg-gray-100 text-gray-700',
       lastGenerated: new Date().toISOString().split('T')[0]
     },
     {
@@ -282,7 +284,7 @@ export default function ReportsPage() {
       description: 'Статус и прогресс выполнения проектов',
       type: 'projects',
       icon: Target,
-      color: 'bg-blue-100 text-blue-800',
+      color: 'bg-gray-100 text-gray-700',
       lastGenerated: new Date().toISOString().split('T')[0]
     },
     {
@@ -291,7 +293,7 @@ export default function ReportsPage() {
       description: 'Активность и производительность команды',
       type: 'users',
       icon: Users,
-      color: 'bg-purple-100 text-purple-800',
+      color: 'bg-gray-100 text-gray-700',
       lastGenerated: new Date().toISOString().split('T')[0]
     },
     {
@@ -300,7 +302,7 @@ export default function ReportsPage() {
       description: 'Статистика документооборота',
       type: 'documents',
       icon: FileText,
-      color: 'bg-orange-100 text-orange-800',
+      color: 'bg-gray-100 text-gray-700',
       lastGenerated: new Date().toISOString().split('T')[0]
     }
   ]
@@ -351,57 +353,49 @@ export default function ReportsPage() {
           </div>
         }
       >
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <ErrorBanner message={error} onDismiss={() => setError(null)} />
-        </div>
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Отчеты</h1>
-                <p className="text-gray-600">Аналитика и отчетность по проектам</p>
-              </div>
-              <div className="flex space-x-3">
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="week">За неделю</option>
-                  <option value="month">За месяц</option>
-                  <option value="quarter">За квартал</option>
-                  <option value="year">За год</option>
-                </select>
-                <Button 
-                  className="gradient-primary hover:opacity-90"
-                  onClick={handleExportAll}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Экспорт всех
-                </Button>
-              </div>
+      <div className="space-y-6">
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        <PageHeader
+          title="Отчёты"
+          description="Аналитика и отчётность по проектам"
+          actions={
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="week">За неделю</option>
+                <option value="month">За месяц</option>
+                <option value="quarter">За квартал</option>
+                <option value="year">За год</option>
+              </select>
+              <button
+                onClick={handleExportAll}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Экспорт всех
+              </button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div>
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {loading ? (
-              <div className="col-span-4 flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Загрузка данных...</span>
+              <div className="col-span-4">
+                <SkeletonList rows={1} />
               </div>
             ) : (
               getStatsData().map((stat, index) => (
-              <Card key={index} className="animate-fade-in hover:shadow-lg transition-all duration-200" style={{ animationDelay: `${index * 0.1}s` }}>
-                <CardContent className="p-6">
+              <Card key={index}>
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                      <p className="text-2xl font-bold text-gray-900 tabular-nums">{stat.value}</p>
                       <p className={`text-sm flex items-center mt-1 ${
                         stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
                       }`}>
@@ -420,8 +414,8 @@ export default function ReportsPage() {
           </div>
 
           {/* Filters */}
-          <Card className="mb-6 animate-fade-in">
-            <CardContent className="p-6">
+          <Card className="mb-6">
+            <CardContent className="p-5">
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center space-x-2">
                   <Filter className="h-4 w-4 text-gray-500" />
@@ -481,7 +475,7 @@ export default function ReportsPage() {
                     </div>
                     <div className="flex space-x-2">
                       <Button
-                        className="flex-1 gradient-primary hover:opacity-90"
+                        className="flex-1"
                         onClick={() => handleGenerateReport(report.id)}
                         disabled={generating === report.id}
                       >

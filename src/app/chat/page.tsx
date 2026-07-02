@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Send, Paperclip, Smile, MoreVertical } from 'lucide-react'
 import Layout from '@/components/layout'
+import PageHeader from '@/components/page-header'
+import { SkeletonList } from '@/components/ui/skeleton'
 import { useSocket } from '@/contexts/SocketContext'
 import { useSession } from 'next-auth/react'
 import { extractMentionNames } from '@/lib/mention-utils'
@@ -53,8 +55,14 @@ export default function ChatPage() {
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false)
   const [projectMentionSearch, setProjectMentionSearch] = useState('')
   const [cursorPosition, setCursorPosition] = useState(0)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [pendingAttachments, setPendingAttachments] = useState<
+    { fileName: string; filePath: string; fileSize: number; mimeType: string }[]
+  >([])
+  const [uploading, setUploading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { socket, isConnected } = useSocket()
 
   const appendChatMessage = (message: Message) => {
@@ -335,8 +343,8 @@ export default function ChatPage() {
             key={`mention-${match.index}`}
             className={`${
               isMentioningMe
-                ? 'bg-blue-200 text-blue-900 font-semibold'
-                : 'bg-blue-100 text-blue-700 font-medium'
+                ? 'bg-gray-900 text-white font-semibold'
+                : 'bg-gray-100 text-gray-700 font-medium'
             } px-1 rounded`}
           >
             @{name}
@@ -365,8 +373,42 @@ export default function ChatPage() {
     return parts.length > 0 ? parts : content
   }
 
+  const EMOJIS = ['😀','😁','😂','🤣','😊','😍','😎','🤔','👍','👎','👏','🙏','🔥','🎉','✅','❌','⚠️','💡','📌','📎','🚀','💪','👀','❤️']
+
+  const insertEmoji = (emoji: string) => {
+    setNewMessage((prev) => prev + emoji)
+    setShowEmoji(false)
+    messageInputRef.current?.focus()
+  }
+
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setUploading(true)
+    try {
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        const res = await fetch('/api/chat/attachments', { method: 'POST', body: fd })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          console.error('Upload failed:', data.error)
+          continue
+        }
+        setPendingAttachments((prev) => [...prev, data])
+      }
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const removePendingAttachment = (filePath: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.filePath !== filePath))
+  }
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || sending) return
+    if ((!newMessage.trim() && pendingAttachments.length === 0) || sending) return
 
     setSending(true)
     try {
@@ -389,7 +431,8 @@ export default function ChatPage() {
         body: JSON.stringify({
           content: newMessage,
           projectId: selectedProject || null,
-          mentions: mentions
+          mentions: mentions,
+          attachments: pendingAttachments,
         })
       })
 
@@ -399,6 +442,8 @@ export default function ChatPage() {
           appendChatMessage(message)
         }
         setNewMessage('')
+        setPendingAttachments([])
+        setShowEmoji(false)
         setShowMentionSuggestions(false)
         setShowProjectSuggestions(false)
       }
@@ -441,11 +486,9 @@ export default function ChatPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Загрузка сообщений...</p>
-          </div>
+        <div className="space-y-6">
+          <PageHeader title="Чат команды" description="Загрузка..." />
+          <SkeletonList rows={6} />
         </div>
       </Layout>
     )
@@ -512,7 +555,7 @@ export default function ChatPage() {
                     </div>
                   )}
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
                       {message.user.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
@@ -520,7 +563,7 @@ export default function ChatPage() {
                         <span className="font-medium text-sm">{message.user.name}</span>
                         <span className="text-xs text-gray-500">{formatTime(message.createdAt)}</span>
                         {message.project && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
                             {message.project.name}
                           </span>
                         )}
@@ -529,11 +572,22 @@ export default function ChatPage() {
                         <p className="text-sm">{formatMessageWithMentions(message.content)}</p>
                         {message.attachments && message.attachments.length > 0 && (
                           <div className="mt-2 space-y-1">
-                            {message.attachments.map((attachment, idx) => (
-                              <div key={idx} className="flex items-center gap-2 text-xs text-gray-600">
-                                <Paperclip className="h-3 w-3" />
-                                <span>{attachment.name}</span>
-                              </div>
+                            {message.attachments.map((attachment: any, idx: number) => (
+                              <a
+                                key={attachment.id || idx}
+                                href={`/api/chat/attachments/${attachment.id}?dl=1`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-xs text-gray-700 hover:text-gray-900 hover:underline"
+                              >
+                                <Paperclip className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{attachment.fileName || attachment.name}</span>
+                                {attachment.fileSize > 0 && (
+                                  <span className="text-gray-400">
+                                    ({Math.max(1, Math.round(attachment.fileSize / 1024))} КБ)
+                                  </span>
+                                )}
+                              </a>
                             ))}
                           </div>
                         )}
@@ -567,13 +621,49 @@ export default function ChatPage() {
             </span>
           </div>
 
+          {/* Прикреплённые файлы (до отправки) */}
+          {pendingAttachments.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {pendingAttachments.map((a) => (
+                <span key={a.filePath} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-700">
+                  <Paperclip className="h-3 w-3" />
+                  <span className="max-w-[160px] truncate">{a.fileName}</span>
+                  <button type="button" onClick={() => removePendingAttachment(a.filePath)} className="text-gray-400 hover:text-red-500">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" disabled title="Вложения — в разработке">
-              <Paperclip className="h-4 w-4 opacity-40" />
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFilesSelected} />
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={uploading}
+              title="Прикрепить файл"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" /> : <Paperclip className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="sm" disabled title="Эмодзи — в разработке">
-              <Smile className="h-4 w-4 opacity-40" />
-            </Button>
+            <div className="relative">
+              <Button variant="ghost" size="sm" title="Эмодзи" onClick={() => setShowEmoji((v) => !v)}>
+                <Smile className="h-4 w-4" />
+              </Button>
+              {showEmoji && (
+                <div className="absolute bottom-full left-0 mb-2 z-50 grid grid-cols-8 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                  {EMOJIS.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => insertEmoji(em)}
+                      className="h-7 w-7 rounded text-lg hover:bg-gray-100"
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex-1 relative">
               {/* Подсказки: сотрудники (@) — с поиском по имени/email */}
               {showMentionSuggestions && (
@@ -591,10 +681,10 @@ export default function ChatPage() {
                           key={member.user.id}
                           type="button"
                           onClick={() => insertMention(member.user.name)}
-                          className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 transition-colors"
                         >
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs text-white font-medium">
+                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs text-primary-foreground font-medium">
                               {member.user.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -658,9 +748,9 @@ export default function ChatPage() {
                 disabled={sending}
               />
             </div>
-            <Button 
-              onClick={handleSendMessage} 
-              disabled={!newMessage.trim() || sending}
+            <Button
+              onClick={handleSendMessage}
+              disabled={(!newMessage.trim() && pendingAttachments.length === 0) || sending}
               className="flex items-center gap-2"
             >
               {sending ? (

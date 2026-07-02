@@ -443,11 +443,11 @@ function NewDocumentPageContent() {
               </select>
               {templates.length === 0 && (
                 <p className="mt-1 text-xs text-gray-500">
-                  <Link href="/templates/guide" className="text-blue-600 hover:underline">
+                  <Link href="/templates/guide" className="text-gray-900 hover:underline">
                     Справочник тегов
                   </Link>
                   {' · '}
-                  <Link href="/templates/new" className="text-blue-600 hover:underline">
+                  <Link href="/templates/new" className="text-gray-900 hover:underline">
                     Загрузить шаблон
                   </Link>
                 </p>
@@ -470,7 +470,7 @@ function NewDocumentPageContent() {
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
           >
             {loading ? 'Создание…' : type === 'KS2' || type === 'KS3' || type === 'SERVICE_ACT' ? 'Создать и открыть' : 'Открыть редактор'}
           </button>
