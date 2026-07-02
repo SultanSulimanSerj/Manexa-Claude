@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession, signIn } from 'next-auth/react'
 import { ArrowLeft, Archive, ArchiveRestore, KeyRound, UserX, UserCheck, Eye, Pencil } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface CompanyDetail {
   id: string
@@ -805,13 +806,12 @@ export default function PlatformCompanyPage() {
       </div>
 
       {/* Редактирование реквизитов */}
-      {editReq && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => !savingReq && setEditReq(null)}
-        >
-          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-lg font-bold text-gray-900">Реквизиты компании</h3>
+      <Dialog open={!!editReq} onOpenChange={(o) => { if (!o && !savingReq) setEditReq(null) }}>
+        {editReq && (
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Реквизиты компании</DialogTitle>
+            </DialogHeader>
             <div className="grid grid-cols-2 gap-3">
               {([
                 ['name', 'Название', 'col-span-2'],
@@ -852,9 +852,10 @@ export default function PlatformCompanyPage() {
                 {savingReq ? 'Сохранение…' : 'Сохранить'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
+
     </div>
   )
 }

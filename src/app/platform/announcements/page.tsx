@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/use-toast'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Plus, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface Announcement {
   id: string
@@ -186,10 +187,12 @@ export default function PlatformAnnouncementsPage() {
       )}
 
       {/* Форма создания */}
-      {form && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setForm(null)}>
-          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-lg font-bold text-gray-900">Новый анонс</h3>
+      <Dialog open={!!form} onOpenChange={(o) => { if (!o && !busy) setForm(null) }}>
+        {form && (
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Новый анонс</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs text-gray-500">Заголовок</label>
@@ -249,9 +252,9 @@ export default function PlatformAnnouncementsPage() {
                 {busy ? 'Публикация…' : 'Опубликовать'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   )
 }
