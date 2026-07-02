@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/use-toast'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface SubRow {
   id: string
@@ -289,12 +290,12 @@ export default function PlatformBillingPage() {
       </div>
 
       {/* Форма тарифа */}
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !savingPlan && setEditing(null)}>
-          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-lg font-bold text-gray-900">
-              {isEditMode ? 'Изменить тариф' : 'Новый тариф'}
-            </h3>
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o && !savingPlan) setEditing(null) }}>
+        {editing && (
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{isEditMode ? 'Изменить тариф' : 'Новый тариф'}</DialogTitle>
+            </DialogHeader>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs text-gray-500">
@@ -399,9 +400,9 @@ export default function PlatformBillingPage() {
                 {savingPlan ? 'Сохранение…' : 'Сохранить'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   )
 }
