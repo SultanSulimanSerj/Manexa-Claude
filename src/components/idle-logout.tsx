@@ -4,14 +4,13 @@ import { useEffect, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 
 const IDLE_MS = 60 * 60 * 1000 // 1 час бездействия
-const WRITE_THROTTLE_MS = 5000 // не чаще раза в 5с трогаем таймер/localStorage
-const KEY = 'manexa_last_activity'
+const WRITE_THROTTLE_MS = 5000 // не чаще раза в 5с сбрасываем таймер
 const EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
 
 /**
  * Автовыход по бездействию (1 час) с редиректом на страницу входа.
- * Работает для любого залогиненного пользователя. Учитывает простой
- * между перезагрузками/вкладками через localStorage.
+ * Таймер живёт только в пределах открытой вкладки-сессии (in-memory),
+ * без кросс-перезагрузочной проверки — вход всегда даёт свежее окно.
  */
 export function IdleLogout() {
   const { status } = useSession()
@@ -24,17 +23,11 @@ export function IdleLogout() {
     const doLogout = () => signOut({ callbackUrl: '/auth/signin?idle=1' })
 
     const reset = () => {
-      localStorage.setItem(KEY, String(Date.now()))
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(doLogout, IDLE_MS)
     }
 
-    // При монтировании: если простой уже превысил лимит — сразу выход
-    const last = Number(localStorage.getItem(KEY) || 0)
-    if (last && Date.now() - last > IDLE_MS) {
-      doLogout()
-      return
-    }
+    // Вход/монтирование = свежее окно бездействия (без чтения старых меток)
     reset()
     lastReset.current = Date.now()
 
@@ -46,22 +39,9 @@ export function IdleLogout() {
     }
     EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
 
-    // Возврат на вкладку — пересверить простой
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      const l = Number(localStorage.getItem(KEY) || 0)
-      if (l && Date.now() - l > IDLE_MS) doLogout()
-      else {
-        lastReset.current = Date.now()
-        reset()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
-
     return () => {
       if (timer.current) clearTimeout(timer.current)
       EVENTS.forEach((e) => window.removeEventListener(e, onActivity))
-      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [status])
 

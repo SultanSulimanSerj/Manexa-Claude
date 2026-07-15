@@ -437,7 +437,7 @@ function DocumentsPageContent() {
                         {isEditableDocument(doc) && (
                           <Link
                             href={`/documents/${doc.id}/edit`}
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                             title="Редактировать"
                           >
                             <Pencil className="h-4 w-4" />
@@ -445,7 +445,7 @@ function DocumentsPageContent() {
                         )}
                         <button 
                           onClick={() => handleDownload(doc.id, doc.fileName)}
-                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-40" 
+                          className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded disabled:opacity-40" 
                           title={getDownloadTitle(doc)}
                           disabled={doc.fileSize === 0 && !doc.lastExportedAt}
                         >
@@ -454,15 +454,16 @@ function DocumentsPageContent() {
                         {doc.pdfFilePath && (doc.pdfFileSize ?? 0) > 0 && (
                           <a
                             href={`/api/documents/${doc.id}/download?format=pdf`}
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded text-xs font-medium"
+                            className="inline-flex h-9 items-center px-2 text-gray-500 hover:bg-gray-100 rounded text-xs font-medium"
                             title="Скачать PDF"
+                            aria-label="Скачать PDF"
                           >
                             PDF
                           </a>
                         )}
                         <button 
                           onClick={() => handleDeleteClick(doc.id)}
-                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" 
+                          className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded" 
                           title="Удалить"
                         >
                           <Trash2 className="h-4 w-4" />

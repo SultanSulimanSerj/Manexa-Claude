@@ -421,13 +421,13 @@ function TasksPageContent() {
                       <div className="flex items-center justify-end gap-1">
                         <button 
                           onClick={() => handleEdit(task)}
-                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                          className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleDelete(task.id)}
-                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                          className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

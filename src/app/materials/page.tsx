@@ -328,28 +328,28 @@ export default function MaterialsPage() {
                           <button
                             onClick={() => openMove(m, 'RECEIPT')}
                             title="Поступление"
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                           >
                             <ArrowDownToLine className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => openMove(m, 'ISSUE')}
                             title="Списать на объект"
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                           >
                             <ArrowUpFromLine className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => openMove(m, 'ADJUSTMENT')}
                             title="Корректировка"
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                           >
                             <Settings2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(m)}
                             title="Удалить"
-                            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
