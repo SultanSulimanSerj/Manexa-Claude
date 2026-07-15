@@ -41,6 +41,7 @@ function TasksPageContent() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState<string>(projectIdFromUrl || 'all')
   const [showModal, setShowModal] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [formData, setFormData] = useState({
     title: '',
@@ -154,8 +155,9 @@ function TasksPageContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
     try {
-      const url = editingTask 
+      const url = editingTask
         ? `/api/tasks/${editingTask.id}`
         : '/api/tasks'
       
@@ -177,9 +179,13 @@ function TasksPageContent() {
       if (response.ok) {
         setShowModal(false)
         fetchTasks()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setFormError(data.error || 'Не удалось сохранить задачу')
       }
     } catch (err) {
       console.error(err)
+      setFormError('Ошибка сети. Проверьте подключение и попробуйте снова.')
     }
   }
 
@@ -443,7 +449,7 @@ function TasksPageContent() {
         )}
 
         {/* Modal */}
-        <Dialog open={showModal} onOpenChange={(o) => !o && setShowModal(false)}>
+        <Dialog open={showModal} onOpenChange={(o) => { if (!o) { setShowModal(false); setFormError(null) } }}>
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
             <DialogHeader className="border-b p-6 pb-4">
               <DialogTitle>
@@ -452,6 +458,11 @@ function TasksPageContent() {
             </DialogHeader>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                {formError && (
+                  <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {formError}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Название *</label>
                   <input
@@ -555,7 +566,7 @@ function TasksPageContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={() => { setShowModal(false); setFormError(null) }}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
                   >
                     Отмена

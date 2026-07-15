@@ -9,7 +9,11 @@ export function ErrorBanner({ message, onDismiss }: ErrorBannerProps) {
   if (!message) return null
 
   return (
-    <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+    >
       <span>{message}</span>
       {onDismiss && (
         <button
