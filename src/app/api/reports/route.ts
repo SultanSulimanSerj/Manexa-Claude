@@ -62,16 +62,22 @@ export async function GET(request: NextRequest) {
     const totalUsers = users.length
     const activeUsers = users.filter((u) => u.isActive).length
 
-    const totalRevenue = filteredFinances
+    // Финмодель как в /finance и на дашборде:
+    // Выставлено = все INCOME; Получено = INCOME с isPaid; Прибыль = получено − расходы.
+    const totalInvoiced = filteredFinances
       .filter((f) => f.type === 'INCOME')
+      .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+
+    const totalReceived = filteredFinances
+      .filter((f) => f.type === 'INCOME' && f.isPaid)
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
 
     const totalExpenses = filteredFinances
       .filter((f) => f.type === 'EXPENSE')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
 
-    const netProfit = totalRevenue - totalExpenses
-    const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+    const netProfit = totalReceived - totalExpenses
+    const margin = totalReceived > 0 ? (netProfit / totalReceived) * 100 : 0
 
     const stats = {
       totalProjects,
@@ -83,7 +89,8 @@ export async function GET(request: NextRequest) {
       totalDocuments,
       totalUsers,
       activeUsers,
-      totalRevenue,
+      totalInvoiced,
+      totalReceived,
       totalExpenses,
       netProfit,
       margin: Math.round(margin * 10) / 10,

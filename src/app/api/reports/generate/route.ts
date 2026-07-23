@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
           'Категория': f.category,
           'Описание': f.description || 'Без описания',
           'Сумма (₽)': Number(f.amount).toLocaleString('ru-RU'),
+          'Оплачен': f.isPaid ? 'Да' : 'Нет',
           'Дата операции': new Date(f.date).toLocaleDateString('ru-RU'),
           'Проект': f.project.name,
           'ID записи': f.id,
