@@ -2,6 +2,7 @@
 
 
 import { confirm } from '@/components/ui/confirm'
+import { copyText } from '@/lib/clipboard'
 import { toast } from '@/components/ui/use-toast'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -410,11 +411,11 @@ export default function PlatformCompanyPage() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(
+            onClick={async () => {
+              const ok = await copyText(
                 `Email: ${tempPassword.email}\nВременный пароль: ${tempPassword.password}`
               )
-              toast.success('Скопировано')
+              ok ? toast.success('Скопировано') : toast.error('Не удалось скопировать — выделите вручную')
             }}
             className="mt-2 rounded border border-amber-400 px-3 py-1 text-xs text-amber-800 hover:bg-amber-100"
           >

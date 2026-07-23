@@ -6,6 +6,7 @@ import {
   formatTagForDocx,
   type TemplateDocCategory,
 } from '@/lib/template-tags'
+import { copyText } from '@/lib/clipboard'
 import Link from 'next/link'
 
 interface TagReferenceProps {
@@ -17,12 +18,9 @@ export function TagReference({ category }: TagReferenceProps) {
   const tags = useMemo(() => getTagsForCategory(category), [category])
 
   const copyTag = async (tag: string) => {
-    try {
-      await navigator.clipboard.writeText(formatTagForDocx(tag))
+    if (await copyText(formatTagForDocx(tag))) {
       setCopied(tag)
       window.setTimeout(() => setCopied(null), 1500)
-    } catch {
-      // clipboard may be unavailable
     }
   }
 

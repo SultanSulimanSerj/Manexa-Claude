@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Search, Copy, CheckCircle } from 'lucide-react'
+import { toast } from '@/components/ui/use-toast'
+import { copyText } from '@/lib/clipboard'
 
 interface PlanOption {
   id: string
@@ -114,13 +116,17 @@ export default function NewCompanyPage() {
     }
   }
 
-  const copyCredentials = () => {
+  const copyCredentials = async () => {
     if (!created) return
-    navigator.clipboard.writeText(
+    const ok = await copyText(
       `Manexa — доступ для директора\nАдрес: ${window.location.origin}/auth/signin\nEmail: ${created.owner.email}\nВременный пароль: ${created.tempPassword}\n\nПри первом входе система попросит сменить пароль.`
     )
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (ok) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } else {
+      toast.error('Не удалось скопировать — выделите текст вручную')
+    }
   }
 
   // Экран успеха: показываем временный пароль один раз

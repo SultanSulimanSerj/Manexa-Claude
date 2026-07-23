@@ -13,6 +13,7 @@ import {
   TEMPLATE_DOC_TYPES,
   TEMPLATE_PREP_STEPS,
 } from '@/lib/template-guide'
+import { copyText } from '@/lib/clipboard'
 
 type GuideTab = TemplateDocCategory | 'UPD'
 
@@ -29,12 +30,9 @@ export function TemplateGuidePanel({ compact = false }: { compact?: boolean }) {
   }, [activeTab])
 
   const copyTag = async (tag: string) => {
-    try {
-      await navigator.clipboard.writeText(formatTagForDocx(tag))
+    if (await copyText(formatTagForDocx(tag))) {
       setCopied(tag)
       window.setTimeout(() => setCopied(null), 1500)
-    } catch {
-      // clipboard may be unavailable
     }
   }
 
