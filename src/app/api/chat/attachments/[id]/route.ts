@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
 import { verifyProjectCompanyAccess } from '@/lib/access-control'
 import { getFileBuffer } from '@/lib/storage'
+import { buildFileHeaders } from '@/lib/safe-file-response'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -39,9 +40,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const buffer = await getFileBuffer(attachment.filePath)
   const dl = new URL(request.url).searchParams.get('dl') === '1'
   return new NextResponse(buffer as unknown as BodyInit, {
-    headers: {
-      'Content-Type': attachment.mimeType || 'application/octet-stream',
-      'Content-Disposition': `${dl ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(attachment.fileName)}`,
-    },
+    headers: buildFileHeaders({
+      mimeType: attachment.mimeType,
+      fileName: attachment.fileName,
+      forceDownload: dl,
+    }),
   })
 }

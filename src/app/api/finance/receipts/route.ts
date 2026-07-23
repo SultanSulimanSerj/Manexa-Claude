@@ -3,6 +3,7 @@ import path from 'path'
 import { randomUUID } from 'crypto'
 import { authenticateUser } from '@/lib/auth-api'
 import { uploadFile, getFileBuffer } from '@/lib/storage'
+import { buildFileHeaders, isUploadMimeBlocked } from '@/lib/safe-file-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
   if (!file) return NextResponse.json({ error: 'Файл не передан' }, { status: 400 })
   if (file.size > 15 * 1024 * 1024) {
     return NextResponse.json({ error: 'Файл больше 15 МБ' }, { status: 400 })
+  }
+  if (isUploadMimeBlocked(file.type)) {
+    return NextResponse.json({ error: 'Недопустимый тип файла' }, { status: 400 })
   }
 
   const ext = path.extname(file.name) || '.jpg'
@@ -54,11 +58,7 @@ export async function GET(request: NextRequest) {
         : 'image/jpeg'
     const filename = `cheque.${ext}`
     return new NextResponse(buffer as any, {
-      headers: {
-        'Content-Type': mime,
-        'Cache-Control': 'private, max-age=300',
-        'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="${filename}"`,
-      },
+      headers: buildFileHeaders({ mimeType: mime, fileName: filename, forceDownload: download }),
     })
   } catch {
     return NextResponse.json({ error: 'Файл не найден' }, { status: 404 })

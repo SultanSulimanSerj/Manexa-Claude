@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
 import { uploadFile } from '@/lib/storage'
+import { isUploadMimeBlocked } from '@/lib/safe-file-response'
 import { generateId } from '@/lib/id-generator'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,9 @@ export async function POST(request: NextRequest) {
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'Файл больше 25 МБ' }, { status: 400 })
+  }
+  if (isUploadMimeBlocked(file.type)) {
+    return NextResponse.json({ error: 'Недопустимый тип файла' }, { status: 400 })
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())

@@ -59,6 +59,7 @@ export async function GET(
           'Content-Disposition': `attachment; filename="${encodeURIComponent(attachment.fileName || 'attachment')}"`,
           'Content-Length': fileBuffer.length.toString(),
           'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'X-Content-Type-Options': 'nosniff',
           Pragma: 'no-cache',
         },
       })
