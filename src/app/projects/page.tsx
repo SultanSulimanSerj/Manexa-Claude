@@ -4,7 +4,7 @@
 import { confirm } from '@/components/ui/confirm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
@@ -12,7 +12,13 @@ import { SkeletonList } from '@/components/ui/skeleton'
 import { usePagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
-import { Plus, Search, Edit, Trash2, Users, X, FolderOpen } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Users, X, FolderOpen, MoreHorizontal } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { InnLookupField } from '@/components/counterparty/InnLookupField'
 import { toClientRequisitesFields } from '@/lib/counterparty/map-fields'
@@ -55,13 +61,14 @@ interface Project {
 
 function ProjectsPageContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
-  const [showClientRequisites, setShowClientRequisites] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -118,7 +125,6 @@ function ProjectsPageContent() {
 
   const handleCreate = () => {
     setEditingProject(null)
-    setShowClientRequisites(false)
     setError(null)
     setFormData({
       name: '',
@@ -149,7 +155,6 @@ function ProjectsPageContent() {
 
   const handleEdit = (project: Project) => {
     setEditingProject(project)
-    setShowClientRequisites(true) // При редактировании показываем реквизиты клиента
     setFormData({
       name: project.name,
       description: project.description || '',
@@ -201,7 +206,6 @@ function ProjectsPageContent() {
       if (response.ok) {
         setShowModal(false)
         setError(null)
-        setShowClientRequisites(false)
         fetchProjects()
       } else {
         setError(data.error || 'Ошибка при создании проекта')
@@ -234,8 +238,11 @@ function ProjectsPageContent() {
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesPriority = priorityFilter === 'all' || p.priority === priorityFilter
+    return matchesSearch && matchesStatus && matchesPriority
   })
+
+  const activeCount = projects.filter((p) => p.status === 'ACTIVE').length
 
   const { pageItems: pagedProjects, Pagination } = usePagination(filteredProjects, 20)
 
@@ -254,21 +261,29 @@ function ProjectsPageContent() {
     const map: Record<string, string> = {
       'PLANNING': 'bg-blue-50 text-blue-700 border-blue-200',
       'ACTIVE': 'bg-green-50 text-green-700 border-green-200',
-      'COMPLETED': 'bg-gray-50 text-gray-700 border-gray-200',
-      'ON_HOLD': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      'COMPLETED': 'bg-neutral-100 text-neutral-600 border-neutral-200',
+      'ON_HOLD': 'bg-amber-50 text-amber-700 border-amber-200',
       'CANCELLED': 'bg-red-50 text-red-700 border-red-200'
     }
-    return map[status] || 'bg-gray-50 text-gray-700'
+    return map[status] || 'bg-neutral-100 text-neutral-600 border-neutral-200'
   }
 
-  const getPriorityColor = (priority: string) => {
-    const map: Record<string, string> = {
-      'HIGH': 'text-red-600',
-      'MEDIUM': 'text-yellow-600',
-      'LOW': 'text-green-600'
+  // Приоритет: цветная точка + подпись (дизайн-хендофф)
+  const getPriorityMeta = (priority: string) => {
+    const map: Record<string, { label: string; dot: string }> = {
+      'HIGH': { label: 'Высокий', dot: 'bg-red-600' },
+      'MEDIUM': { label: 'Средний', dot: 'bg-amber-600' },
+      'LOW': { label: 'Низкий', dot: 'bg-green-600' },
     }
-    return map[priority] || 'text-gray-600'
+    return map[priority] || { label: priority, dot: 'bg-neutral-400' }
   }
+
+  // Деньги: ru-RU формат, ноль/нет данных → «—»
+  const fmtMoney = (v: number | undefined | null) =>
+    v && v !== 0 ? `${new Intl.NumberFormat('ru-RU').format(v)} ₽` : '—'
+
+  const fmtDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—'
 
   if (loading) {
     return (
@@ -287,7 +302,7 @@ function ProjectsPageContent() {
         <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
         <PageHeader
           title="Проекты"
-          description={`${projects.length} проектов`}
+          description={`${projects.length} проектов · ${activeCount} активных`}
           actions={
             <button
               onClick={handleCreate}
@@ -300,29 +315,38 @@ function ProjectsPageContent() {
         />
 
         {/* Filters */}
-        <div className="bg-white rounded-lg p-4 border">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск проектов..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Все статусы</option>
-              <option value="PLANNING">Планирование</option>
-              <option value="ACTIVE">Активный</option>
-              <option value="COMPLETED">Завершен</option>
-            </select>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-full sm:w-[300px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Поиск проектов..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-lg border border-neutral-200 bg-white py-[7px] pl-9 pr-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-neutral-200 bg-white px-[11px] py-[7px] text-[13px] focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="all">Все статусы</option>
+            <option value="PLANNING">Планирование</option>
+            <option value="ACTIVE">Активный</option>
+            <option value="ON_HOLD">Приостановлен</option>
+            <option value="COMPLETED">Завершен</option>
+          </select>
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="rounded-lg border border-neutral-200 bg-white px-[11px] py-[7px] text-[13px] focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="all">Приоритет</option>
+            <option value="HIGH">Высокий</option>
+            <option value="MEDIUM">Средний</option>
+            <option value="LOW">Низкий</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -350,92 +374,93 @@ function ProjectsPageContent() {
         ) : (
         <div className="bg-white rounded-xl border border-border/70 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-neutral-50/70">
+            <table className="min-w-full">
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Проект</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Статус</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">План. доход</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Доходы</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Расходы</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Прибыль</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500">Задачи</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500">Команда</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Действия</th>
+                  <th className="px-3 py-2.5 text-left text-[11.5px] font-semibold text-neutral-400 min-w-[240px]">Проект</th>
+                  <th className="px-3 py-2.5 text-left text-[11.5px] font-semibold text-neutral-400 w-[130px]">Статус</th>
+                  <th className="px-3 py-2.5 text-left text-[11.5px] font-semibold text-neutral-400 w-[120px]">Приоритет</th>
+                  <th className="px-3 py-2.5 text-right text-[11.5px] font-semibold text-neutral-400 w-[130px]">Доходы</th>
+                  <th className="px-3 py-2.5 text-right text-[11.5px] font-semibold text-neutral-400 w-[130px]">Расходы</th>
+                  <th className="px-3 py-2.5 text-right text-[11.5px] font-semibold text-neutral-400 w-[130px]">Прибыль</th>
+                  <th className="px-3 py-2.5 text-center text-[11.5px] font-semibold text-neutral-400 w-[70px]">Задачи</th>
+                  <th className="px-3 py-2.5 text-left text-[11.5px] font-semibold text-neutral-400 w-[90px]">Срок</th>
+                  <th className="w-12" aria-label="Действия" />
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {pagedProjects.map((project) => {
                   const fs = project.financialSummary
+                  const prio = getPriorityMeta(project.priority)
                   return (
-                    <tr key={project.id} className="hover:bg-neutral-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Link 
-                              href={`/projects/${project.id}`}
-                              className="text-sm font-semibold text-neutral-900 font-medium hover:underline"
-                            >
-                              {project.name}
-                            </Link>
-                            <span className={`text-xs font-bold ${getPriorityColor(project.priority)}`}>●</span>
-                          </div>
-                          {project.description && (
-                            <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{project.description}</div>
+                    <tr
+                      key={project.id}
+                      onClick={() => router.push(`/projects/${project.id}`)}
+                      className="group cursor-pointer border-t border-neutral-100 transition-colors hover:bg-neutral-50"
+                    >
+                      <td className="px-3 py-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-[13.5px] font-semibold text-neutral-900">{project.name}</div>
+                          {(project.clientName || project.description) && (
+                            <div className="truncate text-xs text-neutral-400">
+                              {project.clientName || project.description}
+                            </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getStatusColor(project.status)}`}>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex rounded-[7px] border px-[9px] py-[3px] text-xs font-medium ${getStatusColor(project.status)}`}>
                           {getStatusText(project.status)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="text-sm font-medium text-blue-600">
-                          {fs && fs.plannedIncome > 0 ? `${fs.plannedIncome.toLocaleString()}` : '—'}
-                        </div>
+                      <td className="px-3 py-3">
+                        <span className="inline-flex items-center gap-1.5 text-[12.5px] text-neutral-600">
+                          <span className={`h-[7px] w-[7px] rounded-full ${prio.dot}`} />
+                          {prio.label}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="text-sm font-medium text-green-600">
-                          {fs && fs.income > 0 ? `+${fs.income.toLocaleString()}` : '—'}
-                        </div>
+                      <td className="px-3 py-3 text-right text-[13px] text-neutral-700 tabular-nums">
+                        {fmtMoney(fs?.income)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="text-sm font-medium text-red-600">
-                          {fs && fs.expenses > 0 ? `-${fs.expenses.toLocaleString()}` : '—'}
-                        </div>
+                      <td className="px-3 py-3 text-right text-[13px] text-neutral-700 tabular-nums">
+                        {fmtMoney(fs?.expenses)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className={`text-sm font-semibold ${fs && fs.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {fs ? fs.profit.toLocaleString() : '—'}
-                        </div>
+                      <td className="px-3 py-3 text-right tabular-nums">
+                        {fs && fs.profit !== 0 ? (
+                          <span className={`text-[13px] font-semibold ${fs.profit > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                            {fs.profit > 0 ? '+' : '−'}{new Intl.NumberFormat('ru-RU').format(Math.abs(fs.profit))} ₽
+                          </span>
+                        ) : (
+                          <span className="text-[13px] text-neutral-400">—</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="text-sm text-gray-900">{project._count.tasks}</div>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Users className="h-3 w-3 text-gray-400" />
-                          <span className="text-sm text-gray-900">{project._count.users}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button 
-                            onClick={() => handleEdit(project)}
-                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded" 
-                            title="Редактировать"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(project.id)}
-                            className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded" 
-                            title="Удалить"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                      <td className="px-3 py-3 text-center text-[13px] text-neutral-700">{project._count.tasks}</td>
+                      <td className="px-3 py-3 text-[12.5px] text-neutral-600 whitespace-nowrap">{fmtDate(project.endDate)}</td>
+                      <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[7px] text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 focus-visible:opacity-100 group-hover:opacity-100"
+                              aria-label={`Действия: ${project.name}`}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(project)}>
+                              <Edit className="h-4 w-4 text-neutral-400" />
+                              Редактировать
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(project.id)}
+                              className="text-red-600 focus:bg-red-50 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Удалить
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   )
@@ -476,7 +501,7 @@ function ProjectsPageContent() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     required
                   />
                 </div>
@@ -486,7 +511,7 @@ function ProjectsPageContent() {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     rows={3}
                   />
                 </div>
@@ -497,7 +522,7 @@ function ProjectsPageContent() {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({...formData, status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="PLANNING">Планирование</option>
                       <option value="ACTIVE">Активный</option>
@@ -512,7 +537,7 @@ function ProjectsPageContent() {
                     <select
                       value={formData.priority}
                       onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="LOW">Низкий</option>
                       <option value="MEDIUM">Средний</option>
@@ -527,7 +552,7 @@ function ProjectsPageContent() {
                     type="number"
                     value={formData.budget}
                     onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     💡 Бюджет будет автоматически добавлен как планируемый доход в финансовые записи
@@ -541,7 +566,7 @@ function ProjectsPageContent() {
                       type="date"
                       value={formData.startDate}
                       onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
@@ -551,212 +576,40 @@ function ProjectsPageContent() {
                       type="date"
                       value={formData.endDate}
                       onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </div>
 
-                {/* Реквизиты клиента */}
-                <div className="border-t pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowClientRequisites(!showClientRequisites)}
-                    className="flex items-center justify-between w-full text-left mb-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Реквизиты клиента</h3>
-                      <p className="text-sm text-gray-500">Дополнительная информация о клиенте (необязательно)</p>
-                    </div>
-                    <div className="flex items-center">
-                      {showClientRequisites ? (
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
-                    </div>
-                  </button>
-                  
-                  {showClientRequisites && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Название клиента</label>
-                      <input
-                        type="text"
-                        value={formData.clientName}
-                        onChange={(e) => setFormData({...formData, clientName: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="ООО 'Название компании'"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Полное юридическое наименование</label>
-                      <input
-                        type="text"
-                        value={formData.clientLegalName}
-                        onChange={(e) => setFormData({...formData, clientLegalName: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Общество с ограниченной ответственностью..."
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <InnLookupField
-                      variant="native"
-                      label="ИНН"
-                      value={formData.clientInn}
-                      onChange={(clientInn) => setFormData({ ...formData, clientInn })}
-                      onFound={(data) => {
-                        setShowClientRequisites(true)
-                        setFormData((prev) => ({
-                          ...prev,
-                          ...toClientRequisitesFields(data),
-                        }))
-                      }}
-                      placeholder="1234567890"
-                    />
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">КПП</label>
-                      <input
-                        type="text"
-                        value={formData.clientKpp}
-                        onChange={(e) => setFormData({...formData, clientKpp: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="123456789"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">ОГРН</label>
-                      <input
-                        type="text"
-                        value={formData.clientOgrn}
-                        onChange={(e) => setFormData({...formData, clientOgrn: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="1234567890123"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Юридический адрес</label>
-                      <textarea
-                        value={formData.clientLegalAddress}
-                        onChange={(e) => setFormData({...formData, clientLegalAddress: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={2}
-                        placeholder="г. Москва, ул. Примерная, д. 1, офис 101"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Фактический адрес</label>
-                      <textarea
-                        value={formData.clientActualAddress}
-                        onChange={(e) => setFormData({...formData, clientActualAddress: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={2}
-                        placeholder="г. Москва, ул. Фактическая, д. 2, офис 201"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">ФИО директора</label>
-                      <input
-                        type="text"
-                        value={formData.clientDirectorName}
-                        onChange={(e) => setFormData({...formData, clientDirectorName: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Иванов Иван Иванович"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
-                      <input
-                        type="text"
-                        value={formData.clientContactPhone}
-                        onChange={(e) => setFormData({...formData, clientContactPhone: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="+7 (495) 123-45-67"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={formData.clientContactEmail}
-                      onChange={(e) => setFormData({...formData, clientContactEmail: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="info@company.ru"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Расчетный счет</label>
-                      <input
-                        type="text"
-                        value={formData.clientBankAccount}
-                        onChange={(e) => setFormData({...formData, clientBankAccount: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="40702810000000000001"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Наименование банка</label>
-                      <input
-                        type="text"
-                        value={formData.clientBankName}
-                        onChange={(e) => setFormData({...formData, clientBankName: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="ПАО СБЕРБАНК"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">БИК банка</label>
-                      <input
-                        type="text"
-                        value={formData.clientBankBik}
-                        onChange={(e) => setFormData({...formData, clientBankBik: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="044525225"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Корреспондентский счет</label>
-                      <input
-                        type="text"
-                        value={formData.clientCorrespondentAccount}
-                        onChange={(e) => setFormData({...formData, clientCorrespondentAccount: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="30101810000000000225"
-                      />
-                    </div>
-                  </div>
-
-                      <p className="text-xs text-gray-500 mt-4">
-                        💡 Эти данные будут автоматически использоваться в договорах, сметах и других документах проекта
+                {/* Клиент по ИНН — реквизиты подтягиваются автоматически */}
+                <div className="border-t pt-4">
+                  <InnLookupField
+                    variant="native"
+                    label="Клиент — ИНН"
+                    value={formData.clientInn}
+                    onChange={(clientInn) => setFormData({ ...formData, clientInn })}
+                    onFound={(data) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        ...toClientRequisitesFields(data),
+                      }))
+                    }}
+                    placeholder="1234567890"
+                  />
+                  {(formData.clientName || formData.clientLegalName) && (
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                      <svg className="mt-0.5 h-4 w-4 shrink-0 text-green-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-[12.5px] text-green-800">
+                        <span className="font-semibold">{formData.clientLegalName || formData.clientName}</span>
+                        {formData.clientKpp && ` · КПП ${formData.clientKpp}`}
                       </p>
                     </div>
                   )}
+                  <p className="mt-1.5 text-xs text-neutral-400">
+                    Реквизиты подтянутся автоматически. Редактировать — на карточке проекта, вкладка «Реквизиты».
+                  </p>
                 </div>
 
                 <div className="flex gap-3 pt-4">

@@ -12,6 +12,7 @@ import { SkeletonList } from '@/components/ui/skeleton'
 import { usePagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
+import { AssigneeCombobox } from '@/components/assignee-combobox'
 import { Plus, Search, Edit, Trash2, X, ArrowLeft, Flag } from 'lucide-react'
 import Link from 'next/link'
 
@@ -301,13 +302,13 @@ function TasksPageContent() {
                 placeholder="Поиск задач..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="all">Все статусы</option>
               <option value="TODO">К выполнению</option>
@@ -317,7 +318,7 @@ function TasksPageContent() {
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="all">Все проекты</option>
               {projects.map((project) => (
@@ -469,7 +470,7 @@ function TasksPageContent() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     required
                   />
                 </div>
@@ -479,7 +480,7 @@ function TasksPageContent() {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     rows={3}
                   />
                 </div>
@@ -490,7 +491,7 @@ function TasksPageContent() {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({...formData, status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="TODO">К выполнению</option>
                       <option value="IN_PROGRESS">В работе</option>
@@ -504,7 +505,7 @@ function TasksPageContent() {
                     <select
                       value={formData.priority}
                       onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="LOW">Низкий</option>
                       <option value="MEDIUM">Средний</option>
@@ -519,7 +520,7 @@ function TasksPageContent() {
                     <select
                       value={formData.projectId}
                       onChange={(e) => setFormData({...formData, projectId: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="">Без проекта</option>
                       {projects.map(p => (
@@ -534,27 +535,18 @@ function TasksPageContent() {
                       type="date"
                       value={formData.dueDate}
                       onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Исполнители</label>
-                  <select
-                    multiple
+                  <AssigneeCombobox
+                    users={users}
                     value={formData.assigneeIds}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, option => option.value)
-                      setFormData({...formData, assigneeIds: selected})
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[100px]"
-                  >
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">Удерживайте Ctrl (Cmd) для выбора нескольких</p>
+                    onChange={(assigneeIds) => setFormData({ ...formData, assigneeIds })}
+                  />
                 </div>
 
                 <div className="flex gap-3 pt-4">
