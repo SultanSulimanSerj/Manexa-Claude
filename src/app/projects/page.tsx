@@ -22,6 +22,7 @@ import {
 import Link from 'next/link'
 import { InnLookupField } from '@/components/counterparty/InnLookupField'
 import { toClientRequisitesFields } from '@/lib/counterparty/map-fields'
+import { ClientFilterCombobox, type ClientOption } from '@/components/client-filter-combobox'
 
 interface Project {
   id: string
@@ -67,6 +68,7 @@ function ProjectsPageContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
+  const [clientId, setClientId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -235,11 +237,41 @@ function ProjectsPageContent() {
     }
   }
 
+  // Ключ контрагента проекта: ИНН (если есть), иначе название. Проекты без клиента — null.
+  const clientKey = (p: Project): string | null => {
+    const inn = p.clientInn?.trim()
+    if (inn) return `inn:${inn}`
+    const name = (p.clientName || p.clientLegalName)?.trim()
+    return name ? `name:${name.toLowerCase()}` : null
+  }
+
+  // Список контрагентов из загруженных проектов + счётчики
+  const clientOptions: ClientOption[] = (() => {
+    const map = new Map<string, ClientOption>()
+    for (const p of projects) {
+      const key = clientKey(p)
+      if (!key) continue
+      const existing = map.get(key)
+      if (existing) {
+        existing.count++
+      } else {
+        map.set(key, {
+          id: key,
+          name: (p.clientName || p.clientLegalName || 'Без названия').trim(),
+          inn: p.clientInn?.trim() || null,
+          count: 1,
+        })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  })()
+
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter
     const matchesPriority = priorityFilter === 'all' || p.priority === priorityFilter
-    return matchesSearch && matchesStatus && matchesPriority
+    const matchesClient = !clientId || clientKey(p) === clientId
+    return matchesSearch && matchesStatus && matchesPriority && matchesClient
   })
 
   const activeCount = projects.filter((p) => p.status === 'ACTIVE').length
@@ -347,6 +379,14 @@ function ProjectsPageContent() {
             <option value="MEDIUM">Средний</option>
             <option value="LOW">Низкий</option>
           </select>
+          {clientOptions.length > 0 && (
+            <ClientFilterCombobox
+              clients={clientOptions}
+              value={clientId}
+              onChange={setClientId}
+              totalCount={projects.length}
+            />
+          )}
         </div>
 
         {/* Table */}
