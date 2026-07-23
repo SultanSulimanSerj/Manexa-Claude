@@ -245,7 +245,7 @@ export default function ApprovalsPage() {
           }
         }
         
-        setApprovals([newApproval, ...approvals])
+        await fetchApprovals()
         setShowCreateModal(false)
         setCreateForm({
           title: '',

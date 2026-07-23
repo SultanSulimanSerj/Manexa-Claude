@@ -172,6 +172,7 @@ export async function POST(request: NextRequest) {
         requireAllApprovals: requireAllApprovals || false,
         autoPublishOnApproval: autoPublishOnApproval !== undefined ? autoPublishOnApproval : true,
         creatorId: user.id,
+        companyId: user.companyId,
         updatedAt: new Date(),
         ...(documentId && { documentId }),
         ...(projectId && { projectId }),
