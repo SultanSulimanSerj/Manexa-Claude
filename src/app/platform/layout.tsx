@@ -21,11 +21,14 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     redirect('/auth/signin?expired=1')
   }
 
+  const sessionEndsAt = loginAt + PLATFORM_SESSION_MAX_AGE_SEC * 1000
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <PlatformNav
         userName={(session!.user as { name?: string }).name || ''}
         role={role}
+        sessionEndsAt={sessionEndsAt}
       />
       <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
     </div>

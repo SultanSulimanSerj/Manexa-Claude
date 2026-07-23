@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
   if (status === 'active') where.isActive = true
   if (status === 'suspended') where.subscription = { status: 'SUSPENDED' }
   if (status === 'trial') where.subscription = { status: 'TRIAL' }
+  if (status === 'past_due') where.subscription = { status: 'PAST_DUE' }
 
   const companies = await prisma.company.findMany({
     where,

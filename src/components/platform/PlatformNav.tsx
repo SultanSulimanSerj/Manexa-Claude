@@ -3,66 +3,100 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { Building2, LayoutDashboard, CreditCard, Receipt, Megaphone, Users, ScrollText, LogOut } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Clock, LogOut } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/platform', label: 'Дашборд', icon: LayoutDashboard, exact: true },
-  { href: '/platform/companies', label: 'Компании', icon: Building2 },
-  { href: '/platform/billing', label: 'Подписки', icon: CreditCard },
-  { href: '/platform/payments', label: 'Платежи', icon: Receipt },
-  { href: '/platform/announcements', label: 'Анонсы', icon: Megaphone },
-  { href: '/platform/users', label: 'Пользователи', icon: Users },
-  { href: '/platform/audit', label: 'Аудит', icon: ScrollText },
+  { href: '/platform', label: 'Дашборд', exact: true },
+  { href: '/platform/companies', label: 'Компании' },
+  { href: '/platform/billing', label: 'Тарифы' },
+  { href: '/platform/payments', label: 'Платежи' },
+  { href: '/platform/announcements', label: 'Анонсы' },
+  { href: '/platform/users', label: 'Пользователи' },
+  { href: '/platform/audit', label: 'Аудит' },
 ]
 
-export function PlatformNav({ userName, role }: { userName: string; role: string }) {
+function useSessionCountdown(endsAt?: number) {
+  const [left, setLeft] = useState<number>(() => (endsAt ? endsAt - Date.now() : 0))
+  useEffect(() => {
+    if (!endsAt) return
+    const t = setInterval(() => setLeft(endsAt - Date.now()), 30_000)
+    setLeft(endsAt - Date.now())
+    return () => clearInterval(t)
+  }, [endsAt])
+  if (!endsAt || left <= 0) return null
+  const totalMin = Math.floor(left / 60_000)
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return h > 0 ? `${h} ч ${m} мин` : `${m} мин`
+}
+
+export function PlatformNav({
+  userName,
+  role,
+  sessionEndsAt,
+}: {
+  userName: string
+  role: string
+  sessionEndsAt?: number
+}) {
   const pathname = usePathname()
+  const timeLeft = useSessionCountdown(sessionEndsAt)
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white shadow-sm">
-      <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
-        <Link href="/platform" className="flex items-center gap-2">
-          <span className="rounded bg-indigo-600 px-2 py-0.5 text-sm font-bold text-white">M</span>
-          <span className="text-sm font-bold text-gray-900">
-            Manexa <span className="font-normal text-indigo-600">Платформа</span>
+    <header className="sticky top-0 z-30 bg-[#1e1e24]">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-5 px-4">
+        {/* Лого + маркер контекста */}
+        <Link href="/platform" className="flex shrink-0 items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-700 text-sm font-bold text-white">M</span>
+          <span className="text-sm font-semibold text-white">Manexa</span>
+          <span className="rounded-full border border-indigo-700 px-2 py-0.5 text-[11px] font-medium text-indigo-300">
+            Платформа
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        {/* Табы */}
+        <nav className="flex items-center gap-0.5 overflow-x-auto">
           {NAV_ITEMS.map((item) => {
-            const active = item.exact
-              ? pathname === item.href
-              : pathname?.startsWith(item.href)
-            const Icon = item.icon
+            const active = item.exact ? pathname === item.href : pathname?.startsWith(item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
                   active
-                    ? 'bg-indigo-50 font-medium text-indigo-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-white/[.14] text-white'
+                    : 'text-neutral-400 hover:bg-white/[.08] hover:text-white'
                 }`}
               >
-                <Icon className="h-4 w-4" />
                 {item.label}
               </Link>
             )
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-sm font-medium text-gray-900">{userName}</p>
-            <p className="text-xs text-gray-500">
-              {role === 'PLATFORM_ADMIN' ? 'Администратор платформы' : 'Менеджер платформы'}
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          {timeLeft && (
+            <span
+              className="hidden items-center gap-1.5 rounded-lg bg-white/[.08] px-2.5 py-1.5 text-[12px] font-medium text-neutral-300 sm:inline-flex"
+              title="До конца сессии администратора"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Сессия · {timeLeft}
+            </span>
+          )}
+          <div className="hidden text-right md:block">
+            <p className="text-[13px] font-medium leading-tight text-white">{userName}</p>
+            <p className="text-[11px] text-neutral-400">
+              {role === 'PLATFORM_ADMIN' ? 'Администратор' : 'Менеджер'}
             </p>
           </div>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-            className="rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+            className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-white/[.08] hover:text-white"
             title="Выйти"
+            aria-label="Выйти"
           >
             <LogOut className="h-4 w-4" />
           </button>
