@@ -17,23 +17,6 @@ interface ClientFilterComboboxProps {
   totalCount: number
 }
 
-// Детерминированный цвет аватара по названию (палитра из дизайн-хендоффа)
-const AVATAR_COLORS = ['#4338ca', '#0d9488', '#b45309', '#7c3aed', '#0369a1']
-function avatarColor(name: string) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join('')
-}
-
 function plural(n: number) {
   const mod10 = n % 10
   const mod100 = n % 100
@@ -163,12 +146,6 @@ export function ClientFilterCombobox({ clients, value, onChange, totalCount }: C
                       isSelected ? 'bg-indigo-50' : ''
                     }`}
                   >
-                    <span
-                      className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md text-[10px] font-semibold text-white"
-                      style={{ backgroundColor: avatarColor(c.name) }}
-                    >
-                      {initials(c.name)}
-                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-semibold text-neutral-900">{c.name}</span>
                       <span className="block truncate text-[11px] text-neutral-400">
