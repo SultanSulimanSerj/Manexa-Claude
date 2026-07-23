@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Все обязательные поля должны быть заполнены (ФИО, Email, Пароль, Название компании, ИНН, ФИО директора)' }, { status: 400 })
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'Пароль должен содержать минимум 6 символов' }, { status: 400 })
+    if (password.length < 8) {
+      return NextResponse.json({ error: 'Пароль должен содержать минимум 8 символов' }, { status: 400 })
     }
 
     // Проверяем, существует ли пользователь

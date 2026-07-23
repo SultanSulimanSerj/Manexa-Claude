@@ -57,10 +57,7 @@ export async function GET(
     return NextResponse.json({ ...task, subtasks })
   } catch (error) {
     console.error('Error fetching task:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 

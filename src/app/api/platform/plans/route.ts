@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
     where: { code },
     update: {
       name,
-      description: description ?? null,
+      // description обновляем только если поле явно передано — иначе частичные
+      // апдейты (напр. скрытие/возврат тарифа) не должны его затирать
+      ...('description' in body && { description: description ?? null }),
       priceMonthly,
       maxUsers: maxUsers ?? null,
       maxProjects: maxProjects ?? null,

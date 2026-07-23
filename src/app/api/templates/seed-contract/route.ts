@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating template:', error)
     return NextResponse.json(
-      { error: 'Ошибка при создании шаблона', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Ошибка при создании шаблона' },
       { status: 500 }
     )
   }

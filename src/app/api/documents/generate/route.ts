@@ -378,10 +378,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error generating document:', error)
     return NextResponse.json(
-      {
-        error: 'Ошибка при генерации документа',
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: 'Ошибка при генерации документа' },
       { status: 500 }
     )
   }
