@@ -956,8 +956,10 @@ enum UserRole {
   PLATFORM_MANAGER
   OWNER
   ADMIN
-  MANAGER
-  USER
+  MANAGER   // UI: «Руководитель проекта»
+  USER      // UI: «Сотрудник»
+  CONTRACTOR // Подрядчик (внешний, без финансов)
+  CLIENT     // Заказчик (внешний, просмотр своего проекта)
 }
 
 enum ProjectStatus {

@@ -54,7 +54,7 @@ const NAV_GROUPS: NavigationGroup[] = [
     items: [
       { name: 'Главная', href: '/', icon: Home },
       { name: 'Проекты', href: '/projects', icon: FolderOpen },
-      { name: 'Задачи', href: '/tasks', icon: Flag },
+      { name: 'Задачи', href: '/tasks', icon: Flag, permission: 'canViewAllTasks' },
       { name: 'Согласования', href: '/approvals', icon: CheckCircle },
       { name: 'Чат', href: '/chat', icon: MessageSquare },
     ],
@@ -62,8 +62,8 @@ const NAV_GROUPS: NavigationGroup[] = [
   {
     title: 'Финансы',
     items: [
-      { name: 'Финансы', href: '/finance', icon: DollarSign },
-      { name: 'Материалы', href: '/materials', icon: Package },
+      { name: 'Финансы', href: '/finance', icon: DollarSign, permission: 'canViewFinances' },
+      { name: 'Материалы', href: '/materials', icon: Package, permission: 'canViewFinances' },
       { name: 'Отчеты', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
     ],
   },
@@ -71,7 +71,7 @@ const NAV_GROUPS: NavigationGroup[] = [
     title: 'Документы',
     items: [
       { name: 'Документы', href: '/documents', icon: FileText },
-      { name: 'Шаблоны', href: '/templates', icon: File },
+      { name: 'Шаблоны', href: '/templates', icon: File, permission: 'canManageProjectMembers' },
     ],
   },
   {

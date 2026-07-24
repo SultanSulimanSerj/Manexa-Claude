@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PermissionGuard, PermissionButton } from '@/components/permission-guard'
 import { UserRole } from '@/lib/permissions'
+import { roleLabel, ROLE_COLORS } from '@/lib/role-labels'
 
 interface User {
   id: string
@@ -208,25 +209,9 @@ export default function UsersPage() {
     return new Date(dateString).toLocaleDateString('ru-RU')
   }
 
-  const getRoleLabel = (role: string) => {
-    const labels: { [key: string]: string } = {
-      'OWNER': 'Владелец',
-      'ADMIN': 'Администратор',
-      'MANAGER': 'Менеджер',
-      'USER': 'Пользователь'
-    }
-    return labels[role] || role
-  }
+  const getRoleLabel = (role: string) => roleLabel(role)
 
-  const getRoleColor = (role: string) => {
-    const colors: { [key: string]: string } = {
-      'OWNER': 'bg-purple-100 text-purple-800',
-      'ADMIN': 'bg-red-100 text-red-800',
-      'MANAGER': 'bg-blue-100 text-blue-800',
-      'USER': 'bg-gray-100 text-gray-800'
-    }
-    return colors[role] || 'bg-gray-100 text-gray-800'
-  }
+  const getRoleColor = (role: string) => ROLE_COLORS[role] || 'bg-gray-100 text-gray-800'
 
   if (loading) {
     return (
@@ -416,9 +401,15 @@ export default function UsersPage() {
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       className="w-full p-2 border border-gray-300 rounded-md"
                     >
-                      <option value="USER">Пользователь</option>
-                      <option value="MANAGER">Менеджер</option>
-                      <option value="ADMIN">Администратор</option>
+                      <optgroup label="Сотрудники">
+                        <option value="USER">Сотрудник</option>
+                        <option value="MANAGER">Руководитель проекта</option>
+                        <option value="ADMIN">Администратор</option>
+                      </optgroup>
+                      <optgroup label="Внешние (по проектам)">
+                        <option value="CONTRACTOR">Подрядчик</option>
+                        <option value="CLIENT">Заказчик</option>
+                      </optgroup>
                     </select>
                   </div>
 
@@ -505,9 +496,15 @@ export default function UsersPage() {
                       onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
                       className="w-full p-2 border border-gray-300 rounded-md"
                     >
-                      <option value="USER">Пользователь</option>
-                      <option value="MANAGER">Менеджер</option>
-                      <option value="ADMIN">Администратор</option>
+                      <optgroup label="Сотрудники">
+                        <option value="USER">Сотрудник</option>
+                        <option value="MANAGER">Руководитель проекта</option>
+                        <option value="ADMIN">Администратор</option>
+                      </optgroup>
+                      <optgroup label="Внешние (по проектам)">
+                        <option value="CONTRACTOR">Подрядчик</option>
+                        <option value="CLIENT">Заказчик</option>
+                      </optgroup>
                     </select>
                   </div>
 

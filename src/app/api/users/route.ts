@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission, filterDataByPermissions } from '@/lib/auth-middleware'
 import { prisma } from '@/lib/prisma'
-import { UserRole } from '@/lib/permissions'
+import { UserRole, hasPermission } from '@/lib/permissions'
 import { checkPlanLimit, PLAN_LIMIT_MESSAGES } from '@/lib/subscription-guard'
+
+// Внешние роли (по проектам) — их может приглашать и Руководитель проекта
+const EXTERNAL_ROLES: string[] = [UserRole.CONTRACTOR, UserRole.CLIENT]
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,16 +69,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // canCreateUsers → OWNER/ADMIN. РП (canManageProjectMembers) может заводить только внешних.
     const { allowed, user, error } = await checkPermission(request, 'canCreateUsers')
-    
-    if (!allowed || !user) {
+
+    if (!user) {
       return NextResponse.json({ error: error || 'Недостаточно прав' }, { status: 403 })
     }
 
     const body = await request.json()
     const { name, email, password, role, position } = body
 
-    // Проверяем права на создание пользователей с определенной ролью
+    const isExternal = EXTERNAL_ROLES.includes(role)
+
+    // Внутренние роли (Сотрудник/РП/Админ) — только те, у кого canCreateUsers
+    if (!isExternal && !allowed) {
+      return NextResponse.json({ error: error || 'Недостаточно прав' }, { status: 403 })
+    }
+
+    // Внешние роли (Подрядчик/Заказчик) — можно и Руководителю проекта
+    if (isExternal && !allowed && !hasPermission(user.role as UserRole, 'canManageProjectMembers')) {
+      return NextResponse.json({ error: 'Недостаточно прав для приглашения внешнего пользователя' }, { status: 403 })
+    }
+
+    // Владельца может создать только Владелец
     if (role === UserRole.OWNER && user.role !== UserRole.OWNER) {
       return NextResponse.json({ error: 'Недостаточно прав для создания владельца' }, { status: 403 })
     }

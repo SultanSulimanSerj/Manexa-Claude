@@ -3,9 +3,11 @@ export enum UserRole {
   PLATFORM_ADMIN = 'PLATFORM_ADMIN',
   PLATFORM_MANAGER = 'PLATFORM_MANAGER',
   OWNER = 'OWNER',
-  ADMIN = 'ADMIN', 
-  MANAGER = 'MANAGER',
-  USER = 'USER'
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',   // UI: «Руководитель проекта»
+  USER = 'USER',         // UI: «Сотрудник»
+  CONTRACTOR = 'CONTRACTOR', // Подрядчик (внешний)
+  CLIENT = 'CLIENT'          // Заказчик (внешний)
 }
 
 // Платформенные роли: администрирование платформы, не принадлежат компаниям
@@ -358,21 +360,21 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAllProjects: true, // Может видеть проекты, где является участником
     canManageProjectMembers: false,
     canViewProjects: true,
-    canEditProjectClientRequisites: true, // Может редактировать реквизиты клиента!
-    
+    canEditProjectClientRequisites: false, // Реквизиты клиента — только просмотр
+
     canCreateTasks: false,
     canEditTasks: false, // Только свои задачи
     canDeleteTasks: false,
     canAssignTasks: false,
     canViewAllTasks: true, // Может видеть задачи в доступных проектах
-    
+
     canCreateDocuments: true,
     canEditDocuments: false, // Только свои документы
     canDeleteDocuments: false,
     canViewAllDocuments: true, // Может видеть документы в доступных проектах
     canApproveDocuments: false,
-    
-    canViewFinances: true, // Может видеть финансы в доступных проектах
+
+    canViewFinances: false, // Финансы — только Владелец/Админ/Руководитель проекта
     canCreateFinances: false,
     canEditFinances: false,
     canDeleteFinances: false,
@@ -398,6 +400,32 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePlatform: false,
     canManagePlatformManagers: false,
     canImpersonate: false
+  },
+
+  // Подрядчик (внешний): видит назначенные проекты — задачи, документы,
+  // согласования, график, чат. Без финансов, смет, реквизитов и отчётов.
+  [UserRole.CONTRACTOR]: {
+    ...NO_PERMISSIONS,
+    canViewProjects: true,
+    canViewAllProjects: true, // фактически ограничено членством в проектах (API)
+    canViewAllTasks: true,
+    canEditTasks: true, // только свои задачи (проверяется в эндпоинте)
+    canCreateDocuments: true, // загрузка файлов/фото по проекту
+    canViewAllDocuments: true,
+    canCreateApprovals: true,
+    canRespondToApprovals: true, // только адресованные (по назначению)
+    canViewAllApprovals: true,
+  },
+
+  // Заказчик (внешний): просмотр своего проекта — график, документы,
+  // адресованные согласования, чат. Без задач, финансов, смет, отчётов.
+  [UserRole.CLIENT]: {
+    ...NO_PERMISSIONS,
+    canViewProjects: true,
+    canViewAllProjects: true, // фактически ограничено членством в проектах (API)
+    canViewAllDocuments: true, // только опубликованные (фильтр в эндпоинте)
+    canRespondToApprovals: true, // только адресованные ему
+    canViewAllApprovals: true,
   }
 }
 
@@ -530,21 +558,27 @@ export function hasAnyPermission(
 
 // Функция для получения доступных разделов навигации
 export function getAvailableNavigationSections(userRole: UserRole): string[] {
-  const permissions = ROLE_PERMISSIONS[userRole]
-  const sections: string[] = ['dashboard', 'projects', 'tasks', 'documents', 'approvals']
-  
-  if (permissions.canManageUsers) {
-    sections.push('users')
+  const p = ROLE_PERMISSIONS[userRole]
+  const sections: string[] = ['dashboard', 'projects', 'documents', 'approvals', 'chat', 'settings']
+
+  // Задачи — скрыты у Заказчика (нет доступа к внутренним задачам)
+  if (p.canViewAllTasks) sections.push('tasks')
+
+  // Финансы и материалы — только у ролей с доступом к финансам
+  if (p.canViewFinances) {
+    sections.push('finance')
+    sections.push('materials')
   }
-  
-  if (permissions.canViewReports) {
-    sections.push('reports')
-  }
-  
-  if (permissions.canViewSystemSettings) {
-    sections.push('settings')
-  }
-  
+
+  // Отчёты
+  if (p.canViewReports) sections.push('reports')
+
+  // Шаблоны — внутренний инструмент (не для внешних ролей)
+  if (p.canManageProjectMembers || p.canEditDocuments) sections.push('templates')
+
+  // Пользователи
+  if (p.canManageUsers) sections.push('users')
+
   return sections
 }
 
@@ -559,15 +593,19 @@ export function canAccessProject(
     return true
   }
   
-  // MANAGER может видеть проекты, где является участником
+  // MANAGER (Руководитель проекта) видит все проекты компании
   if (userRole === UserRole.MANAGER) {
+    return true
+  }
+
+  // USER (Сотрудник) и внешние роли — только проекты, где являются участниками
+  if (
+    userRole === UserRole.USER ||
+    userRole === UserRole.CONTRACTOR ||
+    userRole === UserRole.CLIENT
+  ) {
     return projectRole !== undefined || isProjectOwner || false
   }
-  
-  // USER может видеть только проекты, где является участником
-  if (userRole === UserRole.USER) {
-    return projectRole !== undefined || isProjectOwner || false
-  }
-  
+
   return false
 }
