@@ -16,7 +16,7 @@ const EXPENSE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '
 import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, UserPlus, MapPin, FileSignature, Clock, CheckCircle2, Copy } from 'lucide-react'
 import { copyText } from '@/lib/clipboard'
 import Link from 'next/link'
-import { PermissionButton } from '@/components/permission-guard'
+import { PermissionButton, usePermissions } from '@/components/permission-guard'
 import { useSocket } from '@/contexts/SocketContext'
 import { useSession } from 'next-auth/react'
 import { extractMentionNames } from '@/lib/mention-utils'
@@ -103,6 +103,18 @@ export default function ProjectDetailPage() {
   const messageInputRef = React.useRef<HTMLInputElement>(null)
   const { socket, isConnected } = useSocket()
   const { data: session } = useSession()
+  const { userRole, hasPermission } = usePermissions()
+  const isExternal = userRole === 'CONTRACTOR' || userRole === 'CLIENT'
+  // Реквизиты заказчика — не для внешних ролей
+  const visibleTabs = PROJECT_TABS.filter((t) => (t.key === 'client' ? !isExternal : true))
+
+  // Если активная вкладка стала недоступной — вернуться на «Обзор»
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.key === activeTab)) {
+      setActiveTab('overview')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExternal, activeTab])
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -768,7 +780,7 @@ export default function ProjectDetailPage() {
         {/* Вкладки */}
         <div className="border-b border-gray-200">
           <nav className="flex gap-1 -mb-px overflow-x-auto">
-            {PROJECT_TABS.map((t) => (
+            {visibleTabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
@@ -858,8 +870,8 @@ export default function ProjectDetailPage() {
           </Link>
         </div>
 
-        {/* Financial Stats */}
-        {financeStats && (
+        {/* Financial Stats — только для ролей с доступом к финансам */}
+        {financeStats && hasPermission('canViewFinances') && (
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Финансовая статистика</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
