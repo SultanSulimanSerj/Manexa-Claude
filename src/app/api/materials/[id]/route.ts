@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 async function getOwnedMaterial(id: string, companyId: string) {
@@ -14,6 +15,9 @@ export async function GET(
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canViewFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const material = await getOwnedMaterial(params.id, user.companyId)
   if (!material) return NextResponse.json({ error: 'Не найдено' }, { status: 404 })
@@ -57,6 +61,9 @@ export async function PUT(
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canEditFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const material = await getOwnedMaterial(params.id, user.companyId)
   if (!material) return NextResponse.json({ error: 'Не найдено' }, { status: 404 })
@@ -94,6 +101,9 @@ export async function DELETE(
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canDeleteFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const material = await getOwnedMaterial(params.id, user.companyId)
   if (!material) return NextResponse.json({ error: 'Не найдено' }, { status: 404 })

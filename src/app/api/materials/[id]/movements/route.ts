@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 const TYPES = ['RECEIPT', 'ISSUE', 'ADJUSTMENT'] as const
@@ -11,6 +12,9 @@ export async function POST(
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canCreateFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const material = await prisma.material.findFirst({
     where: { id: params.id, companyId: user.companyId },

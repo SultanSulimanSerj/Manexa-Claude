@@ -33,8 +33,10 @@ const ROLE_LABELS: Record<string, string> = {
   PLATFORM_MANAGER: 'Менеджер платформы',
   OWNER: 'Директор',
   ADMIN: 'Администратор',
-  MANAGER: 'Менеджер',
+  MANAGER: 'Руководитель проекта',
   USER: 'Сотрудник',
+  CONTRACTOR: 'Подрядчик',
+  CLIENT: 'Заказчик',
 }
 
 export default function PlatformUsersPage() {

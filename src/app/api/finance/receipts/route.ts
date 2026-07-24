@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 import { authenticateUser } from '@/lib/auth-api'
 import { uploadFile, getFileStream } from '@/lib/storage'
 import { buildFileHeaders, isUploadMimeBlocked } from '@/lib/safe-file-response'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+
+  const blocked = await blockIfImpersonated(request)
+  if (blocked) return blocked
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null

@@ -31,19 +31,3 @@ export const ROLE_COLORS: Record<string, string> = {
 export function roleLabel(role: string): string {
   return ROLE_LABELS[role] || role
 }
-
-/** Роли, которые может назначать текущий пользователь при создании/редактировании. */
-export function assignableRoles(actorRole: string): string[] {
-  // Внутренние роли создают только Владелец/Админ
-  const internal = ['USER', 'MANAGER', 'ADMIN']
-  // Внешние роли может приглашать и Руководитель проекта
-  const external = ['CONTRACTOR', 'CLIENT']
-
-  if (actorRole === 'OWNER' || actorRole === 'ADMIN') {
-    return [...internal, ...external]
-  }
-  if (actorRole === 'MANAGER') {
-    return [...external]
-  }
-  return []
-}

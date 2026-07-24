@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 /** Считает остаток материала из движений: приход − расход + корректировки. */
@@ -20,6 +21,10 @@ export async function GET(request: NextRequest) {
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  // Материалы содержат цены — только роли с доступом к финансам
+  if (!hasPermission(user.role as UserRole, 'canViewFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search')?.trim()
@@ -70,6 +75,9 @@ export async function POST(request: NextRequest) {
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canCreateFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const body = await request.json().catch(() => ({}))
   const name = (body.name || '').trim()

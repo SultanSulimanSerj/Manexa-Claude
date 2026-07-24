@@ -17,6 +17,7 @@ import { ExpenseStructureChart } from '@/components/finance/ExpenseStructureChar
 import { BudgetProgressBar } from '@/components/finance/BudgetProgressBar'
 import { BudgetCategoriesWithOperations } from '@/components/finance/BudgetCategoriesWithOperations'
 import { ErrorBanner } from '@/components/ui/error-banner'
+import { usePermissions } from '@/components/permission-guard'
 
 interface FinanceRecord {
   id: string
@@ -48,7 +49,8 @@ function FinancePageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const projectIdFromUrl = searchParams?.get('projectId')
-  
+  const { hasPermission, loading: permsLoading } = usePermissions()
+
   const [records, setRecords] = useState<FinanceRecord[]>([])
   const [financeSummary, setFinanceSummary] = useState<{
     income: number
@@ -706,6 +708,17 @@ function FinancePageContent() {
 
   const formatMoney = (n: number) =>
     new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n) + ' ₽'
+
+  // Доступ к финансам — только у ролей с правом (Владелец/Админ/Руководитель проекта)
+  if (!permsLoading && !hasPermission('canViewFinances')) {
+    return (
+      <Layout>
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-gray-600">У вас нет доступа к разделу финансов</p>
+        </div>
+      </Layout>
+    )
+  }
 
   return (
     <Layout>

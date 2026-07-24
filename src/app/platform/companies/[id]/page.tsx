@@ -89,8 +89,10 @@ const SUB_STATUS: Record<string, { label: string; className: string }> = {
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Директор',
   ADMIN: 'Администратор',
-  MANAGER: 'Менеджер',
+  MANAGER: 'Руководитель проекта',
   USER: 'Сотрудник',
+  CONTRACTOR: 'Подрядчик',
+  CLIENT: 'Заказчик',
 }
 
 export default function PlatformCompanyPage() {
