@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission } from '@/lib/auth-middleware'
 import { prisma } from '@/lib/prisma'
-import { getFileBuffer } from '@/lib/storage'
+import { getFileStream } from '@/lib/storage'
 
 export async function GET(
   request: NextRequest,
@@ -30,15 +30,15 @@ export async function GET(
       return NextResponse.json({ error: 'Файл шаблона не найден' }, { status: 404 })
     }
 
-    const buffer = await getFileBuffer(template.filePath)
+    const { stream, contentLength } = await getFileStream(template.filePath)
     const fileName = `${template.name.replace(/[^\wа-яА-ЯёЁ\s.-]/g, '_')}.docx`
 
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
-      },
-    })
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    }
+    if (contentLength != null) headers['Content-Length'] = String(contentLength)
+    return new NextResponse(stream as unknown as BodyInit, { headers })
   } catch (error) {
     console.error('Error downloading template:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

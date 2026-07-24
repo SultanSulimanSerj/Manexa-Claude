@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
 import { verifyProjectCompanyAccess } from '@/lib/access-control'
-import { getFileBuffer } from '@/lib/storage'
+import { getFileStream } from '@/lib/storage'
 import { buildFileHeaders } from '@/lib/safe-file-response'
 import { prisma } from '@/lib/prisma'
 
@@ -37,13 +37,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const buffer = await getFileBuffer(attachment.filePath)
+  const { stream, contentLength } = await getFileStream(attachment.filePath)
   const dl = new URL(request.url).searchParams.get('dl') === '1'
-  return new NextResponse(buffer as unknown as BodyInit, {
-    headers: buildFileHeaders({
-      mimeType: attachment.mimeType,
-      fileName: attachment.fileName,
-      forceDownload: dl,
-    }),
+  const headers = buildFileHeaders({
+    mimeType: attachment.mimeType,
+    fileName: attachment.fileName,
+    forceDownload: dl,
   })
+  if (contentLength != null) headers['Content-Length'] = String(contentLength)
+  return new NextResponse(stream as unknown as BodyInit, { headers })
 }

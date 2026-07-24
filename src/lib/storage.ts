@@ -117,6 +117,38 @@ export async function getFileBuffer(filePath: string): Promise<Buffer> {
   return buffer
 }
 
+export interface FileStream {
+  stream: ReadableStream
+  contentLength?: number
+  contentType?: string
+}
+
+/**
+ * Отдаёт тело файла как поток (без загрузки целиком в память процесса).
+ * Использовать для скачивания/показа больших файлов вместо getFileBuffer.
+ */
+export async function getFileStream(filePath: string): Promise<FileStream> {
+  await ensureStorageReady()
+  const response = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: filePath,
+    })
+  )
+  const body = response.Body
+  if (!body) {
+    throw new Error(`Файл не найден: ${filePath}`)
+  }
+  const stream = (
+    body as unknown as { transformToWebStream: () => ReadableStream }
+  ).transformToWebStream()
+  return {
+    stream,
+    contentLength: response.ContentLength,
+    contentType: response.ContentType,
+  }
+}
+
 export async function getSignedUrl(
   filePath: string,
   expiresIn: number = 3600

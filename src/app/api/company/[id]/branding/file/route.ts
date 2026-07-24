@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission } from '@/lib/auth-middleware'
 import { prisma } from '@/lib/prisma'
-import { getFileBuffer } from '@/lib/storage'
+import { getFileStream } from '@/lib/storage'
 
 export async function GET(
   request: NextRequest,
@@ -40,13 +40,14 @@ export async function GET(
       return NextResponse.json({ error: 'Файл не найден' }, { status: 404 })
     }
 
-    const buffer = await getFileBuffer(filePath)
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        'Content-Type': mimeType,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    })
+    const { stream, contentLength } = await getFileStream(filePath)
+    const headers: Record<string, string> = {
+      'Content-Type': mimeType,
+      'Cache-Control': 'private, max-age=3600',
+      'X-Content-Type-Options': 'nosniff',
+    }
+    if (contentLength != null) headers['Content-Length'] = String(contentLength)
+    return new NextResponse(stream as unknown as BodyInit, { headers })
   } catch (err) {
     console.error('Branding file GET error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

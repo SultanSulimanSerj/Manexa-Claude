@@ -3,7 +3,7 @@ import { authenticateUser } from '@/lib/auth-api'
 import { prisma } from '@/lib/prisma'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
-import { getFileBuffer } from '@/lib/storage'
+import { getFileBuffer, getFileStream } from '@/lib/storage'
 import { inspectXlsxBuffer } from '@/lib/document-renderer/xlsx-patcher'
 
 const EXPECTED_UPD_MERGE_COUNT = 338
@@ -140,8 +140,9 @@ export async function GET(
       document.category === 'UPD' && !wantPdf && filePath.endsWith('.xlsx')
 
     if (isMinIOKey(filePath)) {
-      const fileBuffer = await getFileBuffer(filePath)
+      // UPD-xlsx требует валидации структуры → нужен буфер целиком.
       if (isUpdXlsx) {
+        const fileBuffer = await getFileBuffer(filePath)
         return validateAndServeUpdXlsx(fileBuffer, fileName || 'document.xlsx', resolvedMime, {
           documentId: params.id,
           filePath,
@@ -150,7 +151,16 @@ export async function GET(
         })
       }
 
-      return fileResponse(fileBuffer, fileName || 'document', resolvedMime)
+      // Обычные файлы — стримом, без загрузки целиком в память процесса.
+      const { stream, contentLength } = await getFileStream(filePath)
+      const headers: Record<string, string> = {
+        'Content-Type': resolvedMime,
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName || 'document')}"`,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        Pragma: 'no-cache',
+      }
+      if (contentLength != null) headers['Content-Length'] = String(contentLength)
+      return new NextResponse(stream as unknown as BodyInit, { status: 200, headers })
     }
 
     const uploadsDir = join(process.cwd(), 'uploads')

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { authenticateUser } from '@/lib/auth-api'
-import { uploadFile, getFileBuffer } from '@/lib/storage'
+import { uploadFile, getFileStream } from '@/lib/storage'
 import { buildFileHeaders, isUploadMimeBlocked } from '@/lib/safe-file-response'
 
 export const dynamic = 'force-dynamic'
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const buffer = await getFileBuffer(key)
+    const { stream, contentLength } = await getFileStream(key)
     const ext = (key.split('.').pop() || 'jpg').toLowerCase()
     const mime =
       ext === 'png' ? 'image/png'
@@ -57,9 +57,9 @@ export async function GET(request: NextRequest) {
         : ext === 'heic' ? 'image/heic'
         : 'image/jpeg'
     const filename = `cheque.${ext}`
-    return new NextResponse(buffer as any, {
-      headers: buildFileHeaders({ mimeType: mime, fileName: filename, forceDownload: download }),
-    })
+    const headers = buildFileHeaders({ mimeType: mime, fileName: filename, forceDownload: download })
+    if (contentLength != null) headers['Content-Length'] = String(contentLength)
+    return new NextResponse(stream as unknown as BodyInit, { headers })
   } catch {
     return NextResponse.json({ error: 'Файл не найден' }, { status: 404 })
   }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
 import { verifyApprovalCompanyAccess } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
-import { getFileBuffer } from '@/lib/storage'
+import { getFileStream } from '@/lib/storage'
 
 // GET /api/approvals/[id]/attachments/[attachmentId]/download - Скачать файл
 export async function GET(
@@ -51,18 +51,16 @@ export async function GET(
     }
 
     try {
-      const fileBuffer = await getFileBuffer(attachment.filePath)
-      return new NextResponse(fileBuffer as unknown as BodyInit, {
-        status: 200,
-        headers: {
-          'Content-Type': attachment.mimeType || 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(attachment.fileName || 'attachment')}"`,
-          'Content-Length': fileBuffer.length.toString(),
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'X-Content-Type-Options': 'nosniff',
-          Pragma: 'no-cache',
-        },
-      })
+      const { stream, contentLength } = await getFileStream(attachment.filePath)
+      const headers: Record<string, string> = {
+        'Content-Type': attachment.mimeType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(attachment.fileName || 'attachment')}"`,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'X-Content-Type-Options': 'nosniff',
+        Pragma: 'no-cache',
+      }
+      if (contentLength != null) headers['Content-Length'] = String(contentLength)
+      return new NextResponse(stream as unknown as BodyInit, { status: 200, headers })
     } catch (storageError) {
       console.error('Error reading attachment file:', storageError)
       return NextResponse.json({ error: 'Failed to download file' }, { status: 500 })
