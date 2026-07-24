@@ -3,6 +3,7 @@ import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
 import { prisma } from '@/lib/prisma'
 import { authenticateUser } from '@/lib/auth-api'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,10 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // Изменение 2FA запрещено под impersonation
+  const blocked = await blockIfImpersonated(request)
+  if (blocked) return blocked
 
   const body = await request.json().catch(() => ({}))
   const action = body.action as string

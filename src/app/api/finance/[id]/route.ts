@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission } from '@/lib/auth-middleware'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { verifyFinanceCompanyAccess, verifyProjectCompanyAccess } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
 
@@ -8,6 +9,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canEditFinances')
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -75,6 +79,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canDeleteFinances')
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

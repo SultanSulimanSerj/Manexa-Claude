@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { checkPermission } from '@/lib/auth-middleware'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { prisma } from '@/lib/prisma'
 import { getCacheKey, getFromCache, setCache } from '@/lib/cache'
 import { logger } from '@/lib/logger'
@@ -174,6 +175,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canCreateFinances')
     
     if (!user) {

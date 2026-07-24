@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission } from '@/lib/auth-middleware'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { verifyUserCompanyAccess } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@/lib/permissions'
@@ -9,6 +10,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canEditUsers')
     
     if (!user) {
@@ -103,6 +107,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canDeleteUsers')
     
     if (!allowed || !user) {

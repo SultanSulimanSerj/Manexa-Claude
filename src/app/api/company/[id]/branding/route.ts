@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPermission } from '@/lib/auth-middleware'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { prisma } from '@/lib/prisma'
 import { uploadFile, deleteFile } from '@/lib/storage'
 import { generateId } from '@/lib/id-generator'
@@ -56,6 +57,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canEditUsers')
     if (!user?.companyId || user.companyId !== params.id) {
       return NextResponse.json({ error: error || 'Forbidden' }, { status: 403 })
@@ -126,6 +130,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canEditUsers')
     if (!user?.companyId || user.companyId !== params.id) {
       return NextResponse.json({ error: error || 'Forbidden' }, { status: 403 })

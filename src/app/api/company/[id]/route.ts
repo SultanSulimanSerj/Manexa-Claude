@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkPermission } from '@/lib/auth-middleware'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canEditUsers')
     
     if (!allowed || !user) {

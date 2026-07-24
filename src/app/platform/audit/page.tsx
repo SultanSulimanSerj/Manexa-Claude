@@ -37,6 +37,7 @@ const ACTION_LABELS: Record<string, string> = {
   PLATFORM_MANAGER_DEACTIVATE: 'Отзыв доступа менеджера',
   PLATFORM_MANAGER_PASSWORD_RESET: 'Сброс пароля менеджера',
   IMPERSONATE_START: 'Вход от имени пользователя',
+  IMPERSONATE_END: 'Выход из режима поддержки',
 }
 
 export default function PlatformAuditPage() {

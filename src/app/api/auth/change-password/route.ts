@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { authenticateUser } from '@/lib/auth-api'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +13,10 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Не аутентифицирован' }, { status: 401 })
   }
+
+  // Смена пароля запрещена под impersonation (нельзя перехватить учётку)
+  const blocked = await blockIfImpersonated(request)
+  if (blocked) return blocked
 
   const rateLimit = await checkRateLimit(`change-password:${user.id}`, 5, 15 * 60 * 1000)
   if (!rateLimit.allowed) {

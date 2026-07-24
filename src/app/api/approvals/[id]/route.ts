@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@/lib/permissions'
 import { verifyApprovalCompanyAccess } from '@/lib/access-control'
@@ -203,6 +204,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
+
     const { allowed, user, error } = await checkPermission(request, 'canDeleteApprovals')
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

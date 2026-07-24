@@ -79,15 +79,19 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
     <>
       {impersonatedBy && (
         <div className="sticky top-0 z-[60] flex items-center justify-center gap-3 bg-purple-700 px-4 py-1.5 text-sm text-white">
-          <Eye className="h-4 w-4" />
+          <Eye className="h-4 w-4 shrink-0" />
           <span>
             Режим поддержки: вы вошли как <strong>{session?.user?.name || session?.user?.email}</strong>.
-            Действия выполняются от имени пользователя.
+            Юридически значимые действия (согласование, оплата, смена пароля, удаление) заблокированы.
           </span>
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-            className="rounded border border-white/40 px-2 py-0.5 text-xs hover:bg-white/10"
+            onClick={async () => {
+              // Пишем аудит завершения до выхода (сессия ещё активна)
+              await fetch('/api/platform/impersonate/end', { method: 'POST' }).catch(() => {})
+              signOut({ callbackUrl: '/auth/signin' })
+            }}
+            className="shrink-0 rounded border border-white/40 px-2 py-0.5 text-xs hover:bg-white/10"
           >
             Завершить сессию
           </button>

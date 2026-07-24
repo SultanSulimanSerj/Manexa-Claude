@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
 
@@ -13,6 +14,10 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Согласование/подпись — юр-значимое действие, запрещено под impersonation
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
 
     const body = await request.json()
     const { status, comment } = body
