@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
-import { verifyTaskCompanyAccess } from '@/lib/access-control'
+import { verifyTaskCompanyAccess, userCanEditTask } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
 
@@ -51,6 +51,10 @@ export async function POST(
     const hasAccess = await verifyTaskCompanyAccess(user, params.id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    if (!(await userCanEditTask(user, params.id))) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     const task = await prisma.task.findUnique({

@@ -3,6 +3,7 @@ import { authenticateUser } from '@/lib/auth-api'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
 import { verifyTaskCompanyAccess } from '@/lib/access-control'
+import { hasPermission, UserRole } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -60,6 +61,11 @@ export async function POST(
     const hasAccess = await verifyTaskCompanyAccess(user, params.id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    // Заказчик не имеет доступа к задачам — комментировать не может
+    if (!hasPermission(user.role as UserRole, 'canViewAllTasks')) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     // Получаем задачу для companyId

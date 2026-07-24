@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
-import { verifyTaskCompanyAccess } from '@/lib/access-control'
+import { verifyTaskCompanyAccess, userCanEditTask } from '@/lib/access-control'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
 
@@ -76,6 +77,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
+    // Править задачу могут менеджеры (любые) или исполнитель/автор (свои); Заказчик — нет
+    if (!(await userCanEditTask(user, params.id))) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { title, description, status, priority, dueDate, projectId, assigneeIds } = body
 
@@ -147,6 +153,11 @@ export async function DELETE(
     const hasAccess = await verifyTaskCompanyAccess(user, params.id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    // Удаление задачи — только роли с правом (Владелец/Админ/Руководитель проекта)
+    if (!hasPermission(user.role as UserRole, 'canDeleteTasks')) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     // Сначала удаляем все назначения задачи

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { prisma } from '@/lib/prisma'
 
 // POST — создать запись дохода в реестре оплат на основе документа-Счёта.
@@ -11,6 +13,12 @@ export async function POST(
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  // Создание финзаписи — финансовое право + запрет под impersonation
+  if (!hasPermission(user.role as UserRole, 'canCreateFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
+  const blocked = await blockIfImpersonated(request)
+  if (blocked) return blocked
 
   const doc = await prisma.document.findFirst({
     where: { id: params.id, companyId: user.companyId },
@@ -78,6 +86,9 @@ export async function GET(
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canViewFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const existing = await prisma.finance.findFirst({
     where: { documentId: params.id, companyId: user.companyId },

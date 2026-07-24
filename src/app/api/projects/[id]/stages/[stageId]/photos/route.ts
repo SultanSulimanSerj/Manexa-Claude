@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
 import path from 'path'
+
+// Заказчик (view-only) не может изменять фото этапов
+function blockClientWrite(role: string) {
+  return !hasPermission(role as UserRole, 'canViewAllTasks')
+}
 import { uploadFile, getSignedUrl, deleteFile } from '@/lib/storage'
 
 // GET - получить фото этапа
@@ -89,6 +95,10 @@ export async function POST(
       return NextResponse.json({ error: 'Этап не найден' }, { status: 404 })
     }
 
+    if (blockClientWrite(user.role)) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const description = formData.get('description') as string | null
@@ -158,6 +168,10 @@ export async function DELETE(
     }
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (blockClientWrite(user.role)) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     const { stageId } = params

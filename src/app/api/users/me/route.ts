@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { blockIfImpersonated } from '@/lib/impersonation-guard'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
@@ -45,10 +46,14 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const user = await authenticateUser(request)
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Под impersonation нельзя менять профиль (пароль/email) чужой учётки
+    const blocked = await blockIfImpersonated(request)
+    if (blocked) return blocked
 
     const body = await request.json()
     const { name, email, phone, position, password } = body

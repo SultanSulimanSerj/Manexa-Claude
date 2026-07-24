@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
-import { verifyTaskCompanyAccess } from '@/lib/access-control'
+import { verifyTaskCompanyAccess, userCanEditTask } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
 
 export async function PATCH(
@@ -16,6 +16,10 @@ export async function PATCH(
     const hasAccess = await verifyTaskCompanyAccess(user, params.id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Subtask not found' }, { status: 404 })
+    }
+
+    if (!(await userCanEditTask(user, params.id))) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -62,6 +66,10 @@ export async function DELETE(
     const hasAccess = await verifyTaskCompanyAccess(user, params.id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Subtask not found' }, { status: 404 })
+    }
+
+    if (!(await userCanEditTask(user, params.id))) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     // Проверяем, что подзадача существует и принадлежит задаче

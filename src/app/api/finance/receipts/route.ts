@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { uploadFile, getFileStream } from '@/lib/storage'
 import { buildFileHeaders, isUploadMimeBlocked } from '@/lib/safe-file-response'
 import { blockIfImpersonated } from '@/lib/impersonation-guard'
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canCreateFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const blocked = await blockIfImpersonated(request)
   if (blocked) return blocked
@@ -43,6 +47,9 @@ export async function GET(request: NextRequest) {
   const user = await authenticateUser(request)
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
   if (!user.companyId) return NextResponse.json({ error: 'Нет компании' }, { status: 403 })
+  if (!hasPermission(user.role as UserRole, 'canViewFinances')) {
+    return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
+  }
 
   const { searchParams } = new URL(request.url)
   const key = searchParams.get('key')

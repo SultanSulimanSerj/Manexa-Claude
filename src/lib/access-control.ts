@@ -1,7 +1,30 @@
 import { prisma } from './prisma'
+import { hasPermission, UserRole } from './permissions'
 
 export interface CompanyAccessUser {
   companyId: string | null
+}
+
+/**
+ * Может ли пользователь править задачу (и её подзадачи/содержимое):
+ * - полные редакторы (canAssignTasks: Владелец/Админ/Руководитель проекта) — любые задачи;
+ * - Сотрудник/Подрядчик — только свои (создатель или исполнитель);
+ * - Заказчик (нет доступа к задачам) — нет.
+ */
+export async function userCanEditTask(
+  user: { id: string; role: string },
+  taskId: string
+): Promise<boolean> {
+  if (hasPermission(user.role as UserRole, 'canAssignTasks')) return true
+  if (!hasPermission(user.role as UserRole, 'canViewAllTasks')) return false
+  const own = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      OR: [{ creatorId: user.id }, { assignments: { some: { userId: user.id } } }],
+    },
+    select: { id: true },
+  })
+  return !!own
 }
 
 export async function verifyTaskCompanyAccess(

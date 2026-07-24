@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
+
+// Заказчик (view-only) не может изменять чек-лист/этапы
+function blockClientWrite(role: string) {
+  return !hasPermission(role as UserRole, 'canViewAllTasks')
+}
 
 // GET - получить чек-лист этапа
 export async function GET(
@@ -62,6 +68,10 @@ export async function POST(
     }
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (blockClientWrite(user.role)) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     const { stageId } = params
@@ -131,6 +141,10 @@ export async function PATCH(
     }
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (blockClientWrite(user.role)) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     const { stageId } = params
@@ -209,6 +223,10 @@ export async function DELETE(
     }
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (blockClientWrite(user.role)) {
+      return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })
     }
 
     const { stageId } = params
