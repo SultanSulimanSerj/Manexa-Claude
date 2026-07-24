@@ -13,7 +13,8 @@ import { SkeletonList } from '@/components/ui/skeleton'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 const EXPENSE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
-import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, MapPin, FileSignature, Clock, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, UserPlus, MapPin, FileSignature, Clock, CheckCircle2, Copy } from 'lucide-react'
+import { copyText } from '@/lib/clipboard'
 import Link from 'next/link'
 import { PermissionButton } from '@/components/permission-guard'
 import { useSocket } from '@/contexts/SocketContext'
@@ -118,6 +119,10 @@ export default function ProjectDetailPage() {
   const [availableUsers, setAvailableUsers] = useState<User[]>([])
   const [selectedUserId, setSelectedUserId] = useState('')
   const [membersLoading, setMembersLoading] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteData, setInviteData] = useState({ name: '', email: '', role: 'CONTRACTOR' })
+  const [inviteResult, setInviteResult] = useState<{ email: string; tempPassword: string } | null>(null)
+  const [inviteCopied, setInviteCopied] = useState(false)
   const [showContactModal, setShowContactModal] = useState(false)
   const [selectedMember, setSelectedMember] = useState<User | null>(null)
   const [estimatesTotal, setEstimatesTotal] = useState<number>(0)
@@ -355,6 +360,44 @@ export default function ProjectDetailPage() {
       toast.error('Ошибка при добавлении участника')
     } finally {
       setMembersLoading(false)
+    }
+  }
+
+  const handleInviteExternal = async () => {
+    if (!inviteData.name.trim() || !inviteData.email.trim()) return
+    setMembersLoading(true)
+    try {
+      const response = await fetch(`/api/projects/${params?.id}/members/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inviteData),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setInviteResult({ email: data.user.email, tempPassword: data.tempPassword })
+        setInviteData({ name: '', email: '', role: 'CONTRACTOR' })
+        await fetchProject()
+      } else {
+        toast.error(data.error || 'Не удалось пригласить')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Ошибка при приглашении')
+    } finally {
+      setMembersLoading(false)
+    }
+  }
+
+  const copyInviteCredentials = async () => {
+    if (!inviteResult) return
+    const ok = await copyText(
+      `Manexa — доступ\nАдрес: ${window.location.origin}/auth/signin\nEmail: ${inviteResult.email}\nВременный пароль: ${inviteResult.tempPassword}\n\nПри первом входе система попросит сменить пароль.`
+    )
+    if (ok) {
+      setInviteCopied(true)
+      setTimeout(() => setInviteCopied(false), 2000)
+    } else {
+      toast.error('Не удалось скопировать — выделите вручную')
     }
   }
 
@@ -1267,17 +1310,31 @@ export default function ProjectDetailPage() {
         <div className="bg-white rounded-lg border p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Команда ({project._count.users})</h2>
-            <PermissionButton
-              permission="canManageProjectMembers"
-              onClick={() => {
-                fetchAvailableUsers()
-                setShowMembersModal(true)
-              }}
-              className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Добавить участника
-            </PermissionButton>
+            <div className="flex items-center gap-2">
+              <PermissionButton
+                permission="canManageProjectMembers"
+                onClick={() => {
+                  setInviteResult(null)
+                  setInviteData({ name: '', email: '', role: 'CONTRACTOR' })
+                  setShowInviteModal(true)
+                }}
+                className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <UserPlus className="h-4 w-4" />
+                Пригласить внешнего
+              </PermissionButton>
+              <PermissionButton
+                permission="canManageProjectMembers"
+                onClick={() => {
+                  fetchAvailableUsers()
+                  setShowMembersModal(true)
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
+              >
+                <Plus className="h-4 w-4" />
+                Добавить участника
+              </PermissionButton>
+            </div>
           </div>
           
           {project._count.users > 0 ? (
@@ -1640,6 +1697,102 @@ export default function ProjectDetailPage() {
                   </button>
                 </div>
               </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Invite External Modal */}
+        <Dialog open={showInviteModal} onOpenChange={(o) => !o && setShowInviteModal(false)}>
+          <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto p-0">
+            <DialogHeader className="border-b p-6 pb-4">
+              <DialogTitle>Пригласить внешнего участника</DialogTitle>
+            </DialogHeader>
+
+            <div className="p-6">
+              {inviteResult ? (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                    <p className="text-sm font-medium text-green-900">Участник добавлен в проект</p>
+                    <p className="mt-1 text-xs text-amber-600">
+                      Временный пароль показывается один раз — передайте сейчас.
+                    </p>
+                    <dl className="mt-3 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-gray-500">Email</dt>
+                        <dd className="font-mono text-gray-900">{inviteResult.email}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-gray-500">Пароль</dt>
+                        <dd className="font-mono font-bold text-gray-900">{inviteResult.tempPassword}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <button
+                    onClick={copyInviteCredentials}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {inviteCopied ? 'Скопировано' : 'Скопировать данные для передачи'}
+                  </button>
+                  <button
+                    onClick={() => setShowInviteModal(false)}
+                    className="w-full rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                  >
+                    Готово
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Тип</label>
+                    <select
+                      value={inviteData.role}
+                      onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
+                    >
+                      <option value="CONTRACTOR">Подрядчик — задачи, документы, согласования, чат (без финансов)</option>
+                      <option value="CLIENT">Заказчик — график, документы, согласования, чат</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Имя / организация</label>
+                    <input
+                      value={inviteData.name}
+                      onChange={(e) => setInviteData({ ...inviteData, name: e.target.value })}
+                      placeholder="ООО «Ромашка» / Иван Петров"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Email для входа</label>
+                    <input
+                      type="email"
+                      value={inviteData.email}
+                      onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
+                      placeholder="user@example.com"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Будет создан аккаунт с временным паролем и доступом только к этому проекту.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleInviteExternal}
+                      disabled={!inviteData.name.trim() || !inviteData.email.trim() || membersLoading}
+                      className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {membersLoading ? 'Создание…' : 'Пригласить'}
+                    </button>
+                    <button
+                      onClick={() => setShowInviteModal(false)}
+                      className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
 

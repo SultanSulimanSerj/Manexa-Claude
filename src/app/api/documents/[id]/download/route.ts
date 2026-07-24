@@ -100,6 +100,11 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
+    // Заказчик может скачивать только опубликованные документы
+    if (user.role === 'CLIENT' && !document.isPublished) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    }
+
     const versionParam = request.nextUrl.searchParams.get('version')
     const formatParam = request.nextUrl.searchParams.get('format')
     const wantPdf = formatParam === 'pdf'

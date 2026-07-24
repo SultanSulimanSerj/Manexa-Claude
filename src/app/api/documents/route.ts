@@ -62,6 +62,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Заказчик видит только опубликованные документы своих проектов
+    if (user.role === UserRole.CLIENT) {
+      where.AND.push({ isPublished: true })
+    }
+
     const [documents, total] = await Promise.all([
       prisma.document.findMany({
         where,

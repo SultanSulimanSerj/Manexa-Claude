@@ -26,6 +26,11 @@ export async function GET(
       return NextResponse.json({ error: 'Документ не найден' }, { status: 404 })
     }
 
+    // Заказчик видит только опубликованные документы
+    if (user.role === UserRole.CLIENT && !document.isPublished) {
+      return NextResponse.json({ error: 'Документ не найден' }, { status: 404 })
+    }
+
     const hasEditableContent = Boolean(document.contentJson)
     const canEdit = hasPermission(user.role as UserRole, 'canEditDocuments')
     const activeExportJob = await getActiveExportJobForDocument(
