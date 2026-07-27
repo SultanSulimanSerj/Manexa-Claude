@@ -108,7 +108,9 @@ export default function PlatformCompanyPage() {
   const [error, setError] = useState<string | null>(null)
   const [tempPassword, setTempPassword] = useState<{ email: string; password: string } | null>(null)
   const [paymentForm, setPaymentForm] = useState({ months: '1', amount: '', invoiceNumber: '', comment: '' })
-  const [plans, setPlans] = useState<{ code: string; name: string; priceMonthly: string }[]>([])
+  const [plans, setPlans] = useState<{ id: string; code: string; name: string; priceMonthly: string }[]>([])
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [issueForm, setIssueForm] = useState({ planId: '', months: '1' })
   const [managers, setManagers] = useState<ManagerOption[]>([])
   const [noteText, setNoteText] = useState('')
   const [tagInput, setTagInput] = useState('')
@@ -166,17 +168,76 @@ export default function PlatformCompanyPage() {
     }
   }
 
+  const fetchInvoices = useCallback(() => {
+    fetch(`/api/platform/invoices?companyId=${companyId}`)
+      .then((res) => (res.ok ? res.json() : { invoices: [] }))
+      .then((data) => setInvoices(data.invoices || []))
+      .catch(() => {})
+  }, [companyId])
+
   useEffect(() => {
     fetchCompany()
+    fetchInvoices()
     fetch('/api/platform/plans')
       .then((res) => (res.ok ? res.json() : { plans: [] }))
-      .then((data) => setPlans((data.plans || []).filter((p: any) => p.isActive)))
+      .then((data) => {
+        const active = (data.plans || []).filter((p: any) => p.isActive)
+        setPlans(active)
+        setIssueForm((f) => ({ ...f, planId: f.planId || active[0]?.id || '' }))
+      })
       .catch(() => {})
     fetch('/api/platform/users?managers=1')
       .then((res) => (res.ok ? res.json() : { users: [] }))
       .then((data) => setManagers((data.users || []).filter((u: any) => u.isActive)))
       .catch(() => {})
-  }, [fetchCompany])
+  }, [fetchCompany, fetchInvoices])
+
+  const issueInvoice = async () => {
+    if (!issueForm.planId) {
+      toast.error('Выберите тариф')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch('/api/platform/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, planId: issueForm.planId, months: issueForm.months }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Не удалось выставить счёт')
+        return
+      }
+      toast.success(`Счёт ${data.invoice.number} выставлен`)
+      fetchInvoices()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const invoiceAction = async (id: string, action: 'pay' | 'cancel') => {
+    if (action === 'pay' && !(await confirm({ title: 'Отметить счёт оплаченным?', description: 'Подписка будет продлена.', confirmText: 'Оплачено' }))) return
+    if (action === 'cancel' && !(await confirm({ title: 'Отменить счёт?', confirmText: 'Отменить', destructive: true }))) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/platform/invoices/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка')
+        return
+      }
+      toast.success(action === 'pay' ? 'Счёт оплачен, подписка продлена' : 'Счёт отменён')
+      fetchInvoices()
+      fetchCompany()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const patchCompany = async (data: Record<string, unknown>) => {
     setBusy(true)
@@ -583,6 +644,105 @@ export default function PlatformCompanyPage() {
                 </div>
               )}
             </div>
+          )}
+        </div>
+
+        {/* Счета */}
+        <div className="rounded-xl border bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Счета</h2>
+
+          {/* Выставить счёт */}
+          <div className="space-y-2 rounded-lg bg-gray-50 p-3">
+            <p className="text-xs font-medium text-gray-700">Выставить счёт</p>
+            <div className="flex gap-2">
+              <select
+                value={issueForm.planId}
+                onChange={(e) => setIssueForm({ ...issueForm, planId: e.target.value })}
+                className="w-full rounded border px-2 py-1 text-sm"
+              >
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {Number(p.priceMonthly).toLocaleString('ru-RU')} ₽/мес
+                  </option>
+                ))}
+              </select>
+              <select
+                value={issueForm.months}
+                onChange={(e) => setIssueForm({ ...issueForm, months: e.target.value })}
+                className="rounded border px-2 py-1 text-sm"
+              >
+                {[1, 3, 6, 12].map((m) => (
+                  <option key={m} value={m}>{m} мес.{m === 12 ? ' −10%' : ''}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={issueInvoice}
+              className="w-full rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Выставить счёт
+            </button>
+          </div>
+
+          {/* Список счетов */}
+          {invoices.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {invoices.map((inv) => (
+                <li key={inv.id} className="rounded-lg border p-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-900">{inv.number}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                      inv.status === 'PAID' ? 'bg-green-50 text-green-700'
+                        : inv.status === 'CANCELED' ? 'bg-gray-100 text-gray-500'
+                        : new Date(inv.dueDate) < new Date() ? 'bg-red-50 text-red-700'
+                        : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {inv.status === 'PAID' ? 'Оплачен'
+                        : inv.status === 'CANCELED' ? 'Отменён'
+                        : new Date(inv.dueDate) < new Date() ? 'Просрочен' : 'Выставлен'}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex justify-between text-xs text-gray-500">
+                    <span>{inv.planName} · {inv.months} мес.</span>
+                    <span className="font-medium text-gray-700">{Number(inv.amount).toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <a
+                      href={`/api/platform/invoices/${inv.id}/pdf`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded border px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                    >
+                      Счёт PDF
+                    </a>
+                    {inv.status !== 'PAID' && inv.status !== 'CANCELED' && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => invoiceAction(inv.id, 'pay')}
+                          className="rounded border border-green-300 px-2 py-0.5 text-xs text-green-700 hover:bg-green-50"
+                        >
+                          Оплачен
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => invoiceAction(inv.id, 'cancel')}
+                          className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-700 hover:bg-red-50"
+                        >
+                          Отменить
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-gray-400">Счетов пока нет</p>
           )}
         </div>
 
