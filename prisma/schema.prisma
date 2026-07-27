@@ -165,6 +165,7 @@ model Company {
   materials            Material[]
   stockMovements       StockMovement[]
   subscription         Subscription?
+  invoices             Invoice[]
 }
 
 // ============ Платформенное администрирование ============
@@ -185,6 +186,7 @@ model Plan {
   updatedAt     DateTime @updatedAt
 
   subscriptions Subscription[]
+  invoices      Invoice[]
 }
 
 enum SubscriptionStatus {
@@ -256,6 +258,73 @@ model PlatformAuditLog {
   @@index([actorId])
   @@index([targetType, targetId])
   @@index([createdAt])
+}
+
+// Реквизиты продавца (SaaS) + настройки биллинга. Singleton (id = "platform").
+model PlatformSettings {
+  id                         String   @id @default("platform")
+  sellerName                 String?
+  sellerLegalName            String?
+  sellerInn                  String?
+  sellerKpp                  String?
+  sellerOgrn                 String?
+  sellerLegalAddress         String?
+  sellerDirectorName         String?
+  sellerDirectorPosition     String?  @default("Генеральный директор")
+  sellerBankAccount          String?
+  sellerBankName             String?
+  sellerBankBik              String?
+  sellerCorrespondentAccount String?
+  sellerContactPhone         String?
+  sellerContactEmail         String?
+  taxMode                    String   @default("USN") // USN (без НДС) | OSN (с НДС)
+  vatRate                    Int      @default(0)      // ставка НДС в %, применяется при OSN
+  annualDiscountPercent      Int      @default(10)     // скидка на годовую оплату (12 мес)
+  invoicePrefix              String   @default("СЧ")
+  sbpQrPath                  String?  // статический СБП QR (ключ в хранилище)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELED
+}
+
+// Счёт на оплату подписки, выставленный платформой компании.
+model Invoice {
+  id               String        @id @default(cuid())
+  number           String        @unique
+  companyId        String
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planId           String
+  plan             Plan          @relation(fields: [planId], references: [id])
+  planName         String        // снимок названия тарифа на момент выставления
+  months           Int
+  unitPriceMonthly Decimal       @db.Decimal(10, 2)
+  discountPercent  Int           @default(0)
+  subtotal         Decimal       @db.Decimal(10, 2) // до скидки
+  amount           Decimal       @db.Decimal(10, 2) // итог к оплате (с учётом скидки, включая НДС при OSN)
+  vatRate          Int           @default(0)
+  vatAmount        Decimal       @db.Decimal(10, 2) @default(0)
+  currency         String        @default("RUB")
+  status           InvoiceStatus @default(ISSUED)
+  periodStart      DateTime      // период подписки, который покрывает счёт
+  periodEnd        DateTime
+  issuedAt         DateTime      @default(now())
+  dueDate          DateTime
+  paidAt           DateTime?
+  actNumber        String?
+  actGeneratedAt   DateTime?
+  createdById      String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([status])
 }
 
 model CompanyNote {

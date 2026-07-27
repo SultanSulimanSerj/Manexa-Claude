@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/platform/payments', label: 'Платежи' },
   { href: '/platform/announcements', label: 'Анонсы' },
   { href: '/platform/users', label: 'Пользователи' },
+  { href: '/platform/settings', label: 'Настройки' },
   { href: '/platform/audit', label: 'Аудит' },
 ]
 
