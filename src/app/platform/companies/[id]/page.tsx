@@ -22,6 +22,10 @@ interface CompanyDetail {
   directorName: string | null
   contactPhone: string | null
   contactEmail: string | null
+  bankAccount: string | null
+  bankName: string | null
+  bankBik: string | null
+  correspondentAccount: string | null
   isActive: boolean
   createdAt: string
   subscription: {
@@ -76,6 +80,10 @@ interface ReqForm {
   directorName: string
   contactPhone: string
   contactEmail: string
+  bankAccount: string
+  bankName: string
+  bankBik: string
+  correspondentAccount: string
 }
 
 const SUB_STATUS: Record<string, { label: string; className: string }> = {
@@ -139,6 +147,10 @@ export default function PlatformCompanyPage() {
       directorName: company.directorName || '',
       contactPhone: company.contactPhone || '',
       contactEmail: company.contactEmail || '',
+      bankAccount: company.bankAccount || '',
+      bankName: company.bankName || '',
+      bankBik: company.bankBik || '',
+      correspondentAccount: company.correspondentAccount || '',
     })
   }
 
@@ -1021,6 +1033,10 @@ export default function PlatformCompanyPage() {
                 ['legalAddress', 'Юр. адрес', 'col-span-2'],
                 ['contactPhone', 'Телефон', ''],
                 ['contactEmail', 'Email', ''],
+                ['bankAccount', 'Расчётный счёт', ''],
+                ['bankBik', 'БИК', ''],
+                ['bankName', 'Банк', 'col-span-2'],
+                ['correspondentAccount', 'Корр. счёт', ''],
               ] as [keyof ReqForm, string, string][]).map(([key, label, span]) => (
                 <div key={key} className={span}>
                   <label className="mb-1 block text-xs text-gray-500">{label}</label>
