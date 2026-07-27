@@ -20,6 +20,7 @@ const userPrefsKey = (userId: string) => `manexa_user_prefs_${userId}`
 const SETTINGS_TABS = [
   { key: 'profile', label: 'Профиль' },
   { key: 'company', label: 'Компания' },
+  { key: 'billing', label: 'Подписка' },
   { key: 'notifications', label: 'Уведомления' },
   { key: 'security', label: 'Безопасность' },
   { key: 'system', label: 'Система' },
@@ -30,6 +31,18 @@ export default function SettingsPage() {
   const { data: session, update } = useSession()
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const canManageCompany = ['OWNER', 'ADMIN'].includes((session?.user?.role as string) || '')
+  const [billing, setBilling] = useState<{ subscription: any; invoices: any[] } | null>(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+
+  useEffect(() => {
+    if (activeTab !== 'billing' || !canManageCompany || billing) return
+    setBillingLoading(true)
+    fetch('/api/billing')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setBilling(d))
+      .catch(() => {})
+      .finally(() => setBillingLoading(false))
+  }, [activeTab, canManageCompany, billing])
   const [settings, setSettings] = useState({
     name: '',
     companyName: '',
@@ -379,7 +392,7 @@ export default function SettingsPage() {
 
         <div className="border-b border-gray-200">
           <nav className="flex gap-1 -mb-px overflow-x-auto">
-            {SETTINGS_TABS.filter((t) => (t.key !== 'company' && t.key !== 'system') || canManageCompany).map((t) => (
+            {SETTINGS_TABS.filter((t) => (t.key !== 'company' && t.key !== 'system' && t.key !== 'billing') || canManageCompany).map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
@@ -474,6 +487,135 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
             </>
+            )}
+
+            {activeTab === 'billing' && canManageCompany && (
+              <div className="space-y-6">
+                {/* Текущая подписка */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Wallet className="mr-2 h-5 w-5 text-primary" />
+                      Подписка
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {billingLoading && !billing ? (
+                      <p className="text-sm text-gray-500">Загрузка…</p>
+                    ) : billing?.subscription ? (
+                      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div>
+                          <dt className="text-xs text-gray-500">Тариф</dt>
+                          <dd className="mt-0.5 font-medium text-gray-900">{billing.subscription.plan?.name || '—'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-gray-500">Статус</dt>
+                          <dd className="mt-0.5 font-medium text-gray-900">
+                            {billing.subscription.status === 'ACTIVE' ? 'Активна'
+                              : billing.subscription.status === 'TRIAL' ? 'Пробный период'
+                              : billing.subscription.status === 'PAST_DUE' ? 'Просрочена'
+                              : billing.subscription.status === 'SUSPENDED' ? 'Заблокирована'
+                              : billing.subscription.status}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-gray-500">Действует до</dt>
+                          <dd className="mt-0.5 font-medium text-gray-900">
+                            {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString('ru-RU')}
+                          </dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="text-sm text-gray-500">Подписка не оформлена.</p>
+                    )}
+                    <p className="mt-4 text-xs text-gray-500">
+                      Счета выставляет Manexa. Оплата — банковским переводом по реквизитам из счёта или по СБП QR.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Счета */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <FileText className="mr-2 h-5 w-5 text-primary" />
+                      Счета и акты
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {billing && billing.invoices.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-gray-500">
+                              <th className="py-2 pr-3 font-medium">Счёт</th>
+                              <th className="py-2 pr-3 font-medium">Тариф</th>
+                              <th className="py-2 pr-3 text-right font-medium">Сумма</th>
+                              <th className="py-2 pr-3 font-medium">Статус</th>
+                              <th className="py-2 font-medium">Документы</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {billing.invoices.map((inv: any) => {
+                              const overdue = inv.status !== 'PAID' && inv.status !== 'CANCELED' && new Date(inv.dueDate) < new Date()
+                              return (
+                                <tr key={inv.id} className="border-b last:border-0">
+                                  <td className="py-2 pr-3">
+                                    <div className="font-medium text-gray-900">{inv.number}</div>
+                                    <div className="text-xs text-gray-400">
+                                      {new Date(inv.issuedAt).toLocaleDateString('ru-RU')}
+                                    </div>
+                                  </td>
+                                  <td className="py-2 pr-3 text-gray-600">{inv.planName} · {inv.months} мес.</td>
+                                  <td className="py-2 pr-3 text-right font-medium text-gray-900 tabular-nums">
+                                    {Number(inv.amount).toLocaleString('ru-RU')} ₽
+                                  </td>
+                                  <td className="py-2 pr-3">
+                                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                                      inv.status === 'PAID' ? 'bg-green-50 text-green-700'
+                                        : inv.status === 'CANCELED' ? 'bg-gray-100 text-gray-500'
+                                        : overdue ? 'bg-red-50 text-red-700'
+                                        : 'bg-amber-50 text-amber-700'
+                                    }`}>
+                                      {inv.status === 'PAID' ? 'Оплачен'
+                                        : inv.status === 'CANCELED' ? 'Отменён'
+                                        : overdue ? 'Просрочен' : 'Выставлен'}
+                                    </span>
+                                  </td>
+                                  <td className="py-2">
+                                    <div className="flex gap-2">
+                                      <a
+                                        href={`/api/billing/invoices/${inv.id}/pdf`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded border px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                                      >
+                                        Счёт
+                                      </a>
+                                      {inv.status === 'PAID' && inv.actNumber && (
+                                        <a
+                                          href={`/api/billing/invoices/${inv.id}/act/pdf`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="rounded border px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                                        >
+                                          Акт
+                                        </a>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Счетов пока нет.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeTab === 'notifications' && (
