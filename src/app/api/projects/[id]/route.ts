@@ -22,11 +22,15 @@ export async function GET(
       companyId: user.companyId
     }
 
-    // OWNER и ADMIN видят все проекты компании
-    if (user.role === UserRole.OWNER || user.role === UserRole.ADMIN) {
+    // OWNER, ADMIN и Руководитель проекта (MANAGER) видят все проекты компании
+    if (
+      user.role === UserRole.OWNER ||
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.MANAGER
+    ) {
       // Никаких дополнительных ограничений
     } else {
-      // MANAGER и USER видят только проекты, где являются участниками
+      // Сотрудник и внешние роли видят только проекты, где являются участниками
       where.OR = [
         { creatorId: user.id }, // Пользователь создал проект
         { users: { some: { userId: user.id } } } // Пользователь является участником

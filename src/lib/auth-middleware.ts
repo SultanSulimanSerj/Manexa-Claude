@@ -330,8 +330,12 @@ export async function canUserAccessProject(
   userRole: UserRole
 ): Promise<boolean> {
   try {
-    // OWNER и ADMIN видят все проекты своей компании
-    if (userRole === UserRole.OWNER || userRole === UserRole.ADMIN) {
+    // OWNER, ADMIN и Руководитель проекта (MANAGER) видят все проекты компании
+    if (
+      userRole === UserRole.OWNER ||
+      userRole === UserRole.ADMIN ||
+      userRole === UserRole.MANAGER
+    ) {
       const project = await prisma.project.findFirst({
         where: { id: projectId, companyId }
       })

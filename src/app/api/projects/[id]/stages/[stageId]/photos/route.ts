@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
+import { canUserAccessProject } from '@/lib/auth-middleware'
 import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
@@ -8,6 +9,16 @@ import path from 'path'
 // Заказчик (view-only) не может изменять фото этапов
 function blockClientWrite(role: string) {
   return !hasPermission(role as UserRole, 'canViewAllTasks')
+}
+
+// Доступ к проекту по членству (внешние/Сотрудник — только свои проекты)
+async function assertProjectAccess(
+  user: { id: string; companyId: string | null; role: string },
+  projectId: string
+): Promise<NextResponse | null> {
+  if (!user.companyId) return NextResponse.json({ error: 'Нет доступа' }, { status: 404 })
+  const ok = await canUserAccessProject(user.id, projectId, user.companyId, user.role as UserRole)
+  return ok ? null : NextResponse.json({ error: 'Нет доступа к проекту' }, { status: 404 })
 }
 import { uploadFile, getSignedUrl, deleteFile } from '@/lib/storage'
 
@@ -24,6 +35,9 @@ export async function GET(
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const denied = await assertProjectAccess(user, params.id)
+    if (denied) return denied
 
     const { stageId } = params
 
@@ -79,6 +93,9 @@ export async function POST(
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const denied = await assertProjectAccess(user, params.id)
+    if (denied) return denied
 
     const { stageId } = params
 
@@ -169,6 +186,9 @@ export async function DELETE(
     if (!user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const denied = await assertProjectAccess(user, params.id)
+    if (denied) return denied
 
     if (blockClientWrite(user.role)) {
       return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 })

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkPermission } from '@/lib/auth-middleware'
+import { checkPermission, canUserAccessProject } from '@/lib/auth-middleware'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@/lib/permissions'
 import { generateId } from '@/lib/id-generator'
@@ -14,6 +14,11 @@ export async function GET(
     
     if (!allowed || !user) {
       return NextResponse.json({ error: error || 'Недостаточно прав' }, { status: 403 })
+    }
+
+    // Внешние/Сотрудник видят участников только своих проектов
+    if (!user.companyId || !(await canUserAccessProject(user.id, params.id, user.companyId, user.role as UserRole))) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
     const project = await prisma.project.findFirst({

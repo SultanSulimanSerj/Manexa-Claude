@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkPermission } from '@/lib/auth-middleware'
+import { checkPermission, canUserAccessProject } from '@/lib/auth-middleware'
 import { deleteDocumentForCompany } from '@/lib/document-editor/delete-document'
 import { getDocumentForCompany } from '@/lib/document-editor/document-service'
 import { getActiveExportJobForDocument } from '@/lib/document-export/export-job-service'
@@ -23,6 +23,14 @@ export async function GET(
 
     const document = await getDocumentForCompany(params.id, user.companyId)
     if (!document) {
+      return NextResponse.json({ error: 'Документ не найден' }, { status: 404 })
+    }
+
+    // Документ проекта — только участникам проекта (внешние/Сотрудник)
+    if (
+      document.projectId &&
+      !(await canUserAccessProject(user.id, document.projectId, user.companyId, user.role as UserRole))
+    ) {
       return NextResponse.json({ error: 'Документ не найден' }, { status: 404 })
     }
 
