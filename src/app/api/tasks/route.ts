@@ -37,17 +37,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // OWNER и ADMIN видят все задачи компании
-    if (user.role === UserRole.OWNER || user.role === UserRole.ADMIN) {
+    // OWNER, ADMIN и Руководитель проекта (MANAGER) видят все задачи компании
+    if (
+      user.role === UserRole.OWNER ||
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.MANAGER
+    ) {
       // Никаких дополнительных ограничений
-    } else if (user.role === UserRole.MANAGER) {
-      // MANAGER видит задачи проектов, где является участником
-      where.project.OR = [
-        { creatorId: user.id }, // Пользователь создал проект
-        { users: { some: { userId: user.id } } } // Пользователь является участником проекта
-      ]
     } else {
-      // USER видит только назначенные ему задачи
+      // Сотрудник/Подрядчик/Заказчик видят только назначенные или созданные ими задачи
       where.OR = [
         { assignments: { some: { userId: user.id } } }, // Назначенные задачи
         { creatorId: user.id } // Созданные пользователем задачи

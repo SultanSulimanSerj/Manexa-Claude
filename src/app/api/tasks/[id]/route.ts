@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
 import { verifyTaskCompanyAccess, userCanEditTask } from '@/lib/access-control'
-import { canUserAccessProject } from '@/lib/auth-middleware'
 import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
@@ -44,16 +43,22 @@ export async function GET(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    // Заказчик не имеет доступа к задачам; внешние/Сотрудник — только задачи своих проектов
-    if (!hasPermission(user.role as UserRole, 'canViewAllTasks')) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
-    }
-    if (
-      task.projectId &&
-      user.companyId &&
-      !(await canUserAccessProject(user.id, task.projectId, user.companyId, user.role as UserRole))
-    ) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    // Доступ к задаче как в списке: менеджеры — любые; остальные — только свои (автор/исполнитель)
+    const isTaskManager =
+      user.role === UserRole.OWNER ||
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.MANAGER
+    if (!isTaskManager) {
+      const own = await prisma.task.findFirst({
+        where: {
+          id: params.id,
+          OR: [{ creatorId: user.id }, { assignments: { some: { userId: user.id } } }],
+        },
+        select: { id: true },
+      })
+      if (!own) {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      }
     }
 
     // Загружаем подзадачи отдельно, чтобы не ломать запрос, если таблица еще не создана

@@ -32,11 +32,15 @@ export async function GET(request: NextRequest) {
       ...(documentIdFilter && { documentId: documentIdFilter })
     }
 
-    // OWNER и ADMIN видят все согласования компании
-    if (user.role === UserRole.OWNER || user.role === UserRole.ADMIN) {
+    // OWNER, ADMIN и Руководитель проекта (MANAGER) видят все согласования компании
+    if (
+      user.role === UserRole.OWNER ||
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.MANAGER
+    ) {
       // Никаких дополнительных ограничений
     } else {
-      // MANAGER и USER видят только согласования:
+      // Сотрудник/Подрядчик/Заказчик видят только согласования:
       // 1. Созданные ими
       // 2. Где они являются участниками
       // 3. Привязанные к их проектам

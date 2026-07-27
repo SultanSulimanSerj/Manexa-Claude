@@ -46,7 +46,11 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (user.role !== UserRole.OWNER && user.role !== UserRole.ADMIN) {
+    if (
+      user.role !== UserRole.OWNER &&
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.MANAGER
+    ) {
       where.AND.push({
         OR: [
           { projectId: null },
