@@ -5,6 +5,7 @@ export interface SendMailOptions {
   subject: string
   text: string
   html?: string
+  attachments?: { filename: string; content: Buffer; contentType?: string }[]
 }
 
 function isEmailConfigured(): boolean {
@@ -40,6 +41,7 @@ export async function sendMail(options: SendMailOptions): Promise<boolean> {
     subject: options.subject,
     text: options.text,
     html: options.html,
+    attachments: options.attachments,
   })
 
   return true

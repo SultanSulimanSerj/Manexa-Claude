@@ -71,6 +71,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const newEnd = new Date(base)
     newEnd.setMonth(newEnd.getMonth() + invoice.months)
 
+    // Номер акта (закрывающий) — генерим при оплате, если ещё нет
+    const year = now.getFullYear()
+    const actCount = await prisma.invoice.count({
+      where: { actNumber: { startsWith: `АКТ-${year}-` } },
+    })
+    const actNumber = invoice.actNumber || `АКТ-${year}-${String(actCount + 1).padStart(3, '0')}`
+
     await prisma.$transaction([
       prisma.payment.create({
         data: {
@@ -94,7 +101,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }),
       prisma.invoice.update({
         where: { id: invoice.id },
-        data: { status: 'PAID', paidAt: now, periodStart: base, periodEnd: newEnd },
+        data: {
+          status: 'PAID',
+          paidAt: now,
+          periodStart: base,
+          periodEnd: newEnd,
+          actNumber,
+          actGeneratedAt: now,
+        },
       }),
     ])
     invalidateCompanyAccessCache(subscription.companyId)

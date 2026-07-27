@@ -216,6 +216,21 @@ export default function PlatformCompanyPage() {
     }
   }
 
+  const sendInvoice = async (id: string) => {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/platform/invoices/${id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Не удалось отправить')
+        return
+      }
+      toast.success(`Счёт отправлен на ${data.to}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const invoiceAction = async (id: string, action: 'pay' | 'cancel') => {
     if (action === 'pay' && !(await confirm({ title: 'Отметить счёт оплаченным?', description: 'Подписка будет продлена.', confirmText: 'Оплачено' }))) return
     if (action === 'cancel' && !(await confirm({ title: 'Отменить счёт?', confirmText: 'Отменить', destructive: true }))) return
@@ -717,6 +732,26 @@ export default function PlatformCompanyPage() {
                     >
                       Счёт PDF
                     </a>
+                    {inv.status === 'PAID' && inv.actNumber && (
+                      <a
+                        href={`/api/platform/invoices/${inv.id}/act/pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded border px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                      >
+                        Акт PDF
+                      </a>
+                    )}
+                    {inv.status !== 'CANCELED' && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => sendInvoice(inv.id)}
+                        className="rounded border px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                      >
+                        На почту
+                      </button>
+                    )}
                     {inv.status !== 'PAID' && inv.status !== 'CANCELED' && (
                       <>
                         <button
