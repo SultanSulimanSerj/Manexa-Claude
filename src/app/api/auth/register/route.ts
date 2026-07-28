@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { 
-      name, 
-      email, 
-      password, 
+    const {
+      name,
+      email: emailRaw,
+      password,
       phone, 
       address, 
       companyName, 
@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
       bankBik,
       correspondentAccount
     } = body
+
+    // Email нормализуем к нижнему регистру — вход нечувствителен к регистру
+    const email = String(emailRaw || '').trim().toLowerCase()
 
     // Валидация
     if (!name || !email || !password || !companyName || !inn || !directorName) {

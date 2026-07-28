@@ -21,7 +21,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, name, role, position } = body
+    const { email: emailRaw, name, role, position } = body
+    // Email нормализуем к нижнему регистру — вход нечувствителен к регистру
+    const email = String(emailRaw || '').trim().toLowerCase()
 
     if (!email || !name || !role) {
       return NextResponse.json({ error: 'Email, имя и роль обязательны' }, { status: 400 })

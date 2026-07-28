@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, password, role, position } = body
+    const { name, email: emailRaw, password, role, position } = body
+    // Email нормализуем к нижнему регистру — вход нечувствителен к регистру
+    const email = String(emailRaw || '').trim().toLowerCase()
 
     const isExternal = EXTERNAL_ROLES.includes(role)
 

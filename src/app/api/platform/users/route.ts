@@ -66,7 +66,9 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const { name, email, role } = body as { name?: string; email?: string; role?: string }
+  const { name, email: emailRaw, role } = body as { name?: string; email?: string; role?: string }
+  // Email нормализуем к нижнему регистру — вход нечувствителен к регистру
+  const email = String(emailRaw || '').trim().toLowerCase()
 
   if (!name || !email) {
     return NextResponse.json({ error: 'Требуются имя и email' }, { status: 400 })

@@ -31,7 +31,9 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, email, role, position, password, phone, address, isActive } = body
+    const { name, email: emailRaw, role, position, password, phone, address, isActive } = body
+    // Email нормализуем к нижнему регистру — вход нечувствителен к регистру
+    const email = emailRaw ? String(emailRaw).trim().toLowerCase() : emailRaw
 
     // Деактивировать себя нельзя
     if (isSelfEdit && isActive === false) {

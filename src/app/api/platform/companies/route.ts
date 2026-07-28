@@ -82,10 +82,13 @@ export async function POST(request: NextRequest) {
     correspondentAccount,
     // Директор (OWNER)
     ownerName,
-    ownerEmail,
+    ownerEmail: ownerEmailRaw,
     // Тариф (опционально, по умолчанию TRIAL)
     planCode,
   } = body
+
+  // Email директора нормализуем к нижнему регистру — вход нечувствителен к регистру
+  const ownerEmail = String(ownerEmailRaw || '').trim().toLowerCase()
 
   if (!name || !inn || !ownerName || !ownerEmail) {
     return NextResponse.json(
