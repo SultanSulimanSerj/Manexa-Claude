@@ -643,7 +643,7 @@ function FinancePageContent() {
       .map((i) => ({
         id: i.id,
         number: i.number,
-        amount: i.amount,
+        amount: Number(i.amount) || 0,
         date: i.date || i.dueDate || '',
         dueDate: i.dueDate,
         isPaid: i.isPaid,
@@ -660,7 +660,7 @@ function FinancePageContent() {
       .map(r => ({
         id: r.id,
         date: r.date,
-        amount: r.amount,
+        amount: Number(r.amount) || 0,
         category: r.category || 'Без категории',
         description: r.description ?? undefined,
         counterparty: r.counterparty ?? undefined,
