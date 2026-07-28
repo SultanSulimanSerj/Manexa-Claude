@@ -113,6 +113,9 @@ function SignInPageContent() {
               <Input
                 id="email"
                 type="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Введите ваш email"

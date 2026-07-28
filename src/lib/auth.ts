@@ -71,9 +71,12 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await prisma.user.findUnique({
+        // Email нечувствителен к регистру: у части пользователей он записан
+        // со смешанным регистром (напр. Vladimirsysoev96@inbox.ru), а на входе
+        // могли ввести иначе — точное совпадение давало «неверный пароль».
+        const user = await prisma.user.findFirst({
           where: {
-            email: credentials.email
+            email: { equals: credentials.email.trim(), mode: 'insensitive' }
           },
           include: {
             company: true
