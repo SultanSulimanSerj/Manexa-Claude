@@ -407,8 +407,20 @@ export default function ChatPage() {
     setPendingAttachments((prev) => prev.filter((a) => a.filePath !== filePath))
   }
 
+  // Упоминание проекта #ИмяПроекта маршрутизирует сообщение в чат этого проекта.
+  // Берём самое длинное совпадение имени, чтобы префиксы не давали ложных срабатываний.
+  const findMentionedProjectId = (text: string): string => {
+    const matched = projects
+      .filter(p => p.name && text.includes(`#${p.name}`))
+      .sort((a, b) => b.name.length - a.name.length)
+    return matched[0]?.id || ''
+  }
+
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && pendingAttachments.length === 0) || sending) return
+
+    // Если открыт чат команды, но в тексте упомянут проект (#Проект) — шлём в чат проекта
+    const targetProjectId = selectedProject || findMentionedProjectId(newMessage)
 
     setSending(true)
     try {
@@ -430,7 +442,7 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           content: newMessage,
-          projectId: selectedProject || null,
+          projectId: targetProjectId || null,
           mentions: mentions,
           attachments: pendingAttachments,
         })
@@ -438,7 +450,11 @@ export default function ChatPage() {
 
       if (response.ok) {
         const message = await response.json()
-        if (messageMatchesFilter(message, selectedProject)) {
+        // Сообщение ушло в другой чат (проект по #упоминанию) — переключаемся туда,
+        // эффект по selectedProject подтянет историю с новым сообщением.
+        if (targetProjectId && targetProjectId !== selectedProject) {
+          setSelectedProject(targetProjectId)
+        } else if (messageMatchesFilter(message, selectedProject)) {
           appendChatMessage(message)
         }
         setNewMessage('')
