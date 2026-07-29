@@ -400,6 +400,8 @@ function FinancePageContent() {
     try {
       const response = await fetch(`/api/finance/${id}`, { method: 'DELETE' })
       if (response.ok) {
+        // Убираем запись из стейта сразу — строка исчезает без ожидания рефетча
+        setRecords(prev => prev.filter(r => r.id !== id))
         fetchRecords()
         setMessage({ type: 'success', text: 'Запись удалена' })
         setTimeout(() => setMessage(null), 3000)
