@@ -375,6 +375,7 @@ model ImpersonationToken {
   issuedById   String
   expiresAt    DateTime
   usedAt       DateTime?
+  endedAt      DateTime? // проставляется при завершении сессии поддержки; пока null и usedAt задан — импперсонация активна
   createdAt    DateTime  @default(now())
 
   @@index([targetUserId])

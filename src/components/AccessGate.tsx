@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Eye } from 'lucide-react'
+import { Eye, ShieldAlert } from 'lucide-react'
 
 const PLATFORM_ROLES = ['PLATFORM_ADMIN', 'PLATFORM_MANAGER']
 // Страницы, доступные без проверок
@@ -20,6 +20,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [companyBlocked, setCompanyBlocked] = useState(false)
+  const [supportActive, setSupportActive] = useState(false)
 
   const role = (session?.user as any)?.role as string | undefined
   const mustChangePassword = Boolean((session?.user as any)?.mustChangePassword)
@@ -42,6 +43,27 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
       cancelled = true
     }
   }, [status, isPlatform, session?.user, pathname])
+
+  // Баннер самому пользователю: сейчас админ поддержки вошёл под его учёткой.
+  // Свою (impersonation-) сессию не опрашиваем — там уже есть баннер «Режим поддержки».
+  useEffect(() => {
+    if (status !== 'authenticated' || isPlatform || impersonatedBy || !session?.user) return
+    let cancelled = false
+    const check = () => {
+      fetch('/api/users/me/impersonation-status')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!cancelled && data) setSupportActive(Boolean(data.active))
+        })
+        .catch(() => {})
+    }
+    check()
+    const id = setInterval(check, 45000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [status, isPlatform, impersonatedBy, session?.user])
 
   useEffect(() => {
     if (status !== 'authenticated' || !pathname) return
@@ -77,6 +99,15 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {supportActive && !impersonatedBy && (
+        <div className="sticky top-0 z-[60] flex items-center justify-center gap-3 bg-amber-500 px-4 py-1.5 text-sm text-white">
+          <ShieldAlert className="h-4 w-4 shrink-0" />
+          <span>
+            Администратор технической поддержки сейчас работает в вашем аккаунте (режим поддержки).
+            Если вы это не согласовывали — <strong>смените пароль</strong>.
+          </span>
+        </div>
+      )}
       {impersonatedBy && (
         <div className="sticky top-0 z-[60] flex items-center justify-center gap-3 bg-purple-700 px-4 py-1.5 text-sm text-white">
           <Eye className="h-4 w-4 shrink-0" />

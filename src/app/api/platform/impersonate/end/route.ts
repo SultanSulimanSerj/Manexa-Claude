@@ -24,6 +24,12 @@ export async function POST(request: NextRequest) {
     select: { email: true },
   })
 
+  // Закрываем активные токены поддержки этого юзера — снимает баннер у самого пользователя
+  await prisma.impersonationToken.updateMany({
+    where: { targetUserId, usedAt: { not: null }, endedAt: null },
+    data: { endedAt: new Date() },
+  }).catch(() => {})
+
   await logPlatformAction({
     actorId: impersonatedBy,
     actorEmail: admin?.email,
