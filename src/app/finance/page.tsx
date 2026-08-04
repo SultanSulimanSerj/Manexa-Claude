@@ -60,6 +60,7 @@ function FinancePageContent() {
   const [projects, setProjects] = useState<any[]>([])
   const [currentProject, setCurrentProject] = useState<any>(null)
   const [projectSearch, setProjectSearch] = useState('')
+  const [period, setPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month')
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -692,6 +693,67 @@ function FinancePageContent() {
   const invoicedTotal = projectFilteredRecords.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + Number(r.amount), 0)
   const overInvoiced = budgetData.budget > 0 && invoicedTotal > budgetData.budget
 
+  // ——— 5a: сводка компании за период ———
+  const nowD = new Date()
+  const shiftBack = (base: Date, p: typeof period, times = 1) => {
+    const d = new Date(base)
+    if (p === 'week') d.setDate(d.getDate() - 7 * times)
+    else if (p === 'month') d.setMonth(d.getMonth() - 1 * times)
+    else if (p === 'quarter') d.setMonth(d.getMonth() - 3 * times)
+    else d.setFullYear(d.getFullYear() - 1 * times)
+    return d
+  }
+  const periodStart = shiftBack(nowD, period, 1)
+  const prevPeriodStart = shiftBack(nowD, period, 2)
+  const sumType = (rs: FinanceRecord[], type: string) =>
+    rs.filter((r) => r.type === type).reduce((s, r) => s + Number(r.amount), 0)
+  const curRecords = records.filter((r) => new Date(r.date) >= periodStart)
+  const prevRecords = records.filter((r) => {
+    const t = new Date(r.date)
+    return t >= prevPeriodStart && t < periodStart
+  })
+  const cIncome = sumType(curRecords, 'INCOME')
+  const cExpense = sumType(curRecords, 'EXPENSE')
+  const cProfit = cIncome - cExpense
+  const cMargin = cIncome > 0 ? (cProfit / cIncome) * 100 : 0
+  const pIncome = sumType(prevRecords, 'INCOME')
+  const pExpense = sumType(prevRecords, 'EXPENSE')
+  const deltaPct = (cur: number, prev: number) => (prev > 0 ? Math.round((cur / prev - 1) * 100) : null)
+  const incomeDelta = deltaPct(cIncome, pIncome)
+  const expenseDelta = deltaPct(cExpense, pExpense)
+  const profitDelta = deltaPct(cProfit, pIncome - pExpense)
+  const periodLabel =
+    period === 'week' ? 'за неделю' : period === 'month' ? nowD.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : period === 'quarter' ? 'за квартал' : `${nowD.getFullYear()} год`
+  // Денежный поток — последние 4 календарных месяца
+  const cashflow = Array.from({ length: 4 }, (_, i) => {
+    const m = new Date(nowD.getFullYear(), nowD.getMonth() - (3 - i), 1)
+    const from = m.getTime()
+    const to = new Date(m.getFullYear(), m.getMonth() + 1, 1).getTime()
+    const inR = (r: FinanceRecord) => {
+      const t = new Date(r.date).getTime()
+      return t >= from && t < to
+    }
+    return {
+      label: m.toLocaleDateString('ru-RU', { month: 'short' }),
+      inc: records.filter((r) => r.type === 'INCOME' && inR(r)).reduce((s, r) => s + Number(r.amount), 0),
+      exp: records.filter((r) => r.type === 'EXPENSE' && inR(r)).reduce((s, r) => s + Number(r.amount), 0),
+      isLast: i === 3,
+    }
+  })
+  const cashflowMax = Math.max(1, ...cashflow.flatMap((x) => [x.inc, x.exp]))
+  // Дебиторка / кредиторка (по всей компании, вне зависимости от периода)
+  const receivableCount = records.filter((r) => r.type === 'INCOME' && !r.isPaid).length
+  const receivableOverdue = records.filter((r) => r.type === 'INCOME' && !r.isPaid && r.dueDate && new Date(r.dueDate) < nowD).length
+  const payableCount = records.filter((r) => r.type === 'EXPENSE' && !r.isPaid).length
+  const payableUrgent = records.filter(
+    (r) => r.type === 'EXPENSE' && !r.isPaid && r.dueDate && new Date(r.dueDate).getTime() < nowD.getTime() + 3 * 86400000,
+  ).length
+  // Лента последних операций
+  const recentOps = [...records]
+    .filter((r) => r.type === 'INCOME' || r.type === 'EXPENSE')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6)
+
   // Сводка по проектам для режима "все проекты"
   const projectsForSummary = projectSearch.trim()
     ? projects.filter(p => p.name?.toLowerCase().includes(projectSearch.toLowerCase()))
@@ -810,12 +872,143 @@ function FinancePageContent() {
         {/* Режим "все проекты": сводная таблица */}
         {!currentProject && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard title="Всего доход" value={formatMoney(totalIncome)} icon={<TrendingUp className="h-5 w-5" />} status="positive" />
-              <KpiCard title="Всего расход" value={formatMoney(totalExpenses)} icon={<TrendingDown className="h-5 w-5" />} status="negative" />
-              <KpiCard title="Баланс" value={formatMoney(balance)} icon={<DollarSign className="h-5 w-5" />} status={balance >= 0 ? 'positive' : 'negative'} />
-              <KpiCard title="Проектов" value={String(projectsForSummary.length)} icon={<Building2 className="h-5 w-5" />} status="neutral" />
+            {/* период */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-neutral-500">
+                Все проекты · <span className="capitalize">{periodLabel}</span>
+              </div>
+              <div className="inline-flex rounded-lg bg-neutral-100 p-0.5">
+                {([['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал'], ['year', 'Год']] as const).map(([p, l]) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className={`rounded-md px-3 py-1.5 text-[12.5px] transition-colors ${
+                      period === p ? 'bg-white font-semibold text-neutral-900 shadow-sm' : 'font-medium text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* KPI */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-neutral-200 bg-white p-[18px]">
+                <div className="text-[12px] font-medium text-neutral-400">Доходы</div>
+                <div className="mt-1.5 text-[26px] font-bold tabular-nums text-neutral-900">{formatMoney(cIncome)}</div>
+                {incomeDelta != null && (
+                  <div className={`mt-1 text-[12px] ${incomeDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                    {incomeDelta >= 0 ? '▲' : '▼'} {Math.abs(incomeDelta)}% к прошлому периоду
+                  </div>
+                )}
+              </div>
+              <div className="rounded-xl border border-neutral-200 bg-white p-[18px]">
+                <div className="text-[12px] font-medium text-neutral-400">Расходы</div>
+                <div className="mt-1.5 text-[26px] font-bold tabular-nums text-neutral-900">{formatMoney(cExpense)}</div>
+                {expenseDelta != null && (
+                  <div className={`mt-1 text-[12px] ${expenseDelta > 0 ? 'text-red-600' : 'text-green-700'}`}>
+                    {expenseDelta >= 0 ? '▲' : '▼'} {Math.abs(expenseDelta)}% к прошлому периоду
+                  </div>
+                )}
+              </div>
+              <div className="rounded-xl border border-green-200 bg-white p-[18px]">
+                <div className="text-[12px] font-medium text-green-700">Прибыль</div>
+                <div className={`mt-1.5 text-[26px] font-bold tabular-nums ${cProfit >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {cProfit >= 0 ? '+' : '−'}{formatMoney(Math.abs(cProfit))}
+                </div>
+                {profitDelta != null && (
+                  <div className={`mt-1 text-[12px] ${profitDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                    {profitDelta >= 0 ? '▲' : '▼'} {Math.abs(profitDelta)}% к прошлому периоду
+                  </div>
+                )}
+              </div>
+              <div className="rounded-xl border border-green-200 bg-white p-[18px]">
+                <div className="text-[12px] font-medium text-green-700">Маржа</div>
+                <div className="mt-1.5 text-[26px] font-bold tabular-nums text-green-700">{cMargin.toFixed(1).replace('.', ',')}%</div>
+                <div className="mt-1 text-[12px] text-neutral-400">прибыль / доходы</div>
+              </div>
+            </div>
+
+            {/* денежный поток + дебиторка/кредиторка */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
+              <div className="rounded-xl border border-neutral-200 bg-white p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-[13.5px] font-semibold text-neutral-900">Денежный поток по месяцам</span>
+                  <div className="flex gap-3.5 text-[11.5px] text-neutral-500">
+                    <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-blue-600" />Доход</span>
+                    <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-neutral-300" />Расход</span>
+                  </div>
+                </div>
+                <div className="flex h-[150px] items-end gap-4">
+                  {cashflow.map((m, i) => (
+                    <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                      <div className="flex h-full w-full items-end justify-center gap-1">
+                        <div className="w-2/5 rounded-t bg-blue-600" style={{ height: `${Math.max(2, (m.inc / cashflowMax) * 100)}%` }} title={`Доход: ${formatMoney(m.inc)}`} />
+                        <div className="w-2/5 rounded-t bg-neutral-300" style={{ height: `${Math.max(2, (m.exp / cashflowMax) * 100)}%` }} title={`Расход: ${formatMoney(m.exp)}`} />
+                      </div>
+                      <span className={`text-[11px] ${m.isLast ? 'font-semibold text-neutral-900' : 'text-neutral-400'}`}>{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="rounded-xl border border-neutral-200 bg-white p-[18px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12.5px] text-neutral-500">Не оплачено нам</span>
+                    {receivableOverdue > 0 && (
+                      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">{receivableOverdue} просрочены</span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 text-[23px] font-bold tabular-nums text-green-700">{formatMoney(receivableUnpaid)}</div>
+                  <div className="mt-0.5 text-[11.5px] text-neutral-400">по {receivableCount} счетам и актам</div>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white p-[18px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12.5px] text-neutral-500">Нам к оплате</span>
+                    {payableUrgent > 0 && (
+                      <span className="rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-600">{payableUrgent} срочно</span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 text-[23px] font-bold tabular-nums text-red-600">{formatMoney(payableUnpaid)}</div>
+                  <div className="mt-0.5 text-[11.5px] text-neutral-400">поставщикам и подрядчикам · {payableCount} шт</div>
+                </div>
+              </div>
+            </div>
+
+            {/* лента операций */}
+            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+              <div className="flex items-center justify-between border-b border-neutral-100 px-[18px] py-3.5">
+                <span className="text-[13.5px] font-semibold text-neutral-900">Последние операции</span>
+              </div>
+              {recentOps.length === 0 ? (
+                <div className="px-[18px] py-8 text-center text-sm text-neutral-400">Операций пока нет</div>
+              ) : (
+                recentOps.map((op, i) => {
+                  const income = op.type === 'INCOME'
+                  const dot = !op.isPaid ? 'bg-amber-500' : income ? 'bg-green-600' : 'bg-red-600'
+                  const status = op.isPaid
+                    ? `Оплачено · ${new Date(op.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`
+                    : op.dueDate
+                    ? `Ожидает · до ${new Date(op.dueDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`
+                    : 'Ожидает'
+                  return (
+                    <div key={op.id} className={`grid grid-cols-[24px_1.8fr_1.3fr_1fr_0.9fr] items-center border-t border-neutral-100 px-4 ${i % 2 ? 'bg-neutral-50/40' : ''}`}>
+                      <div className="py-3"><span className={`block h-2.5 w-2.5 rounded-full ${dot}`} /></div>
+                      <div className="truncate py-3 pr-2 text-[13px] font-medium text-neutral-900" title={op.description || op.category}>{op.description || op.category}</div>
+                      <div className="truncate py-3 pr-2 text-[12.5px] text-neutral-500">{op.project?.name || '—'}</div>
+                      <div className={`py-3 pr-2 text-[12px] ${!op.isPaid ? 'text-amber-700' : 'text-neutral-400'}`}>{status}</div>
+                      <div className={`py-3 text-right text-[13px] font-semibold tabular-nums ${income ? 'text-green-700' : 'text-neutral-900'}`}>
+                        {income ? '+' : '−'}{formatMoney(Number(op.amount))}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Проекты — дровилл в финансы проекта (5b) */}
+            <div className="text-[13.5px] font-semibold text-neutral-900">Проекты</div>
             <div className="bg-white rounded-lg border overflow-hidden">
               <div className="p-4 border-b flex flex-wrap items-center gap-3">
                 <input
