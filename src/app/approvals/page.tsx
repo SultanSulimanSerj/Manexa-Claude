@@ -1100,7 +1100,7 @@ export default function ApprovalsPage() {
         {/* Approval Details Modal */}
         {showDetailsModal && selectedApproval && (
           <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-            <DialogContent className="max-w-[900px] gap-0 overflow-hidden p-0">
+            <DialogContent className="max-h-[90vh] max-w-[900px] gap-0 overflow-hidden p-0">
               <DialogTitle className="sr-only">Окно согласования</DialogTitle>
               {(() => {
                 const a = selectedApproval
@@ -1128,7 +1128,7 @@ export default function ApprovalsPage() {
                 )
                 const hasPlace = d.section || d.floors || d.axes || d.area
                 return (
-                  <div className="flex max-h-[88vh] flex-col">
+                  <div className="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
                     {/* header */}
                     <div className="px-6 pt-5">
                       <div className="flex items-start gap-3">
@@ -1162,9 +1162,9 @@ export default function ApprovalsPage() {
                     </div>
 
                     {/* body */}
-                    <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 border-t border-neutral-100 md:grid-cols-[1fr_320px]">
+                    <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 overflow-hidden border-t border-neutral-100 md:grid-cols-[1fr_320px]">
                       {/* левая колонка */}
-                      <div className="flex flex-col gap-5 overflow-y-auto border-neutral-100 p-6 md:border-r">
+                      <div className="flex min-h-0 flex-col gap-5 overflow-y-auto border-neutral-100 p-6 md:border-r">
                         {/* Что согласуем */}
                         <section>
                           <div className={secLabel}>Что согласуем</div>
@@ -1280,8 +1280,8 @@ export default function ApprovalsPage() {
                         </section>
                       </div>
 
-                      {/* правая колонка — согласующие (обсуждение отложено) */}
-                      <div className="flex flex-col bg-neutral-50">
+                      {/* правая колонка — согласующие + обсуждение */}
+                      <div className="flex min-h-0 flex-col overflow-hidden border-t border-neutral-100 bg-neutral-50 md:border-t-0">
                         <div className="border-b border-neutral-100 p-5">
                           <div className={secLabel}>Согласовали · {done} из {total}</div>
                           <div className="flex flex-wrap items-center gap-2">
