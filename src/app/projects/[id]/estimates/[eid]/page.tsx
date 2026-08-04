@@ -302,7 +302,9 @@ export default function EstimateEditorPage() {
                       <div className="py-1.5"><input value={it.unitPrice} onChange={(e) => patchItem(it.id, { unitPrice: e.target.value })} className={cellInput + ' text-right'} inputMode="decimal" /></div>
                       <div className="py-1.5"><input value={it.costPrice} onChange={(e) => patchItem(it.id, { costPrice: e.target.value })} className={cellInput + ' text-right text-neutral-500'} inputMode="decimal" /></div>
                       <div className="py-1.5 pr-2 text-right text-[13px] font-medium tabular-nums text-neutral-900">{fmt(itemTotal(it))}</div>
-                      <div className={`py-1.5 pr-2 text-right text-[13px] font-semibold tabular-nums ${itemProfit(it) >= 0 ? 'text-green-700' : 'text-red-600'}`}>{itemProfit(it) >= 0 ? '+' : '−'}{fmt(Math.abs(itemProfit(it)))}</div>
+                      <div className={`py-1.5 pr-2 text-right text-[13px] font-semibold tabular-nums ${num(it.costPrice) === 0 ? 'text-neutral-300' : itemProfit(it) >= 0 ? 'text-green-700' : 'text-red-600'}`} title={num(it.costPrice) === 0 ? 'Себестоимость не задана' : ''}>
+                        {num(it.costPrice) === 0 ? '—' : `${itemProfit(it) >= 0 ? '+' : '−'}${fmt(Math.abs(itemProfit(it)))}`}
+                      </div>
                       <div className="flex justify-center py-1.5">
                         <button onClick={() => removeItem(it.id)} className="text-neutral-300 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
