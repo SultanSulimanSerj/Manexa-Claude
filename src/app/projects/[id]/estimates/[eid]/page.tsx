@@ -12,9 +12,9 @@ interface Item {
   id: string
   name: string
   unit: string
-  quantity: number
-  unitPrice: number
-  costPrice: number
+  quantity: string
+  unitPrice: string
+  costPrice: string
   vatRate: number | null
   category: string
 }
@@ -68,9 +68,9 @@ export default function EstimateEditorPage() {
             id: it.id,
             name: it.name,
             unit: it.unit || 'шт',
-            quantity: Number(it.quantity),
-            unitPrice: Number(it.unitPrice),
-            costPrice: Number(it.costPrice),
+            quantity: String(Number(it.quantity)),
+            unitPrice: String(Number(it.unitPrice)),
+            costPrice: String(Number(it.costPrice)),
             vatRate: it.vatRate != null ? Number(it.vatRate) : null,
             category: it.category || 'Без раздела',
           })),
@@ -93,7 +93,7 @@ export default function EstimateEditorPage() {
   }
   const removeItem = (id: string) => { setItems((prev) => prev.filter((it) => it.id !== id)); setDirty(true) }
   const addItem = (category: string) => {
-    setItems((prev) => [...prev, { id: `new_${Date.now()}`, name: '', unit: 'шт', quantity: 1, unitPrice: 0, costPrice: 0, vatRate: null, category }])
+    setItems((prev) => [...prev, { id: `new_${Date.now()}`, name: '', unit: 'шт', quantity: '1', unitPrice: '0', costPrice: '0', vatRate: null, category }])
     setDirty(true)
   }
   const addSection = () => {
@@ -102,8 +102,8 @@ export default function EstimateEditorPage() {
   }
 
   // ——— расчёты ———
-  const itemTotal = (it: Item) => it.quantity * it.unitPrice
-  const itemCost = (it: Item) => it.quantity * it.costPrice
+  const itemTotal = (it: Item) => num(it.quantity) * num(it.unitPrice)
+  const itemCost = (it: Item) => num(it.quantity) * num(it.costPrice)
   const itemProfit = (it: Item) => itemTotal(it) - itemCost(it)
   const subtotalNoVat = items.reduce((s, it) => s + itemTotal(it), 0)
   const totalCost = items.reduce((s, it) => s + itemCost(it), 0)
@@ -132,9 +132,9 @@ export default function EstimateEditorPage() {
             id: it.id,
             name: it.name,
             unit: it.unit,
-            quantity: it.quantity,
-            unitPrice: it.unitPrice,
-            costPrice: it.costPrice,
+            quantity: num(it.quantity),
+            unitPrice: num(it.unitPrice),
+            costPrice: num(it.costPrice),
             vatRate: it.vatRate,
             category: it.category,
           })),
@@ -145,8 +145,8 @@ export default function EstimateEditorPage() {
         setStatus(e.status)
         setContractNumber(e.contractNumber || null)
         setItems((e.items || []).map((it: any) => ({
-          id: it.id, name: it.name, unit: it.unit || 'шт', quantity: Number(it.quantity),
-          unitPrice: Number(it.unitPrice), costPrice: Number(it.costPrice),
+          id: it.id, name: it.name, unit: it.unit || 'шт', quantity: String(Number(it.quantity)),
+          unitPrice: String(Number(it.unitPrice)), costPrice: String(Number(it.costPrice)),
           vatRate: it.vatRate != null ? Number(it.vatRate) : null, category: it.category || 'Без раздела',
         })))
         setDirty(false)
@@ -298,11 +298,11 @@ export default function EstimateEditorPage() {
                           {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                         </select>
                       </div>
-                      <div className="py-1.5"><input value={it.quantity} onChange={(e) => patchItem(it.id, { quantity: num(e.target.value) })} className={cellInput + ' text-right'} inputMode="decimal" /></div>
-                      <div className="py-1.5"><input value={it.unitPrice} onChange={(e) => patchItem(it.id, { unitPrice: num(e.target.value) })} className={cellInput + ' text-right'} inputMode="decimal" /></div>
-                      <div className="py-1.5"><input value={it.costPrice} onChange={(e) => patchItem(it.id, { costPrice: num(e.target.value) })} className={cellInput + ' text-right text-neutral-500'} inputMode="decimal" /></div>
+                      <div className="py-1.5"><input value={it.quantity} onChange={(e) => patchItem(it.id, { quantity: e.target.value })} className={cellInput + ' text-right'} inputMode="decimal" /></div>
+                      <div className="py-1.5"><input value={it.unitPrice} onChange={(e) => patchItem(it.id, { unitPrice: e.target.value })} className={cellInput + ' text-right'} inputMode="decimal" /></div>
+                      <div className="py-1.5"><input value={it.costPrice} onChange={(e) => patchItem(it.id, { costPrice: e.target.value })} className={cellInput + ' text-right text-neutral-500'} inputMode="decimal" /></div>
                       <div className="py-1.5 pr-2 text-right text-[13px] font-medium tabular-nums text-neutral-900">{fmt(itemTotal(it))}</div>
-                      <div className="py-1.5 pr-2 text-right text-[13px] font-semibold tabular-nums text-green-700">+{fmt(itemProfit(it))}</div>
+                      <div className={`py-1.5 pr-2 text-right text-[13px] font-semibold tabular-nums ${itemProfit(it) >= 0 ? 'text-green-700' : 'text-red-600'}`}>{itemProfit(it) >= 0 ? '+' : '−'}{fmt(Math.abs(itemProfit(it)))}</div>
                       <div className="flex justify-center py-1.5">
                         <button onClick={() => removeItem(it.id)} className="text-neutral-300 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
@@ -330,9 +330,9 @@ export default function EstimateEditorPage() {
             <div className="flex justify-between py-1 text-[13px]"><span className="text-neutral-500">Сумма без НДС</span><span className="font-medium tabular-nums text-neutral-900">{fmt(subtotalNoVat)}</span></div>
             <div className="flex justify-between py-1 text-[13px]"><span className="text-neutral-500">{vatEnabled ? `НДС ${vatRate}%` : 'Без НДС'}</span><span className="font-medium tabular-nums text-neutral-900">{fmt(vatAmount)}</span></div>
             <div className="mt-1 flex justify-between border-t border-neutral-100 pt-2 text-[15px] font-bold"><span>Итого с НДС</span><span className="tabular-nums">{fmt(totalWithVat)}</span></div>
-            <div className="mt-3 flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-[13px] font-semibold text-green-700">
+            <div className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2.5 text-[13px] font-semibold ${profit >= 0 ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-600'}`}>
               <span>Прибыль по смете</span>
-              <span className="tabular-nums">+{fmt(profit)} · {margin.toFixed(1).replace('.', ',')}%</span>
+              <span className="tabular-nums">{profit >= 0 ? '+' : '−'}{fmt(Math.abs(profit))} · {margin.toFixed(1).replace('.', ',')}%</span>
             </div>
           </div>
         </div>
