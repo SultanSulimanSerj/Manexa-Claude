@@ -66,6 +66,19 @@ export async function POST(
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
     }
 
+    // Причина отклонения попадает в обсуждение (ленту комментариев),
+    // чтобы все участники видели, почему заявку вернули.
+    if (status === 'REJECTED' && comment && String(comment).trim()) {
+      await prisma.approvalComment.create({
+        data: {
+          id: generateId(),
+          approvalId: params.id,
+          userId: user.id,
+          content: `Отклонил заявку. Причина: ${String(comment).trim()}`,
+        },
+      }).catch((err) => console.error('Failed to add rejection comment:', err))
+    }
+
     // Получаем согласование
     const approval = await prisma.approval.findUnique({
       where: { id: params.id },
