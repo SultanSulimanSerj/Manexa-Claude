@@ -8,7 +8,7 @@ import { confirm } from '@/components/ui/confirm'
 import { toast } from '@/components/ui/use-toast'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2 } from 'lucide-react'
+import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2, Search, ChevronDown, MoreHorizontal, Check, Package, Wrench, CornerUpLeft } from 'lucide-react'
 import ExpandableDescription from '@/components/expandable-description'
 import ApprovalProgress from '@/components/approval-progress'
 import { ErrorBanner } from '@/components/ui/error-banner'
@@ -22,6 +22,7 @@ interface Approval {
   description: string | null
   status: string
   type: string
+  data?: { kind?: string; amount?: number | string; [k: string]: any } | null
   priority: string
   dueDate: string | null
   createdAt: string
@@ -90,6 +91,12 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
+  // 4c — реестр
+  const [segment, setSegment] = useState<'all' | 'mine' | 'inwork' | 'approved' | 'rejected'>('all')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'material' | 'installation' | 'works' | 'document'>('all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showCommentsModal, setShowCommentsModal] = useState(false)
@@ -531,14 +538,100 @@ export default function ApprovalsPage() {
     return approval.assignments.find(a => a.user.id === currentUser.id)
   }
 
-  const filteredApprovals = approvals.filter(approval => {
-    const statusMatch = statusFilter === 'all' || approval.status === statusFilter
-    const priorityMatch = priorityFilter === 'all' || approval.priority === priorityFilter
-    const projectMatch =
-      projectFilter === 'all' ||
-      (projectFilter === 'none' ? !approval.project?.id : approval.project?.id === projectFilter)
-    return statusMatch && priorityMatch && projectMatch
-  })
+  // ——— 4c: производные данные строки реестра ———
+  const initials = (name?: string) =>
+    (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?'
+
+  // тип заявки: приоритетно из data.kind, иначе маппинг legacy-enum
+  const kindOf = (a: Approval): 'material' | 'installation' | 'works' | 'document' => {
+    const k = a.data?.kind
+    if (k === 'material' || k === 'installation' || k === 'works' || k === 'document') return k
+    if (a.type === 'DOCUMENT') return 'document'
+    if (a.type === 'RESOURCE') return 'material'
+    return 'works'
+  }
+  const KIND_LABEL: Record<string, string> = { material: 'Материал', installation: 'Монтаж', works: 'Работы', document: 'Документ' }
+  const KIND_ICON: Record<string, any> = { material: Package, installation: Wrench, works: Wrench, document: FileText }
+
+  const amountOf = (a: Approval): number | null => {
+    const v = a.data?.amount
+    const n = typeof v === 'string' ? parseFloat(v) : v
+    return typeof n === 'number' && !isNaN(n) && n > 0 ? n : null
+  }
+  const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽'
+
+  // «ждёт вас» — текущий пользователь ещё не ответил
+  const waitsForMe = (a: Approval) => canUserRespond(a)
+
+  // статус-вид: rejected / approved / mine / inwork
+  const rowStatus = (a: Approval): 'rejected' | 'approved' | 'mine' | 'inwork' => {
+    if (a.status === 'REJECTED') return 'rejected'
+    if (a.status === 'APPROVED') return 'approved'
+    if (waitsForMe(a)) return 'mine'
+    return 'inwork'
+  }
+
+  const approvedCount = (a: Approval) => a.assignments.filter((x) => x.status === 'APPROVED').length
+
+  // сегмент-счётчики
+  const counts = {
+    all: approvals.length,
+    mine: approvals.filter((a) => waitsForMe(a)).length,
+    inwork: approvals.filter((a) => a.status === 'PENDING' && !waitsForMe(a)).length,
+    approved: approvals.filter((a) => a.status === 'APPROVED').length,
+    rejected: approvals.filter((a) => a.status === 'REJECTED').length,
+  }
+
+  const filteredApprovals = approvals
+    .filter((a) => {
+      // сегмент
+      if (segment === 'mine' && !waitsForMe(a)) return false
+      if (segment === 'inwork' && !(a.status === 'PENDING' && !waitsForMe(a))) return false
+      if (segment === 'approved' && a.status !== 'APPROVED') return false
+      if (segment === 'rejected' && a.status !== 'REJECTED') return false
+      // тип
+      if (typeFilter !== 'all' && kindOf(a) !== typeFilter) return false
+      // проект (сохранён из прежнего фильтра)
+      if (projectFilter !== 'all') {
+        if (projectFilter === 'none' ? !!a.project?.id : a.project?.id !== projectFilter) return false
+      }
+      // поиск
+      if (search.trim()) {
+        const hay = `${a.title} ${a.project?.name || ''} ${a.creator.name}`.toLowerCase()
+        if (!hay.includes(search.trim().toLowerCase())) return false
+      }
+      return true
+    })
+    // «ждут меня» всегда сверху
+    .sort((a, b) => {
+      const am = waitsForMe(a) ? 0 : 1
+      const bm = waitsForMe(b) ? 0 : 1
+      if (am !== bm) return am - bm
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
+  // выделяемые (для массовых действий) — только те, что ждут текущего пользователя
+  const selectableIds = filteredApprovals.filter((a) => waitsForMe(a)).map((a) => a.id)
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const bulkApprove = async () => {
+    if (selectedIds.size === 0 || bulkBusy) return
+    setBulkBusy(true)
+    try {
+      for (const id of Array.from(selectedIds)) {
+        await handleApprove(id)
+      }
+      clearSelection()
+    } finally {
+      setBulkBusy(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -556,286 +649,271 @@ export default function ApprovalsPage() {
       <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
 
       <div className="space-y-6">
-        <PageHeader
-          title="Согласования"
-          description={
-            filteredApprovals.length === approvals.length
-              ? `${approvals.length} согласований`
-              : `${filteredApprovals.length} из ${approvals.length} согласований`
-          }
-          actions={
-            <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Создать согласование
-            </Button>
-          }
-        />
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg p-4 border">
-          <div className="flex gap-3 flex-wrap items-center">
-            {/* Project Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 shrink-0">Проект:</span>
+        {/* 4c — шапка реестра */}
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-xl font-bold text-neutral-900">Согласования</h1>
+            <p className="mt-0.5 text-[12.5px] text-neutral-400">
+              {counts.all} всего · {counts.mine} ждут вас · {counts.inwork} в работе
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Документ, проект или автор…"
+                className="w-[230px] rounded-lg border border-neutral-200 bg-white py-[7px] pl-9 pr-3 text-[13px] text-neutral-700 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+            <div className="relative">
               <select
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                className="pl-3 pr-8 py-1.5 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as any)}
+                className="appearance-none rounded-lg border border-neutral-200 bg-white py-[7px] pl-3 pr-8 text-[13px] text-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
               >
-                <option value="all">Все проекты</option>
-                <option value="none">Без проекта</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
+                <option value="all">Тип: все</option>
+                <option value="material">Материал</option>
+                <option value="installation">Монтаж</option>
+                <option value="works">Работы</option>
+                <option value="document">Документ</option>
               </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
             </div>
-
-            {/* Status Filter */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  statusFilter === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Все статусы
-              </button>
-              <button
-                onClick={() => setStatusFilter('PENDING')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  statusFilter === 'PENDING' ? 'bg-yellow-50 text-yellow-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Ожидают
-              </button>
-              <button
-                onClick={() => setStatusFilter('APPROVED')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  statusFilter === 'APPROVED' ? 'bg-green-50 text-green-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Одобрено
-              </button>
-              <button
-                onClick={() => setStatusFilter('REJECTED')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  statusFilter === 'REJECTED' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Отклонено
-              </button>
-            </div>
-
-            {/* Priority Filter */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPriorityFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  priorityFilter === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Все приоритеты
-              </button>
-              <button
-                onClick={() => setPriorityFilter('URGENT')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  priorityFilter === 'URGENT' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Срочные
-              </button>
-              <button
-                onClick={() => setPriorityFilter('HIGH')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  priorityFilter === 'HIGH' ? 'bg-orange-50 text-orange-600' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Высокие
-              </button>
-            </div>
+            <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4" />
+              Новая заявка
+            </Button>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg border overflow-hidden">
+        {/* сегмент-фильтр статусов */}
+        <div className="flex w-fit gap-0.5 rounded-lg bg-neutral-200/60 p-[3px]">
+          {([
+            ['all', 'Все', counts.all, false],
+            ['mine', 'Ждут меня', counts.mine, true],
+            ['inwork', 'В работе', counts.inwork, false],
+            ['approved', 'Согласованы', counts.approved, false],
+            ['rejected', 'Отклонены', counts.rejected, false],
+          ] as const).map(([key, label, n, danger]) => (
+            <button
+              key={key}
+              onClick={() => setSegment(key)}
+              className={`rounded-[7px] px-3.5 py-1.5 text-[12.5px] transition-colors ${
+                segment === key
+                  ? 'bg-white font-semibold text-neutral-900 shadow-sm'
+                  : 'font-medium text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              {label}{' '}
+              {n > 0 && (
+                <span className={danger ? 'text-red-600' : 'text-neutral-400'}>{n}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* панель массовых действий */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3.5 rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-2.5">
+            <span className="text-[12.5px] font-semibold text-blue-900">Выбрано: {selectedIds.size}</span>
+            <button
+              onClick={bulkApprove}
+              disabled={bulkBusy}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-green-700 px-3 py-1.5 text-[12.5px] font-semibold text-white hover:bg-green-800 disabled:opacity-60"
+            >
+              <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
+              Согласовать выбранные
+            </button>
+            <span className="ml-auto cursor-pointer text-[12px] text-neutral-600 hover:text-neutral-900" onClick={clearSelection}>
+              Снять выделение
+            </span>
+          </div>
+        )}
+
+        {/* таблица */}
+        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase" style={{ width: '200px' }}>Согласование</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Тип</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Приоритет</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase" style={{ width: '140px' }}>Срок</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Проект</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Создатель</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase" style={{ width: '150px' }}>Действия</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredApprovals.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
-                      Нет согласований
-                    </td>
-                  </tr>
-                ) : (
-                  filteredApprovals.map((approval) => (
-                    <tr key={approval.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3" style={{ maxWidth: '260px', width: '260px' }}>
-                        <div className="space-y-1 min-w-0">
-                          <div className="text-sm font-semibold text-gray-900 line-clamp-2 break-words">{approval.title}</div>
-                          {approval.description && (
-                            <p className="text-xs text-gray-500 line-clamp-2 break-words">
-                              {approval.description.length > 100 ? approval.description.slice(0, 100) + '…' : approval.description}
-                            </p>
-                          )}
-                          {approval.document && (
-                            <div className="text-xs text-blue-600 mt-0.5">
-                              Документ: {approval.document.title}
-                              {approval.document.isPublished && (
-                                <span className="ml-1 text-green-600">✓ Опубликован</span>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1">
-                            {approval._count.comments > 0 && (
-                              <span className="text-xs text-gray-500 flex items-center gap-1">
-                                <MessageSquare className="h-3 w-3" />
-                                {approval._count.comments}
-                              </span>
-                            )}
-                            {approval._count.attachments > 0 && (
-                              <span className="text-xs text-gray-500 flex items-center gap-1">
-                                <Paperclip className="h-3 w-3" />
-                                {approval._count.attachments}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{getTypeText(approval.type)}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getPriorityColor(approval.priority)}`}>
-                          {getPriorityText(approval.priority)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3" style={{ width: '140px' }}>
-                        {approval.dueDate ? (
-                          <div className={`text-sm ${isOverdue(approval.dueDate) ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                            {new Date(approval.dueDate).toLocaleDateString('ru-RU')}
-                            {isOverdue(approval.dueDate) && (
-                              <AlertCircle className="h-4 w-4 inline ml-1" />
-                            )}
-                          </div>
+            <div className="min-w-[860px]">
+              {/* заголовок */}
+              <div
+                className="grid items-center border-b border-neutral-100 bg-neutral-50 px-3"
+                style={{ gridTemplateColumns: '34px 1.8fr 1.3fr 0.9fr 1fr 1.1fr 0.9fr 40px' }}
+              >
+                <div className="py-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectableIds.every((id) => selectedIds.has(id)) && selectableIds.length > 0) clearSelection()
+                      else setSelectedIds(new Set(selectableIds))
+                    }}
+                    disabled={selectableIds.length === 0}
+                    className={`block h-4 w-4 rounded-[5px] border-[1.5px] ${
+                      selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id))
+                        ? 'border-blue-600 bg-blue-600'
+                        : 'border-neutral-300'
+                    } disabled:opacity-40`}
+                    aria-label="Выбрать все"
+                  >
+                    {selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id)) && (
+                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                    )}
+                  </button>
+                </div>
+                <div className="px-2.5 py-[11px] text-[11.5px] font-semibold text-neutral-400">Документ</div>
+                <div className="px-2.5 py-[11px] text-[11.5px] font-semibold text-neutral-400">Проект</div>
+                <div className="px-2.5 py-[11px] text-right text-[11.5px] font-semibold text-neutral-400">Сумма</div>
+                <div className="px-2.5 py-[11px] text-[11.5px] font-semibold text-neutral-400">Маршрут</div>
+                <div className="px-2.5 py-[11px] text-[11.5px] font-semibold text-neutral-400">Статус</div>
+                <div className="px-2.5 py-[11px] text-[11.5px] font-semibold text-neutral-400">Ожидает</div>
+                <div />
+              </div>
+
+              {/* строки */}
+              {filteredApprovals.length === 0 ? (
+                <div className="px-4 py-14 text-center text-sm text-neutral-400">Нет согласований</div>
+              ) : (
+                filteredApprovals.map((approval) => {
+                  const kind = kindOf(approval)
+                  const KindIcon = KIND_ICON[kind]
+                  const amount = amountOf(approval)
+                  const st = rowStatus(approval)
+                  const mine = st === 'mine'
+                  const total = approval.assignments.length
+                  const done = approvedCount(approval)
+                  const selected = selectedIds.has(approval.id)
+                  const nextPending = approval.assignments.find((x) => x.status === 'PENDING')
+                  const STATUS: Record<string, { label: string; cls: string }> = {
+                    rejected: { label: 'Отклонён', cls: 'bg-red-50 text-red-600 border-red-200' },
+                    approved: { label: 'Согласован', cls: 'bg-green-50 text-green-700 border-green-200' },
+                    mine: { label: 'Ждёт вас', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+                    inwork: { label: 'В работе', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                  }
+                  const badge = STATUS[st]
+                  return (
+                    <div
+                      key={approval.id}
+                      onClick={() => {
+                        setSelectedApproval(approval)
+                        setShowDetailsModal(true)
+                        fetchAttachments(approval.id)
+                      }}
+                      className={`grid cursor-pointer items-center border-t border-neutral-100 px-3 transition-colors ${
+                        mine ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-neutral-50'
+                      }`}
+                      style={{ gridTemplateColumns: '34px 1.8fr 1.3fr 0.9fr 1fr 1.1fr 0.9fr 40px' }}
+                    >
+                      {/* чекбокс */}
+                      <div className="py-3" onClick={(e) => e.stopPropagation()}>
+                        {mine ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleSelect(approval.id)}
+                            className={`flex h-4 w-4 items-center justify-center rounded-[5px] border-[1.5px] ${
+                              selected ? 'border-blue-600 bg-blue-600' : 'border-neutral-300'
+                            }`}
+                            aria-label="Выбрать"
+                          >
+                            {selected && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                          </button>
                         ) : (
-                          <div className="text-sm text-gray-400">—</div>
+                          <span className="block h-4 w-4 rounded-[5px] border-[1.5px] border-neutral-200" />
                         )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{approval.project?.name || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getStatusColor(approval.status)}`}>
-                          {getStatusText(approval.status)}
+                      </div>
+
+                      {/* документ */}
+                      <div className="flex items-center gap-2.5 px-2.5 py-3">
+                        <KindIcon className="h-[15px] w-[15px] shrink-0 text-neutral-400" strokeWidth={1.8} />
+                        <div className="min-w-0">
+                          <div className="truncate text-[13px] font-semibold text-neutral-900">{approval.title}</div>
+                          <div className="truncate text-[11px] text-neutral-400">
+                            {KIND_LABEL[kind]} · {approval.creator.name} ·{' '}
+                            {new Date(approval.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* проект */}
+                      <div className="truncate px-2.5 py-3 text-[12.5px] text-neutral-700">{approval.project?.name || '—'}</div>
+
+                      {/* сумма */}
+                      <div className="px-2.5 py-3 text-right text-[12.5px] tabular-nums text-neutral-900">
+                        {amount != null ? fmtMoney(amount) : <span className="text-neutral-400">—</span>}
+                      </div>
+
+                      {/* маршрут (параллельно) */}
+                      <div className="px-2.5 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {approval.assignments.map((asg, i) => {
+                            const color =
+                              asg.status === 'APPROVED'
+                                ? 'bg-green-700'
+                                : asg.status === 'REJECTED'
+                                ? 'bg-red-600'
+                                : nextPending && asg.id === nextPending.id
+                                ? 'bg-blue-600'
+                                : 'bg-neutral-300'
+                            return <span key={asg.id} className={`h-1.5 w-1.5 rounded-full ${color}`} />
+                          })}
+                          <span className="ml-1 text-[11px] text-neutral-400">
+                            {st === 'rejected' ? <CornerUpLeft className="inline h-3 w-3" /> : `${done}/${total}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* статус */}
+                      <div className="px-2.5 py-3">
+                        <span className={`inline-flex rounded-[7px] border px-2.5 py-[3px] text-[11.5px] font-medium ${badge.cls}`}>
+                          {badge.label}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{approval.creator.name}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">
-                          {new Date(approval.createdAt).toLocaleDateString('ru-RU')}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap" style={{ width: '150px' }}>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedApproval(approval)
-                              setShowDetailsModal(true)
-                              fetchAttachments(approval.id)
-                            }}
-                            title="Детали согласования"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedApproval(approval)
-                              setShowCommentsModal(true)
-                            }}
-                            title="Комментарии"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedApproval(approval)
-                              setShowAttachmentsModal(true)
-                            }}
-                            title="Вложения"
-                          >
-                            <Paperclip className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedApproval(approval)
-                              setShowHistoryModal(true)
-                            }}
-                            title="История изменений"
-                          >
-                            <History className="h-4 w-4" />
-                          </Button>
-                          {canUserRespond(approval) && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleApprove(approval.id)}
-                                className="text-green-600 hover:text-green-700"
-                                title="Одобрить согласование"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleReject(approval.id)}
-                                className="text-red-600 hover:text-red-700"
-                                title="Отклонить согласование"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteApprovalClick(approval.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Удалить согласование"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </div>
+
+                      {/* ожидает */}
+                      <div className="px-2.5 py-3">
+                        {st === 'approved' ? (
+                          <span className="text-[12px] text-neutral-400">—</span>
+                        ) : st === 'rejected' ? (
+                          <span className="text-[12px] text-neutral-400">возвращён автору</span>
+                        ) : mine ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-neutral-900 text-[9px] font-semibold text-white">
+                              {initials(currentUser?.name)}
+                            </span>
+                            <span className="text-[12px] text-neutral-700">Вы</span>
+                          </span>
+                        ) : nextPending ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-teal-600 text-[9px] font-semibold text-white">
+                              {initials(nextPending.user.name)}
+                            </span>
+                            <span className="truncate text-[12px] text-neutral-400">{nextPending.user.name}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[12px] text-neutral-400">—</span>
+                        )}
+                      </div>
+
+                      {/* ⋯ */}
+                      <div className="flex justify-center text-neutral-400">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+
+              {/* футер-пагинация */}
+              <div className="flex items-center justify-between border-t border-neutral-100 bg-neutral-50 px-[18px] py-[13px]">
+                <span className="text-[12.5px] text-neutral-400">
+                  {filteredApprovals.length === 0 ? '0' : `1–${filteredApprovals.length}`} из {counts.all}
+                </span>
+                <div className="flex gap-2">
+                  <span className="rounded-[7px] border border-neutral-100 px-3 py-[5px] text-[12.5px] text-neutral-300">Назад</span>
+                  <span className="rounded-[7px] border border-neutral-200 px-3 py-[5px] text-[12.5px] text-neutral-700">Вперёд</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
