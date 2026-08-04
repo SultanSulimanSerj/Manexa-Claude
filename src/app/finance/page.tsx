@@ -681,11 +681,6 @@ function FinancePageContent() {
     [records]
   )
   
-  const totalIncome = projectFilteredRecords.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + Number(r.amount), 0)
-  const totalPlannedIncome = projectFilteredRecords.filter(r => r.type === 'PLANNED_INCOME').reduce((sum, r) => sum + Number(r.amount), 0)
-  const totalExpenses = projectFilteredRecords.filter(r => r.type === 'EXPENSE').reduce((sum, r) => sum + Number(r.amount), 0)
-  const balance = totalIncome - totalExpenses
-  const margin = totalIncome > 0 ? ((balance / totalIncome) * 100) : 0
   // Долги: не оплачено нам (дебиторка) и к оплате (кредиторка)
   const receivableUnpaid = projectFilteredRecords.filter(r => r.type === 'INCOME' && !r.isPaid).reduce((sum, r) => sum + Number(r.amount), 0)
   const payableUnpaid = projectFilteredRecords.filter(r => r.type === 'EXPENSE' && !r.isPaid).reduce((sum, r) => sum + Number(r.amount), 0)
@@ -695,16 +690,23 @@ function FinancePageContent() {
 
   // ——— 5a: сводка компании за период ———
   const nowD = new Date()
-  const shiftBack = (base: Date, p: typeof period, times = 1) => {
+  // Календарные границы периода (месяц/квартал/год — от начала; неделя — последние 7 дней)
+  const startOfPeriod = (base: Date, p: typeof period) => {
     const d = new Date(base)
-    if (p === 'week') d.setDate(d.getDate() - 7 * times)
-    else if (p === 'month') d.setMonth(d.getMonth() - 1 * times)
-    else if (p === 'quarter') d.setMonth(d.getMonth() - 3 * times)
-    else d.setFullYear(d.getFullYear() - 1 * times)
-    return d
+    if (p === 'week') { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - 6); return x }
+    if (p === 'month') return new Date(d.getFullYear(), d.getMonth(), 1)
+    if (p === 'quarter') return new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1)
+    return new Date(d.getFullYear(), 0, 1)
   }
-  const periodStart = shiftBack(nowD, period, 1)
-  const prevPeriodStart = shiftBack(nowD, period, 2)
+  const periodStart = startOfPeriod(nowD, period)
+  const prevBase = (() => {
+    const d = new Date(periodStart)
+    if (period === 'week') d.setDate(d.getDate() - 1)
+    else if (period === 'quarter') d.setMonth(d.getMonth() - 1)
+    else d.setDate(0) // последний день предыдущего месяца/года
+    return d
+  })()
+  const prevPeriodStart = startOfPeriod(prevBase, period)
   const sumType = (rs: FinanceRecord[], type: string) =>
     rs.filter((r) => r.type === type).reduce((s, r) => s + Number(r.amount), 0)
   const curRecords = records.filter((r) => new Date(r.date) >= periodStart)
@@ -722,8 +724,15 @@ function FinancePageContent() {
   const incomeDelta = deltaPct(cIncome, pIncome)
   const expenseDelta = deltaPct(cExpense, pExpense)
   const profitDelta = deltaPct(cProfit, pIncome - pExpense)
+  const capFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const periodLabel =
-    period === 'week' ? 'за неделю' : period === 'month' ? nowD.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : period === 'quarter' ? 'за квартал' : `${nowD.getFullYear()} год`
+    period === 'week'
+      ? 'последняя неделя'
+      : period === 'month'
+      ? capFirst(nowD.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }))
+      : period === 'quarter'
+      ? `${['I', 'II', 'III', 'IV'][Math.floor(nowD.getMonth() / 3)]} квартал ${nowD.getFullYear()}`
+      : `${nowD.getFullYear()} год`
   // Денежный поток — последние 4 календарных месяца
   const cashflow = Array.from({ length: 4 }, (_, i) => {
     const m = new Date(nowD.getFullYear(), nowD.getMonth() - (3 - i), 1)
@@ -875,7 +884,7 @@ function FinancePageContent() {
             {/* период */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-neutral-500">
-                Все проекты · <span className="capitalize">{periodLabel}</span>
+                Все проекты · {periodLabel}
               </div>
               <div className="inline-flex rounded-lg bg-neutral-100 p-0.5">
                 {([['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал'], ['year', 'Год']] as const).map(([p, l]) => (
