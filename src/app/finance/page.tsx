@@ -7,12 +7,11 @@ import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/use-toast'
-import { Plus, TrendingUp, TrendingDown, X, Trash2, ArrowLeft, DollarSign, Percent, Download, Settings, Building2, ChevronRight, FileText, Clock } from 'lucide-react'
+import { Plus, X, Trash2, ArrowLeft, Download, Settings, Building2, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { confirm } from '@/components/ui/confirm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { KpiCard } from '@/components/finance/KpiCard'
 import { ExpenseStructureChart } from '@/components/finance/ExpenseStructureChart'
 import { BudgetCategoriesWithOperations } from '@/components/finance/BudgetCategoriesWithOperations'
 import { ErrorBanner } from '@/components/ui/error-banner'
@@ -1147,18 +1146,23 @@ function FinancePageContent() {
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[13.5px] font-semibold text-neutral-900">Освоение бюджета</span>
                       <span className="text-[12.5px] text-neutral-500">
-                        Расходы <b className="text-neutral-900">{formatMoney(spent)}</b> из бюджета <b className="text-neutral-900">{formatMoney(budget)}</b>
+                        Расходы <b className="text-neutral-900">{formatMoney(spent)}</b>
+                        {budget > 0 ? <> из бюджета <b className="text-neutral-900">{formatMoney(budget)}</b></> : ''}
                       </span>
                     </div>
                     <div className="h-3.5 overflow-hidden rounded-full bg-neutral-100">
                       <div className="h-full rounded-full" style={{ width: `${pctSpent}%`, background: pctSpent > 100 ? '#dc2626' : '#1c7fd6' }} />
                     </div>
                     <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[12px] text-neutral-500">
-                      <span>{Math.round(pctSpent)}% бюджета освоено</span>
+                      <span>{budget > 0 ? `${Math.round(pctSpent)}% бюджета освоено` : 'Бюджет не задан'}</span>
                       <span>
-                        {remainder >= 0 ? 'Остаток' : 'Перерасход'}{' '}
-                        <b className={remainder >= 0 ? 'text-neutral-900' : 'text-red-600'}>{formatMoney(Math.abs(remainder))}</b>
-                        {dueDate ? ` · срок сдачи ${dueDate}` : ''}
+                        {budget > 0 ? (
+                          <>
+                            {remainder >= 0 ? 'Остаток' : 'Перерасход'}{' '}
+                            <b className={remainder >= 0 ? 'text-neutral-900' : 'text-red-600'}>{formatMoney(Math.abs(remainder))}</b>
+                          </>
+                        ) : null}
+                        {dueDate ? `${budget > 0 ? ' · ' : ''}срок сдачи ${dueDate}` : ''}
                       </span>
                     </div>
                   </div>
