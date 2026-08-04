@@ -1160,7 +1160,10 @@ export default function ApprovalsPage() {
                         ['Объём', d.volume || '—', ''],
                         ['Сумма', money, 'font-semibold'],
                       ]
-                    : [['Сумма договора', money, 'font-semibold']]
+                    : [
+                        ['Проект', a.project?.name || '—', ''],
+                        ['Сумма договора', money, 'font-semibold'],
+                      ]
                 // «Место применения» — только для материала и монтажа
                 const showPlace = (kind === 'material' || kind === 'installation') && (d.section || d.floors || d.axes || d.area)
                 return (
