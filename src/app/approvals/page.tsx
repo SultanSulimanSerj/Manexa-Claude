@@ -8,7 +8,7 @@ import { confirm } from '@/components/ui/confirm'
 import { toast } from '@/components/ui/use-toast'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2, Search, ChevronDown, MoreHorizontal, Check, Package, Wrench, CornerUpLeft } from 'lucide-react'
+import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2, Search, ChevronDown, MoreHorizontal, Check, Package, Wrench, CornerUpLeft, MapPin, AlertTriangle } from 'lucide-react'
 import ExpandableDescription from '@/components/expandable-description'
 import ApprovalProgress from '@/components/approval-progress'
 import { ErrorBanner } from '@/components/ui/error-banner'
@@ -97,6 +97,10 @@ export default function ApprovalsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'material' | 'installation' | 'works' | 'document'>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
+  // 4b — окно согласования / отклонение
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectComment, setRejectComment] = useState('')
+  const [rejectBusy, setRejectBusy] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showCommentsModal, setShowCommentsModal] = useState(false)
@@ -303,14 +307,14 @@ export default function ApprovalsPage() {
     }
   }
 
-  const handleReject = async (approvalId: string) => {
+  const handleReject = async (approvalId: string, comment?: string) => {
     try {
       const response = await fetch(`/api/approvals/${approvalId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: 'REJECTED' })
+        body: JSON.stringify({ status: 'REJECTED', comment: comment || null })
       })
 
       if (response.ok) {
@@ -520,22 +524,11 @@ export default function ApprovalsPage() {
   }
 
 
-  const isOverdue = (dueDate: string | null) => {
-    if (!dueDate) return false
-    return new Date(dueDate) < new Date()
-  }
-
   const canUserRespond = (approval: Approval) => {
     if (!currentUser) return false
     if (approval.status !== 'PENDING') return false
-    
     const userAssignment = approval.assignments.find(a => a.user.id === currentUser.id)
     return userAssignment && userAssignment.status === 'PENDING'
-  }
-
-  const getUserAssignment = (approval: Approval) => {
-    if (!currentUser) return null
-    return approval.assignments.find(a => a.user.id === currentUser.id)
   }
 
   // ——— 4c: производные данные строки реестра ———
@@ -1176,187 +1169,345 @@ export default function ApprovalsPage() {
         {/* Approval Details Modal */}
         {showDetailsModal && selectedApproval && (
           <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden min-w-0">
-              <DialogHeader className="min-w-0">
-                <DialogTitle className="break-words">{selectedApproval.title}</DialogTitle>
-                <DialogDescription>
-                  Детали согласования
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 min-w-0 overflow-x-hidden">
-                <div className="min-w-0 w-full overflow-hidden">
-                  <Label>Описание</Label>
-                  {selectedApproval.description ? (
-                    <ExpandableDescription 
-                      description={selectedApproval.description} 
-                      maxLength={200}
-                      className="mt-1 text-sm"
-                    />
-                  ) : (
-                    <p className="text-sm text-gray-500 mt-1">Нет описания</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Тип</Label>
-                    <p className="text-sm text-gray-700">{getTypeText(selectedApproval.type)}</p>
+            <DialogContent className="max-w-[900px] gap-0 overflow-hidden p-0">
+              <DialogTitle className="sr-only">Окно согласования</DialogTitle>
+              {(() => {
+                const a = selectedApproval
+                const kind = kindOf(a)
+                const KindIcon = KIND_ICON[kind]
+                const d = (a.data || {}) as Record<string, any>
+                const amount = amountOf(a)
+                const st = rowStatus(a)
+                const total = a.assignments.length
+                const done = approvedCount(a)
+                const mine = canUserRespond(a)
+                const STATUS: Record<string, { label: string; cls: string }> = {
+                  rejected: { label: 'Отклонён', cls: 'bg-red-50 text-red-600 border-red-200' },
+                  approved: { label: 'Согласован', cls: 'bg-green-50 text-green-700 border-green-200' },
+                  mine: { label: 'Ждёт вас', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+                  inwork: { label: 'В работе', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                }
+                const badge = STATUS[st]
+                const secLabel = 'mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-neutral-400'
+                const cell = (label: string, value: any, valueCls = '') => (
+                  <div className="border-b border-neutral-100 px-[15px] py-[11px] last:border-b-0 [&:nth-child(odd)]:border-r">
+                    <div className="text-[11px] text-neutral-400">{label}</div>
+                    <div className={`mt-0.5 text-[13px] font-medium text-neutral-900 tabular-nums ${valueCls}`}>{value}</div>
                   </div>
-                  <div>
-                    <Label>Приоритет</Label>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getPriorityColor(selectedApproval.priority)}`}>
-                      {getPriorityText(selectedApproval.priority)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Проект</Label>
-                    <p className="text-sm text-gray-700">{selectedApproval.project?.name || 'Не указан'}</p>
-                  </div>
-                  <div>
-                    <Label>Документ</Label>
-                    <p className="text-sm text-gray-700">{selectedApproval.document?.title || 'Не указан'}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Статус</Label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getStatusColor(selectedApproval.status)}`}>
-                    {getStatusText(selectedApproval.status)}
-                  </span>
-                </div>
-
-                <div>
-                  <Label>Прогресс согласования</Label>
-                  <ApprovalProgress 
-                    assignments={selectedApproval.assignments}
-                    requireAllApprovals={selectedApproval.requireAllApprovals}
-                    currentUserId={currentUser?.id}
-                  />
-                </div>
-
-                <div>
-                  <Label>Вложения</Label>
-                  <div className="space-y-2">
-                    {attachments.length > 0 ? (
-                      attachments.map((attachment) => (
-                        <div key={attachment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Paperclip className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-sm truncate">{attachment.fileName}</span>
-                            <span className="text-xs text-gray-500 shrink-0">
-                              ({(attachment.fileSize / 1024).toFixed(1)} KB)
-                            </span>
+                )
+                const hasPlace = d.section || d.floors || d.axes || d.area
+                return (
+                  <div className="flex max-h-[88vh] flex-col">
+                    {/* header */}
+                    <div className="px-6 pt-5">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[11px] border border-blue-100 bg-blue-50 text-blue-700">
+                          <KindIcon className="h-5 w-5" strokeWidth={1.8} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[17px] font-bold text-neutral-900">Согласование {KIND_LABEL[kind].toLowerCase()}</span>
+                            <span className={`inline-flex rounded-[7px] border px-2 py-[3px] text-[11.5px] font-medium ${badge.cls}`}>{badge.label}</span>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs text-gray-500 hidden sm:inline">
-                              {new Date(attachment.createdAt).toLocaleDateString('ru-RU')}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={() => window.open(`/api/approvals/${selectedApproval.id}/attachments/${attachment.id}/download`, '_blank')}
-                              title="Открыть / Скачать"
-                            >
-                              Открыть
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteAttachmentClick(attachment.id, selectedApproval.id)}
-                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                              title="Удалить файл"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                          <div className="mt-1 text-[12.5px] text-neutral-400">
+                            {a.project?.name ? `${a.project.name} · ` : ''}инициатор {a.creator.name} ·{' '}
+                            {new Date(a.createdAt).toLocaleDateString('ru-RU')}
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">Нет вложений</p>
-                    )}
-                    
-                    <div className="mt-3 p-3 border-2 border-dashed border-gray-300 rounded-lg">
-                      <input
-                        type="file"
-                        id="file-upload"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleFileUpload(selectedApproval.id, file)
-                          }
-                        }}
-                        disabled={uploadingFile}
-                        accept="*/*"
-                      />
-                      <div className="text-center">
-                        <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600 mb-2">
-                          Перетащите файл сюда или нажмите кнопку
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => document.getElementById('file-upload')?.click()}
-                          disabled={uploadingFile}
-                          className="w-full"
-                        >
-                          {uploadingFile ? 'Загрузка...' : 'Выбрать файл'}
-                        </Button>
+                      </div>
+                      {/* тип заявки (read-only) */}
+                      <div className="mt-4 flex gap-1.5">
+                        {(['material', 'installation', 'works', 'document'] as const).map((k) => (
+                          <span
+                            key={k}
+                            className={`rounded-lg px-3 py-1.5 text-[12px] ${
+                              k === kind ? 'bg-blue-50 font-semibold text-blue-800' : 'bg-neutral-100 font-medium text-neutral-400'
+                            }`}
+                          >
+                            {KIND_LABEL[k]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* body */}
+                    <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 border-t border-neutral-100 md:grid-cols-[1fr_320px]">
+                      {/* левая колонка */}
+                      <div className="flex flex-col gap-5 overflow-y-auto border-neutral-100 p-6 md:border-r">
+                        {/* Что согласуем */}
+                        <section>
+                          <div className={secLabel}>Что согласуем</div>
+                          <div className="overflow-hidden rounded-xl border border-neutral-200">
+                            <div className="flex items-center gap-3 bg-neutral-50 px-[15px] py-[13px]">
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] border border-neutral-200 bg-white text-neutral-500">
+                                <KindIcon className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                              </span>
+                              <div className="min-w-0">
+                                <div className="truncate text-[14px] font-semibold text-neutral-900">{d.itemName || a.title}</div>
+                                <div className="truncate text-[12px] text-neutral-400">{d.itemSubtitle || KIND_LABEL[kind]}</div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2">
+                              {cell('Производитель', d.manufacturer || '—')}
+                              {cell(
+                                'По проекту',
+                                d.matchesProject === true ? 'Соответствует ✓' : d.matchesProject === false ? 'Не соответствует' : '—',
+                                d.matchesProject === true ? 'text-green-700' : d.matchesProject === false ? 'text-red-600' : '',
+                              )}
+                              {cell('Кол-во', d.quantity || '—')}
+                              {cell('Сумма закупки', amount != null ? fmtMoney(amount) : '—', 'font-semibold')}
+                            </div>
+                          </div>
+                          {d.unitPrice != null && d.estimatePrice != null && (
+                            <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2">
+                              <span className="text-[12px] text-neutral-600">
+                                Цена за ед. <b>{fmtMoney(Number(d.unitPrice))}</b> · в смете заложено <b>{fmtMoney(Number(d.estimatePrice))}</b>
+                              </span>
+                              {Number(d.unitPrice) <= Number(d.estimatePrice) && (
+                                <span className="ml-auto rounded-md border border-green-200 bg-green-50 px-2 py-0.5 text-[11.5px] font-semibold text-green-700">
+                                  {Math.round((Number(d.unitPrice) / Number(d.estimatePrice) - 1) * 100)}% к смете
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {!d.itemName && a.description && (
+                            <p className="mt-2.5 text-[13px] leading-relaxed text-neutral-600">{a.description}</p>
+                          )}
+                        </section>
+
+                        {/* Место применения */}
+                        {hasPlace && (
+                          <section>
+                            <div className={secLabel}>Место применения</div>
+                            <div className="flex flex-col gap-2.5">
+                              {d.section && (
+                                <div className="flex items-center gap-2 text-[13px]">
+                                  <MapPin className="h-4 w-4 shrink-0 text-blue-600" />
+                                  <span>
+                                    <b>{d.section}</b>
+                                    {d.floors ? ` · ${d.floors}` : ''}
+                                  </span>
+                                </div>
+                              )}
+                              {d.zone && <div className="text-[13px] text-neutral-700">{d.zone}</div>}
+                              {(d.axes || d.area) && (
+                                <div className="text-[13px] text-neutral-700">
+                                  {[d.axes, d.area].filter(Boolean).join(' · ')}
+                                </div>
+                              )}
+                            </div>
+                          </section>
+                        )}
+
+                        {/* Приложения */}
+                        <section>
+                          <div className={secLabel}>Приложения{attachments.length ? ` · ${attachments.length}` : ''}</div>
+                          {attachments.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                              {attachments.map((att) => {
+                                const ext = (att.fileName.split('.').pop() || '').toUpperCase()
+                                return (
+                                  <button
+                                    key={att.id}
+                                    onClick={() => window.open(`/api/approvals/${a.id}/attachments/${att.id}/download`, '_blank')}
+                                    className="flex items-center gap-2.5 rounded-[10px] border border-neutral-200 px-[11px] py-2.5 text-left hover:bg-neutral-50"
+                                  >
+                                    <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px] bg-blue-50 text-blue-700">
+                                      <FileText className="h-4 w-4" />
+                                    </span>
+                                    <span className="min-w-0">
+                                      <span className="block truncate text-[12px] font-medium text-neutral-900">{att.fileName}</span>
+                                      <span className="block text-[10.5px] text-neutral-400">{ext || 'файл'}</span>
+                                    </span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[13px] text-neutral-400">Нет вложений</p>
+                          )}
+                          <div className="mt-2.5">
+                            <input
+                              type="file"
+                              id="file-upload"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) handleFileUpload(a.id, file)
+                              }}
+                              disabled={uploadingFile}
+                            />
+                            <button
+                              onClick={() => document.getElementById('file-upload')?.click()}
+                              disabled={uploadingFile}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-[12px] text-neutral-500 hover:bg-neutral-50 disabled:opacity-60"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              {uploadingFile ? 'Загрузка…' : 'Добавить файл'}
+                            </button>
+                          </div>
+                        </section>
+                      </div>
+
+                      {/* правая колонка — согласующие (обсуждение отложено) */}
+                      <div className="flex flex-col bg-neutral-50">
+                        <div className="border-b border-neutral-100 p-5">
+                          <div className={secLabel}>Согласовали · {done} из {total}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {a.assignments.map((asg) => {
+                              const approved = asg.status === 'APPROVED'
+                              const rejected = asg.status === 'REJECTED'
+                              const isMe = asg.user.id === currentUser?.id
+                              return (
+                                <span key={asg.id} className="relative" title={`${asg.user.name}${approved ? ' · согласовал' : rejected ? ' · отклонил' : ' · ждёт'}`}>
+                                  <span
+                                    className={`flex h-[26px] w-[26px] items-center justify-center rounded-full text-[9px] font-semibold text-white ${
+                                      isMe ? 'bg-neutral-900' : approved ? 'bg-teal-600' : rejected ? 'bg-red-500' : 'bg-neutral-300'
+                                    }`}
+                                  >
+                                    {initials(asg.user.name)}
+                                  </span>
+                                  {approved && (
+                                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full border-2 border-neutral-50 bg-green-600">
+                                      <Check className="h-2 w-2 text-white" strokeWidth={4} />
+                                    </span>
+                                  )}
+                                </span>
+                              )
+                            })}
+                            {mine && <span className="ml-1 text-[11.5px] font-medium text-blue-600">ждёт вас</span>}
+                          </div>
+                          <p className="mt-2.5 text-[11.5px] leading-relaxed text-neutral-400">
+                            Все согласуют параллельно — порядок не важен.
+                          </p>
+                        </div>
+                        <div className="flex-1 p-5">
+                          <div className={secLabel}>Обсуждение</div>
+                          <p className="text-[12px] text-neutral-400">Комментарии появятся здесь.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* панель решения */}
+                    <div className="flex items-center gap-3 border-t border-neutral-100 px-6 py-4">
+                      <button
+                        onClick={() => handleDeleteApprovalClick(a.id)}
+                        className="inline-flex items-center gap-1.5 text-[12px] text-neutral-400 hover:text-red-600"
+                        title="Удалить заявку"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Удалить
+                      </button>
+                      <div className="ml-auto flex gap-2.5">
+                        {mine ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowRejectModal(true)}
+                              className="border-neutral-200 text-neutral-600"
+                            >
+                              На доработку
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowRejectModal(true)}
+                              className="border-red-200 text-red-600 hover:bg-red-50"
+                            >
+                              Отклонить
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                handleApprove(a.id)
+                                setShowDetailsModal(false)
+                              }}
+                              className="gap-1.5 bg-green-700 text-white hover:bg-green-800"
+                            >
+                              <Check className="h-4 w-4" strokeWidth={2.6} />
+                              Согласовать
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
+                            Закрыть
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
-                </div>
+                )
+              })()}
+            </DialogContent>
+          </Dialog>
+        )}
 
-                <div className="flex justify-between">
-                  <div className="flex gap-2">
-                    {canUserRespond(selectedApproval) && (
-                      <>
-                        <Button
-                          onClick={() => {
-                            handleApprove(selectedApproval.id)
-                            setShowDetailsModal(false)
-                          }}
-                          className="bg-green-600 hover:bg-green-700 text-white"
+        {/* 4b — модалка отклонения (причина) */}
+        {showRejectModal && selectedApproval && (
+          <Dialog open={showRejectModal} onOpenChange={(v) => { setShowRejectModal(v); if (!v) setRejectComment('') }}>
+            <DialogContent className="max-w-[420px] gap-0 p-0">
+              <DialogTitle className="sr-only">Отклонить заявку</DialogTitle>
+              <div className="flex items-start gap-3 border-b border-neutral-100 px-6 pb-[18px] pt-[22px]">
+                <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[11px] border border-red-200 bg-red-50 text-red-600">
+                  <XCircle className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[16px] font-bold text-neutral-900">Отклонить заявку</div>
+                  <div className="mt-0.5 truncate text-[12.5px] text-neutral-400">{selectedApproval.title}</div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-4 px-6 py-5">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[13px] font-medium text-neutral-700">Причина отклонения *</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Не соответствует проекту', 'Цена выше сметы', 'Нет сертификата', 'Другое'].map((r) => {
+                      const active = rejectComment === r
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setRejectComment(active ? '' : r)}
+                          className={`rounded-lg border px-2.5 py-1.5 text-[12px] ${
+                            active ? 'border-red-300 bg-red-50 font-medium text-red-600' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
                         >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Одобрить
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            handleReject(selectedApproval.id)
-                            setShowDetailsModal(false)
-                          }}
-                          className="text-red-600 border-red-600 hover:bg-red-50"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Отклонить
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDeleteApprovalClick(selectedApproval.id)}
-                      className="text-red-600 border-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Удалить
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowDetailsModal(false)}
-                    >
-                      Закрыть
-                    </Button>
+                          {r}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[13px] font-medium text-neutral-700">Что исправить</label>
+                  <textarea
+                    value={rejectComment}
+                    onChange={(e) => setRejectComment(e.target.value)}
+                    rows={3}
+                    placeholder="Опишите, что нужно поправить…"
+                    className="w-full resize-none rounded-lg border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <span className="text-[12px] leading-relaxed text-amber-800">Заявка вернётся автору с вашим комментарием.</span>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2.5 border-t border-neutral-100 px-6 py-4">
+                <Button variant="outline" onClick={() => { setShowRejectModal(false); setRejectComment('') }}>Отмена</Button>
+                <Button
+                  disabled={!rejectComment.trim() || rejectBusy}
+                  onClick={async () => {
+                    setRejectBusy(true)
+                    try {
+                      await handleReject(selectedApproval.id, rejectComment.trim())
+                      setShowRejectModal(false)
+                      setShowDetailsModal(false)
+                      setRejectComment('')
+                    } finally {
+                      setRejectBusy(false)
+                    }
+                  }}
+                  className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  Отклонить и вернуть
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
