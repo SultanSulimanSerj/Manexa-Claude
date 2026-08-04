@@ -1220,19 +1220,28 @@ model ApprovalHistory {
   user       User     @relation("ApprovalHistory", fields: [userId], references: [id])
 }
 
+enum EstimateStatus {
+  DRAFT // Черновик
+  PENDING // На согласовании
+  APPROVED // Утверждена
+  ARCHIVED // Архив
+}
+
 model Estimate {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  total        Decimal  @default(0) @db.Decimal(15, 2)
-  totalCost    Decimal  @default(0) @db.Decimal(15, 2)
-  profit       Decimal  @default(0) @db.Decimal(15, 2)
-  vatEnabled   Boolean  @default(false)
-  vatRate      Decimal  @default(20) @db.Decimal(5, 2)
-  vatAmount    Decimal  @default(0) @db.Decimal(15, 2)
-  totalWithVat Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  status         EstimateStatus @default(DRAFT)
+  contractNumber String? // номер договора, в котором использована утверждённая смета
+  total          Decimal        @default(0) @db.Decimal(15, 2)
+  totalCost      Decimal        @default(0) @db.Decimal(15, 2)
+  profit         Decimal        @default(0) @db.Decimal(15, 2)
+  vatEnabled     Boolean        @default(false)
+  vatRate        Decimal        @default(20) @db.Decimal(5, 2)
+  vatAmount      Decimal        @default(0) @db.Decimal(15, 2)
+  totalWithVat   Decimal        @default(0) @db.Decimal(15, 2)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   // Relations
   projectId String
@@ -1258,6 +1267,7 @@ model EstimateItem {
   unitPrice   Decimal  @default(0) @db.Decimal(15, 2)
   costPrice   Decimal  @default(0) @db.Decimal(15, 2)
   total       Decimal  @default(0) @db.Decimal(15, 2)
+  vatRate     Decimal? @db.Decimal(5, 2) // ставка НДС для позиции; null = ставка всей сметы
   category    String   @default("Материалы")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

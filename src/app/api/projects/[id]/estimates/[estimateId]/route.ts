@@ -12,6 +12,7 @@ interface EstimateItemInput {
   unit: string
   unitPrice: number | string
   costPrice?: number | string
+  vatRate?: number | string | null
   category: string
 }
 
@@ -65,7 +66,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description, vatEnabled, vatRate, items } = body
+    const { name, description, vatEnabled, vatRate, items, status, contractNumber } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Название сметы обязательно' }, { status: 400 })
@@ -96,16 +97,21 @@ export async function PUT(
       // Создаем новые позиции
       let total = 0
       let totalCost = 0
+      let vatAmount = 0
+      const estimateRate = Number(vatRate || 20)
       if (items && items.length > 0) {
         const estimateItems = (items as EstimateItemInput[]).map((item) => {
           const itemTotal = Number(item.quantity) * Number(item.unitPrice)
           const itemCost = Number(item.quantity) * Number(item.costPrice || 0)
+          // ставка НДС позиции: своя, иначе ставка сметы
+          const lineRate = item.vatRate != null && item.vatRate !== '' ? Number(item.vatRate) : estimateRate
           total += itemTotal
           totalCost += itemCost
-          
+          if (vatEnabled) vatAmount += (itemTotal * lineRate) / 100
+
           return {
-            id: item.id.startsWith('new_') || item.id.startsWith('dup_') || item.id.startsWith('tpl_') 
-              ? undefined 
+            id: item.id.startsWith('new_') || item.id.startsWith('dup_') || item.id.startsWith('tpl_')
+              ? undefined
               : item.id,
             name: item.name,
             description: item.description || null,
@@ -114,6 +120,7 @@ export async function PUT(
             unit: item.unit,
             unitPrice: Number(item.unitPrice),
             costPrice: Number(item.costPrice || 0),
+            vatRate: item.vatRate != null && item.vatRate !== '' ? Number(item.vatRate) : null,
             total: itemTotal,
             category: item.category
           }
@@ -128,7 +135,6 @@ export async function PUT(
       }
 
       const profit = total - totalCost
-      const vatAmount = vatEnabled ? (total * Number(vatRate || 22) / 100) : 0
       const totalWithVat = total + vatAmount
 
       // Обновляем смету
@@ -137,11 +143,13 @@ export async function PUT(
         data: {
           name,
           description: description || null,
+          ...(status ? { status } : {}),
+          ...(contractNumber !== undefined ? { contractNumber: contractNumber || null } : {}),
           total,
           totalCost,
           profit,
           vatEnabled: vatEnabled || false,
-          vatRate: Number(vatRate || 22),
+          vatRate: estimateRate,
           vatAmount,
           totalWithVat,
           updatedAt: new Date()

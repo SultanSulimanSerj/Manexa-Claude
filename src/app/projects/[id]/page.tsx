@@ -841,8 +841,8 @@ export default function ProjectDetailPage() {
             <p className="text-xs text-gray-600">Бюджет →</p>
           </Link>
 
-          <Link 
-            href={`/projects/${project.id}/estimate`}
+          <Link
+            href={`/projects/${project.id}/estimates`}
             className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3 mb-2">
