@@ -68,6 +68,9 @@ export async function GET(request: NextRequest) {
                 select: { id: true, name: true, email: true }
               }
             }
+          },
+          _count: {
+            select: { comments: true, subtasks: true }
           }
         },
         orderBy: { createdAt: 'desc' },

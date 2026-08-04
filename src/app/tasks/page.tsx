@@ -4,7 +4,7 @@
 import { confirm } from '@/components/ui/confirm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { PageSuspense } from '@/components/page-suspense'
 import Layout from '@/components/layout'
 import PageHeader from '@/components/page-header'
@@ -13,7 +13,7 @@ import { usePagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { AssigneeCombobox } from '@/components/assignee-combobox'
-import { Plus, Search, Edit, Trash2, X, ArrowLeft, Flag } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, ArrowLeft, Flag, Check, MessageSquare, MoreVertical } from 'lucide-react'
 import Link from 'next/link'
 
 interface Task {
@@ -25,11 +25,13 @@ interface Task {
   dueDate: string | null
   project: { id: string; name: string } | null
   creator: { name: string }
-  assignments: Array<{ user: { name: string } }>
+  assignments: Array<{ user: { id: string; name: string } }>
+  _count?: { comments: number; subtasks: number }
 }
 
 function TasksPageContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const projectIdFromUrl = searchParams?.get('projectId')
   
   const [tasks, setTasks] = useState<Task[]>([])
@@ -53,8 +55,11 @@ function TasksPageContent() {
     projectId: projectIdFromUrl || '',
     assigneeIds: [] as string[]
   })
+  const [segment, setSegment] = useState<'all' | 'mine' | 'open' | 'done'>('all')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    fetch('/api/auth/session').then((r) => (r.ok ? r.json() : null)).then((d) => setCurrentUserId(d?.user?.id || null)).catch(() => {})
     fetchTasks()
     fetchProjects()
     fetchUsers()
@@ -206,14 +211,68 @@ function TasksPageContent() {
     }
   }
 
+  // Чекбокс закрывает/переоткрывает задачу (оптимистично + PUT статуса)
+  const toggleComplete = async (task: Task) => {
+    const done = task.status === 'COMPLETED'
+    const next = done ? 'TODO' : 'COMPLETED'
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: next } : t)))
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: task.title, status: next }),
+      })
+    } catch {
+      fetchTasks()
+    }
+  }
+
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || t.status === statusFilter
     const matchesProject = projectFilter === 'all' || !projectFilter || t.project?.id === projectFilter
-    return matchesSearch && matchesStatus && matchesProject
+    const done = t.status === 'COMPLETED'
+    const matchesSegment =
+      segment === 'all' ? true
+      : segment === 'mine' ? t.assignments.some((a) => a.user.id === currentUserId)
+      : segment === 'open' ? !done
+      : done
+    return matchesSearch && matchesProject && matchesSegment
   })
 
-  const { pageItems: pagedTasks, Pagination } = usePagination(filteredTasks, 20)
+  // ——— 8a: группировка по срокам ———
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0)
+  const endOfToday = new Date(startOfToday); endOfToday.setDate(endOfToday.getDate() + 1)
+  const bucketOf = (t: Task): 'overdue' | 'today' | 'later' => {
+    if (t.status === 'COMPLETED' || !t.dueDate) return 'later'
+    const d = new Date(t.dueDate)
+    if (d < startOfToday) return 'overdue'
+    if (d < endOfToday) return 'today'
+    return 'later'
+  }
+  const groups: { key: 'overdue' | 'today' | 'later'; label: string; cls: string }[] = [
+    { key: 'overdue', label: 'Просрочено', cls: 'bg-[#fdeef0] text-[#c0304a]' },
+    { key: 'today', label: 'Сегодня', cls: 'bg-amber-50 text-amber-700' },
+    { key: 'later', label: 'На неделе', cls: 'bg-neutral-50 text-neutral-500' },
+  ]
+  const overdueCount = tasks.filter((t) => bucketOf(t) === 'overdue').length
+  const todayCount = tasks.filter((t) => bucketOf(t) === 'today').length
+
+  const priorityMeta = (p: string): { label: string; dot: string; text: string } => {
+    if (p === 'HIGH' || p === 'URGENT') return { label: 'Высокий', dot: 'bg-red-600', text: 'text-neutral-700' }
+    if (p === 'MEDIUM') return { label: 'Средний', dot: 'bg-amber-500', text: 'text-neutral-700' }
+    return { label: 'Низкий', dot: 'bg-green-600', text: 'text-neutral-700' }
+  }
+  const dueMeta = (t: Task): { label: string; cls: string } => {
+    if (t.status === 'COMPLETED') return { label: 'Готово', cls: 'text-neutral-400' }
+    if (!t.dueDate) return { label: '—', cls: 'text-neutral-400' }
+    const d = new Date(t.dueDate); d.setHours(0, 0, 0, 0)
+    const diff = Math.round((d.getTime() - startOfToday.getTime()) / 86400000)
+    if (diff < 0) { const n = -diff; return { label: `−${n} ${n === 1 ? 'день' : n < 5 ? 'дня' : 'дней'}`, cls: 'text-red-600 font-semibold' } }
+    if (diff === 0) return { label: 'сегодня', cls: 'text-amber-700 font-semibold' }
+    return { label: new Date(t.dueDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }), cls: 'text-neutral-600' }
+  }
+  const initials = (name?: string) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?'
+  const AV_COLORS = ['bg-blue-600', 'bg-teal-600', 'bg-amber-600', 'bg-violet-600', 'bg-rose-600']
 
   const getStatusText = (status: string) => {
     const map: Record<string, string> = {
@@ -268,185 +327,160 @@ function TasksPageContent() {
     <Layout>
       <div className="space-y-6">
         <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />
-        <PageHeader
-          title={currentProject ? `Задачи проекта "${currentProject.name}"` : 'Задачи'}
-          description={`${filteredTasks.length} задач`}
-          back={currentProject ? `/projects/${currentProject.id}` : undefined}
-          breadcrumbs={
-            currentProject
-              ? [
-                  { label: 'Проекты', href: '/projects' },
-                  { label: currentProject.name, href: `/projects/${currentProject.id}` },
-                  { label: 'Задачи' },
-                ]
-              : undefined
-          }
-          actions={
-            <button
-              onClick={handleCreate}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Создать задачу
-            </button>
-          }
-        />
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg p-4 border">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск задач..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+        {/* шапка 8a */}
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="text-[20px] font-bold text-neutral-900">
+              {currentProject ? `Задачи · ${currentProject.name}` : 'Задачи'}
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="all">Все статусы</option>
-              <option value="TODO">К выполнению</option>
-              <option value="IN_PROGRESS">В работе</option>
-              <option value="COMPLETED">Завершена</option>
-            </select>
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="all">Все проекты</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+            <div className="mt-0.5 text-[12.5px] tabular-nums text-neutral-400">
+              {tasks.length} всего · {overdueCount} просрочено · {todayCount} на сегодня
+            </div>
           </div>
+          <button
+            onClick={handleCreate}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-[13.5px] font-medium text-white hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" /> Новая задача
+          </button>
         </div>
 
-        {/* Table */}
+        {/* фильтры */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[13px] text-neutral-500">
+            <Search className="h-4 w-4" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Поиск задач…"
+              className="w-56 bg-transparent outline-none placeholder:text-neutral-400"
+            />
+          </div>
+          <div className="inline-flex rounded-lg bg-neutral-200/60 p-0.5">
+            {([['all', 'Все'], ['mine', 'Мои'], ['open', 'Открытые'], ['done', 'Готово']] as const).map(([s, l]) => (
+              <button
+                key={s}
+                onClick={() => setSegment(s)}
+                className={`rounded-md px-3 py-1.5 text-[12.5px] transition-colors ${
+                  segment === s ? 'bg-white font-semibold text-neutral-900 shadow-sm' : 'font-medium text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <select
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+            className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[13px] text-neutral-700 focus:outline-none"
+          >
+            <option value="all">Проект: все</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* таблица с группировкой */}
         {filteredTasks.length === 0 ? (
           <EmptyState
             icon={Flag}
             title={tasks.length === 0 ? 'Пока нет задач' : 'Ничего не найдено'}
-            description={
-              tasks.length === 0
-                ? 'Создайте первую задачу, чтобы начать работу.'
-                : 'Попробуйте изменить поиск или фильтры.'
-            }
-            action={
-              tasks.length === 0 ? (
-                <button
-                  onClick={handleCreate}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Создать задачу
-                </button>
-              ) : undefined
-            }
+            description={tasks.length === 0 ? 'Создайте первую задачу, чтобы начать работу.' : 'Попробуйте изменить поиск или фильтры.'}
+            action={tasks.length === 0 ? (
+              <button onClick={handleCreate} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <Plus className="h-4 w-4" /> Новая задача
+              </button>
+            ) : undefined}
           />
         ) : (
-        <div className="bg-white rounded-xl border border-border/70 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-neutral-50/70">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Задача</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 w-36">Статус</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Приоритет</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Проект</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Исполнители</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">Срок</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">Действия</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {pagedTasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div>
-                        <Link 
-                          href={`/tasks/${task.id}`}
-                          className="text-sm font-semibold text-neutral-900 font-medium hover:underline"
-                        >
-                          {task.title}
-                        </Link>
-                        {task.description && (
-                          <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{task.description}</div>
-                        )}
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            {/* заголовок колонок */}
+            <div className="grid grid-cols-[40px_2.4fr_1fr_0.9fr_1fr_0.8fr_44px] items-center border-b border-neutral-200 bg-neutral-50 px-4 text-[11.5px] font-semibold text-neutral-400">
+              <div className="py-3" />
+              <div className="py-3">Задача</div>
+              <div className="py-3">Проект</div>
+              <div className="py-3">Приоритет</div>
+              <div className="py-3">Исполнители</div>
+              <div className="py-3">Срок</div>
+              <div />
+            </div>
+
+            {groups.map((g) => {
+              const gtasks = filteredTasks.filter((t) => bucketOf(t) === g.key)
+              if (gtasks.length === 0) return null
+              return (
+                <div key={g.key}>
+                  <div className={`px-4 py-2 text-[12.5px] font-semibold ${g.cls}`}>{g.label} · {gtasks.length}</div>
+                  {gtasks.map((t, idx) => {
+                    const done = t.status === 'COMPLETED'
+                    const pr = priorityMeta(t.priority)
+                    const due = dueMeta(t)
+                    const cc = t._count?.comments || 0
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => router.push(`/tasks/${t.id}`)}
+                        className={`group grid cursor-pointer grid-cols-[40px_2.4fr_1fr_0.9fr_1fr_0.8fr_44px] items-center border-t border-neutral-100 px-4 hover:bg-neutral-50 ${idx % 2 ? 'bg-[#fcfcfd]' : ''}`}
+                      >
+                        <div className="py-3">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleComplete(t) }}
+                            className={`flex h-[18px] w-[18px] items-center justify-center rounded-md border transition-colors ${done ? 'border-green-700 bg-green-700' : 'border-neutral-300 hover:border-neutral-400'}`}
+                            title={done ? 'Открыть задачу' : 'Закрыть задачу'}
+                          >
+                            {done && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                          </button>
+                        </div>
+                        <div className="min-w-0 py-3 pr-2">
+                          <div className={`truncate text-[13.5px] font-semibold ${done ? 'text-neutral-400 line-through' : 'text-neutral-900'}`}>{t.title}</div>
+                          {cc > 0 && (
+                            <div className="mt-0.5 flex items-center gap-1 text-[11.5px] text-neutral-400">
+                              <MessageSquare className="h-3 w-3" /> {cc}
+                            </div>
+                          )}
+                        </div>
+                        <div className="truncate py-3 pr-2 text-[12.5px] text-neutral-600">{t.project?.name || '—'}</div>
+                        <div className="py-3">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={`h-[7px] w-[7px] rounded-full ${pr.dot}`} />
+                            <span className={`text-[13px] ${pr.text}`}>{pr.label}</span>
+                          </span>
+                        </div>
+                        <div className="py-3">
+                          {t.assignments.length > 0 ? (
+                            <div className="flex items-center">
+                              {t.assignments.slice(0, 3).map((a, i) => (
+                                <span
+                                  key={i}
+                                  className={`flex h-[26px] w-[26px] items-center justify-center rounded-full text-[9px] font-semibold text-white ring-2 ring-white ${AV_COLORS[i % AV_COLORS.length]}`}
+                                  style={{ marginLeft: i ? -8 : 0 }}
+                                  title={a.user.name}
+                                >
+                                  {initials(a.user.name)}
+                                </span>
+                              ))}
+                              {t.assignments.length > 3 && <span className="ml-1 text-[11px] text-neutral-400">+{t.assignments.length - 3}</span>}
+                            </div>
+                          ) : <span className="text-[12.5px] text-neutral-300">—</span>}
+                        </div>
+                        <div className={`py-3 text-[12.5px] tabular-nums ${due.cls}`}>{due.label}</div>
+                        <div className="flex justify-center py-3">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEdit(t) }}
+                            className="text-neutral-300 opacity-0 hover:text-neutral-600 group-hover:opacity-100"
+                            title="Изменить"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 w-36">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getStatusColor(task.status)}`}>
-                        {getStatusText(task.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-sm font-bold ${getPriorityColor(task.priority)}`}>●</span>
-                        <span className="text-sm text-gray-700">{getPriorityText(task.priority)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {task.project ? (
-                        <Link 
-                          href={`/projects/${task.project.id}`}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                        >
-                          {task.project.name}
-                        </Link>
-                      ) : (
-                        <span className="text-sm text-gray-500">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900">
-                        {task.assignments.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {task.assignments.map((a, idx) => (
-                              <span key={idx} className="inline-flex px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded">
-                                {a.user.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : '—'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900">
-                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button 
-                          onClick={() => handleEdit(task)}
-                          className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(task.id)}
-                          className="inline-flex h-9 w-9 items-center justify-center text-gray-500 hover:bg-gray-100 rounded"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
-          <Pagination />
-        </div>
         )}
 
         {/* Modal */}
