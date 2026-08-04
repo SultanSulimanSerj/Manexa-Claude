@@ -950,15 +950,36 @@ function FinancePageContent() {
                   </div>
                 </div>
                 <div className="flex h-[150px] items-end gap-4">
-                  {cashflow.map((m, i) => (
-                    <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                  {cashflow.map((m, i) => {
+                    const profit = m.inc - m.exp
+                    return (
+                    <div key={i} className="group relative flex h-full flex-1 cursor-default flex-col items-center justify-end gap-1.5">
+                      {/* тултип при наведении на столбец */}
+                      <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-[168px] -translate-x-1/2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-left shadow-lg group-hover:block">
+                        <div className="text-[11.5px] font-semibold capitalize text-neutral-900">{m.label}</div>
+                        <div className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-neutral-600">
+                          <span className="h-2 w-2 rounded-sm bg-blue-600" />Доход
+                          <span className="ml-auto font-medium tabular-nums text-neutral-900">{formatMoney(m.inc)}</span>
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-neutral-600">
+                          <span className="h-2 w-2 rounded-sm bg-neutral-300" />Расход
+                          <span className="ml-auto font-medium tabular-nums text-neutral-900">{formatMoney(m.exp)}</span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 border-t border-neutral-100 pt-1 text-[11.5px] text-neutral-600">
+                          Прибыль
+                          <span className={`ml-auto font-semibold tabular-nums ${profit >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                            {profit >= 0 ? '+' : '−'}{formatMoney(Math.abs(profit))}
+                          </span>
+                        </div>
+                      </div>
                       <div className="flex h-full w-full items-end justify-center gap-1">
-                        <div className="w-2/5 rounded-t bg-blue-600" style={{ height: `${Math.max(2, (m.inc / cashflowMax) * 100)}%` }} title={`Доход: ${formatMoney(m.inc)}`} />
-                        <div className="w-2/5 rounded-t bg-neutral-300" style={{ height: `${Math.max(2, (m.exp / cashflowMax) * 100)}%` }} title={`Расход: ${formatMoney(m.exp)}`} />
+                        <div className="w-2/5 rounded-t bg-blue-600 transition-opacity group-hover:opacity-80" style={{ height: `${Math.max(2, (m.inc / cashflowMax) * 100)}%` }} />
+                        <div className="w-2/5 rounded-t bg-neutral-300 transition-opacity group-hover:opacity-80" style={{ height: `${Math.max(2, (m.exp / cashflowMax) * 100)}%` }} />
                       </div>
                       <span className={`text-[11px] ${m.isLast ? 'font-semibold text-neutral-900' : 'text-neutral-400'}`}>{m.label}</span>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
               <div className="flex flex-col gap-4">
