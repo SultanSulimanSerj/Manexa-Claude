@@ -14,7 +14,6 @@ import { confirm } from '@/components/ui/confirm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { KpiCard } from '@/components/finance/KpiCard'
 import { ExpenseStructureChart } from '@/components/finance/ExpenseStructureChart'
-import { BudgetProgressBar } from '@/components/finance/BudgetProgressBar'
 import { BudgetCategoriesWithOperations } from '@/components/finance/BudgetCategoriesWithOperations'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { usePermissions } from '@/components/permission-guard'
@@ -1110,29 +1109,110 @@ function FinancePageContent() {
                 Выставлено счетов ({formatMoney(invoicedTotal)}) больше стоимости договора ({formatMoney(budgetData.budget)}). Проверьте счета.
               </div>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              <KpiCard title="Договор" value={formatMoney(budgetData.budget)} icon={<DollarSign className="h-5 w-5" />} status="neutral" />
-              <KpiCard title="Выставлено" value={formatMoney(invoicedTotal)} icon={<FileText className="h-5 w-5" />} status="neutral" />
-              <KpiCard title="Получено" value={formatMoney(budgetData.received)} change={budgetData.budget > 0 ? Number(((budgetData.received / budgetData.budget) * 100).toFixed(1)) : undefined} changeLabel="от договора" icon={<TrendingUp className="h-5 w-5" />} status="positive" />
-              <KpiCard title="Не оплачено нам" value={formatMoney(receivableUnpaid)} icon={<Clock className="h-5 w-5" />} status={receivableUnpaid > 0 ? 'negative' : 'neutral'} />
-              <KpiCard title="Потрачено" value={formatMoney(budgetData.spent)} icon={<TrendingDown className="h-5 w-5" />} status="neutral" />
-              <KpiCard title="К оплате" value={formatMoney(payableUnpaid)} icon={<Clock className="h-5 w-5" />} status={payableUnpaid > 0 ? 'negative' : 'neutral'} />
-            </div>
+            {(() => {
+              const budget = budgetData.budget || budgetData.estimateTotal
+              const spent = budgetData.spent
+              const received = budgetData.received
+              const estimateTotal = budgetData.estimateTotal
+              const pctSpent = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0
+              const remainder = budget - spent
+              const factProfit = received - spent
+              const planProfit = budget - estimateTotal
+              const margin = received > 0 ? (factProfit / received) * 100 : 0
+              const dueDate = currentProject?.endDate ? new Date(currentProject.endDate).toLocaleDateString('ru-RU') : null
+              const cats = [...expenseStructure].sort((a, b) => b.amount - a.amount)
+              const maxCat = Math.max(1, ...cats.map((c) => c.amount))
+              const palette = ['#1c7fd6', '#3b9ae8', '#7cc0f0', '#c8e1f8', '#e0eefb']
+              const factRow = (label: string, fact: number, plan: number, positive: boolean) => {
+                const w = plan > 0 ? Math.min(100, Math.max(0, (fact / plan) * 100)) : fact > 0 ? 100 : 0
+                return (
+                  <div>
+                    <div className="mb-1.5 flex justify-between text-[12.5px]">
+                      <span className="text-neutral-500">{label}</span>
+                      <span className="tabular-nums">
+                        <b className={fact < 0 ? 'text-red-600' : positive ? 'text-green-700' : 'text-neutral-900'}>{formatMoney(fact)}</b>{' '}
+                        <span className="text-neutral-400">/ план {formatMoney(plan)}</span>
+                      </span>
+                    </div>
+                    <div className="h-[9px] overflow-hidden rounded-full bg-neutral-100">
+                      <div className="h-full rounded-full" style={{ width: `${w}%`, background: positive ? '#16803c' : '#d0d0d6' }} />
+                    </div>
+                  </div>
+                )
+              }
+              return (
+                <>
+                  {/* Освоение бюджета */}
+                  <div className="rounded-xl border border-neutral-200 bg-white p-5">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[13.5px] font-semibold text-neutral-900">Освоение бюджета</span>
+                      <span className="text-[12.5px] text-neutral-500">
+                        Расходы <b className="text-neutral-900">{formatMoney(spent)}</b> из бюджета <b className="text-neutral-900">{formatMoney(budget)}</b>
+                      </span>
+                    </div>
+                    <div className="h-3.5 overflow-hidden rounded-full bg-neutral-100">
+                      <div className="h-full rounded-full" style={{ width: `${pctSpent}%`, background: pctSpent > 100 ? '#dc2626' : '#1c7fd6' }} />
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[12px] text-neutral-500">
+                      <span>{Math.round(pctSpent)}% бюджета освоено</span>
+                      <span>
+                        {remainder >= 0 ? 'Остаток' : 'Перерасход'}{' '}
+                        <b className={remainder >= 0 ? 'text-neutral-900' : 'text-red-600'}>{formatMoney(Math.abs(remainder))}</b>
+                        {dueDate ? ` · срок сдачи ${dueDate}` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* План/факт + структура расходов */}
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className="rounded-xl border border-neutral-200 bg-white p-5">
+                      <div className="mb-4 text-[13.5px] font-semibold text-neutral-900">План / факт</div>
+                      <div className="flex flex-col gap-4">
+                        {factRow('Доходы', received, budget, true)}
+                        {factRow('Расходы', spent, estimateTotal, false)}
+                        {factRow('Прибыль', factProfit, planProfit, true)}
+                      </div>
+                      <div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3.5">
+                        <span className="text-[12.5px] text-neutral-500">Маржа проекта</span>
+                        <span className={`text-[20px] font-bold tabular-nums ${margin >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                          {margin.toFixed(1).replace('.', ',')}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-neutral-200 bg-white p-5">
+                      <div className="mb-4 text-[13.5px] font-semibold text-neutral-900">Расходы по категориям</div>
+                      {cats.length === 0 ? (
+                        <p className="text-[12.5px] text-neutral-400">Расходов пока нет</p>
+                      ) : (
+                        <div className="flex flex-col gap-3.5">
+                          {cats.slice(0, 6).map((c, i) => (
+                            <div key={c.category}>
+                              <div className="mb-1.5 flex items-center justify-between text-[12.5px]">
+                                <span className="flex items-center gap-2">
+                                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: palette[i % palette.length] }} />
+                                  {c.category}
+                                </span>
+                                <span className="font-medium tabular-nums text-neutral-900">{formatMoney(c.amount)}</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
+                                <div className="h-full rounded-full" style={{ width: `${Math.max(2, (c.amount / maxCat) * 100)}%`, background: palette[i % palette.length] }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
           </>
         )}
 
         {/* Фильтры, освоение, структура, детализация — только при выбранном проекте */}
         {currentProject && (
           <>
-        <BudgetProgressBar
-          budget={budgetData.budget}
-          estimateTotal={budgetData.estimateTotal}
-          spent={budgetData.spent}
-          received={budgetData.received}
-          projectName={currentProject?.name}
-          projectStatus={currentProject?.status}
-        />
-
         <BudgetCategoriesWithOperations
           incomeList={incomeListForBlock}
           expenses={expensesForBlock}
