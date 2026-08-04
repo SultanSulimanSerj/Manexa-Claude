@@ -1001,7 +1001,7 @@ function FinancePageContent() {
                     )}
                   </div>
                   <div className="mt-1.5 text-[23px] font-bold tabular-nums text-red-600">{formatMoney(payableUnpaid)}</div>
-                  <div className="mt-0.5 text-[11.5px] text-neutral-400">поставщикам и подрядчикам · {payableCount} шт</div>
+                  <div className="mt-0.5 text-[11.5px] text-neutral-400">по {payableCount} неоплаченным расходам</div>
                 </div>
               </div>
             </div>
