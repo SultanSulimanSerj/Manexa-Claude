@@ -84,9 +84,6 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string } | null>(null)
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
-  const [projectFilter, setProjectFilter] = useState('all')
   // 4c — реестр
   const [segment, setSegment] = useState<'all' | 'mine' | 'inwork' | 'approved' | 'rejected'>('all')
   const [search, setSearch] = useState('')
@@ -543,10 +540,6 @@ export default function ApprovalsPage() {
       if (segment === 'rejected' && a.status !== 'REJECTED') return false
       // тип
       if (typeFilter !== 'all' && kindOf(a) !== typeFilter) return false
-      // проект (сохранён из прежнего фильтра)
-      if (projectFilter !== 'all') {
-        if (projectFilter === 'none' ? !!a.project?.id : a.project?.id !== projectFilter) return false
-      }
       // поиск
       if (search.trim()) {
         const hay = `${a.title} ${a.project?.name || ''} ${a.creator.name}`.toLowerCase()
