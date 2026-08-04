@@ -38,25 +38,25 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          UserRole  @default(USER)
-  position      String?
-  phone         String?
-  address       String?
-  isActive      Boolean   @default(true)
+  id                 String    @id @default(cuid())
+  name               String?
+  email              String    @unique
+  emailVerified      DateTime?
+  image              String?
+  password           String?
+  role               UserRole  @default(USER)
+  position           String?
+  phone              String?
+  address            String?
+  isActive           Boolean   @default(true)
   // Принудительная смена пароля при следующем входе (выдача временного пароля)
-  mustChangePassword Boolean @default(false)
+  mustChangePassword Boolean   @default(false)
   // 2FA (TOTP) — обязательна для платформенных ролей
-  totpSecret    String?
-  totpEnabled   Boolean   @default(false)
-  lastLoginAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  totpSecret         String?
+  totpEnabled        Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Relations
   accounts              Account[]
@@ -78,6 +78,7 @@ model User {
   finances              Finance[]
   approvalComments      ApprovalComment[]    @relation("ApprovalComments")
   approvalAttachments   ApprovalAttachment[] @relation("ApprovalAttachments")
+  taskAttachments       TaskAttachment[]     @relation("TaskAttachments")
   approvalHistory       ApprovalHistory[]    @relation("ApprovalHistory")
   createdEstimates      Estimate[]           @relation("EstimateCreator")
   responsibleWorkStages WorkStage[]          @relation("WorkStageResponsible")
@@ -136,7 +137,7 @@ model Company {
   updatedAt            DateTime @updatedAt
 
   // Relations
-  assignedManager      User?    @relation("CompanyManager", fields: [assignedManagerId], references: [id])
+  assignedManager      User?                 @relation("CompanyManager", fields: [assignedManagerId], references: [id])
   notes                CompanyNote[]
   users                User[]
   projects             Project[]
@@ -171,19 +172,19 @@ model Company {
 // ============ Платформенное администрирование ============
 
 model Plan {
-  id            String   @id @default(cuid())
-  code          String   @unique // TRIAL, BASIC, STANDARD, PREMIUM
-  name          String
-  description   String?
-  priceMonthly  Decimal  @db.Decimal(10, 2)
-  currency      String   @default("RUB")
-  maxUsers      Int? // null = безлимит
-  maxProjects   Int?
-  maxStorageMb  Int?
-  isActive      Boolean  @default(true)
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  code         String   @unique // TRIAL, BASIC, STANDARD, PREMIUM
+  name         String
+  description  String?
+  priceMonthly Decimal  @db.Decimal(10, 2)
+  currency     String   @default("RUB")
+  maxUsers     Int? // null = безлимит
+  maxProjects  Int?
+  maxStorageMb Int?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   subscriptions Subscription[]
   invoices      Invoice[]
@@ -278,10 +279,10 @@ model PlatformSettings {
   sellerContactPhone         String?
   sellerContactEmail         String?
   taxMode                    String   @default("USN") // USN (без НДС) | OSN (с НДС)
-  vatRate                    Int      @default(0)      // ставка НДС в %, применяется при OSN
-  annualDiscountPercent      Int      @default(10)     // скидка на годовую оплату (12 мес)
+  vatRate                    Int      @default(0) // ставка НДС в %, применяется при OSN
+  annualDiscountPercent      Int      @default(10) // скидка на годовую оплату (12 мес)
   invoicePrefix              String   @default("СЧ")
-  sbpQrPath                  String?  // статический СБП QR (ключ в хранилище)
+  sbpQrPath                  String? // статический СБП QR (ключ в хранилище)
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 }
@@ -301,17 +302,17 @@ model Invoice {
   company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   planId           String
   plan             Plan          @relation(fields: [planId], references: [id])
-  planName         String        // снимок названия тарифа на момент выставления
+  planName         String // снимок названия тарифа на момент выставления
   months           Int
   unitPriceMonthly Decimal       @db.Decimal(10, 2)
   discountPercent  Int           @default(0)
   subtotal         Decimal       @db.Decimal(10, 2) // до скидки
   amount           Decimal       @db.Decimal(10, 2) // итог к оплате (с учётом скидки, включая НДС при OSN)
   vatRate          Int           @default(0)
-  vatAmount        Decimal       @db.Decimal(10, 2) @default(0)
+  vatAmount        Decimal       @default(0) @db.Decimal(10, 2)
   currency         String        @default("RUB")
   status           InvoiceStatus @default(ISSUED)
-  periodStart      DateTime      // период подписки, который покрывает счёт
+  periodStart      DateTime // период подписки, который покрывает счёт
   periodEnd        DateTime
   issuedAt         DateTime      @default(now())
   dueDate          DateTime
@@ -340,19 +341,19 @@ model CompanyNote {
 }
 
 model Announcement {
-  id            String   @id @default(cuid())
-  title         String
-  body          String
-  level         String   @default("INFO") // INFO, WARNING, CRITICAL
-  isActive      Boolean  @default(true)
-  startsAt      DateTime?
-  endsAt        DateTime?
-  createdById   String
+  id             String    @id @default(cuid())
+  title          String
+  body           String
+  level          String    @default("INFO") // INFO, WARNING, CRITICAL
+  isActive       Boolean   @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdById    String
   createdByEmail String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  dismissals    AnnouncementDismissal[]
+  dismissals AnnouncementDismissal[]
 
   @@index([isActive])
 }
@@ -414,21 +415,21 @@ model Project {
   updatedAt                  DateTime        @updatedAt
 
   // Relations
-  companyId     String
-  company       Company         @relation(fields: [companyId], references: [id])
-  creatorId     String
-  creator       User            @relation("ProjectCreator", fields: [creatorId], references: [id])
-  users         ProjectUser[]
-  tasks         Task[]
-  documents     Document[]
-  approvals     Approval[]
-  chatMessages  ChatMessage[]
-  finances      Finance[]
-  objects       ProjectObject[]
-  timesheets    Timesheet[]
-  notifications Notification[]
-  estimates     Estimate[]
-  workStages    WorkStage[]
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id])
+  creatorId      String
+  creator        User            @relation("ProjectCreator", fields: [creatorId], references: [id])
+  users          ProjectUser[]
+  tasks          Task[]
+  documents      Document[]
+  approvals      Approval[]
+  chatMessages   ChatMessage[]
+  finances       Finance[]
+  objects        ProjectObject[]
+  timesheets     Timesheet[]
+  notifications  Notification[]
+  estimates      Estimate[]
+  workStages     WorkStage[]
   stockMovements StockMovement[]
 
   @@index([companyId])
@@ -497,6 +498,7 @@ model Task {
   dependsOn    TaskDependency[] @relation("DependsOnTask")
   comments     TaskComment[]
   subtasks     TaskSubtask[]
+  attachments  TaskAttachment[]
 
   @@index([companyId])
   @@index([projectId])
@@ -509,8 +511,9 @@ model Task {
 }
 
 model TaskAssignment {
-  id         String   @id @default(cuid())
-  assignedAt DateTime @default(now())
+  id         String             @id @default(cuid())
+  assignedAt DateTime           @default(now())
+  role       TaskAssignmentRole @default(PARTICIPANT)
 
   taskId    String
   task      Task     @relation(fields: [taskId], references: [id])
@@ -521,6 +524,27 @@ model TaskAssignment {
 
   @@unique([taskId, userId])
   @@index([companyId])
+}
+
+enum TaskAssignmentRole {
+  RESPONSIBLE // Ответственный
+  PARTICIPANT // Участник
+}
+
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  fileName  String
+  filePath  String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  taskId       String
+  task         Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User   @relation("TaskAttachments", fields: [uploadedById], references: [id])
+
+  @@index([taskId])
 }
 
 model TaskDependency {
@@ -572,58 +596,58 @@ model TaskSubtask {
 }
 
 model Document {
-  id               String               @id @default(cuid())
-  title            String
-  description      String?
-  fileName         String
-  filePath         String
-  fileSize         Int
-  mimeType         String
-  version          Int                  @default(1)
-  isLatest         Boolean              @default(true)
-  documentNumber   String?
-  isPublished      Boolean              @default(false)
-  publishedAt      DateTime?
-  approvalRequired Boolean              @default(false)
-  category         String?              @default("GENERAL")
-  editorStatus          DocumentEditorStatus @default(DRAFT)
-  contentJson           Json?
-  sourceMeta            Json?
-  lastExportedAt        DateTime?
-  hasUnpublishedChanges Boolean              @default(false)
-  numberAllocated       Boolean              @default(false)
-  pdfFileName           String?
-  pdfFilePath           String?
-  pdfFileSize           Int?
-  exportContentHash     String?
-  includeStampOnExport      Boolean              @default(false)
-  includeSignatureOnExport  Boolean              @default(false)
-  edoStatus             DocumentEdoStatus    @default(NONE)
-  edoXmlPath            String?
-  edoXmlFileName        String?
-  edoXmlFileSize        Int?
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
+  id                       String               @id @default(cuid())
+  title                    String
+  description              String?
+  fileName                 String
+  filePath                 String
+  fileSize                 Int
+  mimeType                 String
+  version                  Int                  @default(1)
+  isLatest                 Boolean              @default(true)
+  documentNumber           String?
+  isPublished              Boolean              @default(false)
+  publishedAt              DateTime?
+  approvalRequired         Boolean              @default(false)
+  category                 String?              @default("GENERAL")
+  editorStatus             DocumentEditorStatus @default(DRAFT)
+  contentJson              Json?
+  sourceMeta               Json?
+  lastExportedAt           DateTime?
+  hasUnpublishedChanges    Boolean              @default(false)
+  numberAllocated          Boolean              @default(false)
+  pdfFileName              String?
+  pdfFilePath              String?
+  pdfFileSize              Int?
+  exportContentHash        String?
+  includeStampOnExport     Boolean              @default(false)
+  includeSignatureOnExport Boolean              @default(false)
+  edoStatus                DocumentEdoStatus    @default(NONE)
+  edoXmlPath               String?
+  edoXmlFileName           String?
+  edoXmlFileSize           Int?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 
   // Relations
   projectId        String?
-  project          Project?          @relation(fields: [projectId], references: [id])
+  project          Project?            @relation(fields: [projectId], references: [id])
   parentDocumentId String?
-  parentDocument   Document?         @relation("DocumentChain", fields: [parentDocumentId], references: [id], onDelete: SetNull)
-  childDocuments   Document[]        @relation("DocumentChain")
+  parentDocument   Document?           @relation("DocumentChain", fields: [parentDocumentId], references: [id], onDelete: SetNull)
+  childDocuments   Document[]          @relation("DocumentChain")
   creatorId        String
-  creator          User              @relation("DocumentCreator", fields: [creatorId], references: [id])
+  creator          User                @relation("DocumentCreator", fields: [creatorId], references: [id])
   templateId       String?
   companyId        String?
-  company          Company?          @relation(fields: [companyId], references: [id])
-  template         DocumentTemplate? @relation(fields: [templateId], references: [id])
+  company          Company?            @relation(fields: [companyId], references: [id])
+  template         DocumentTemplate?   @relation(fields: [templateId], references: [id])
   versions         DocumentVersion[]
   approvals        Approval[]
   exportJobs       DocumentExportJob[]
-  financeRecords   Finance[]            @relation("DocumentFinances")
+  financeRecords   Finance[]           @relation("DocumentFinances")
 
+  @@unique([companyId, category, documentNumber], name: "document_company_category_number")
   @@index([parentDocumentId])
-
   @@index([projectId])
   @@index([creatorId])
   @@index([companyId])
@@ -637,7 +661,6 @@ model Document {
   @@index([companyId, category])
   @@index([editorStatus])
   @@index([edoStatus])
-  @@unique([companyId, category, documentNumber], name: "document_company_category_number")
 }
 
 model DocumentVersion {
@@ -1026,10 +1049,10 @@ enum UserRole {
   PLATFORM_MANAGER
   OWNER
   ADMIN
-  MANAGER   // UI: «Руководитель проекта»
-  USER      // UI: «Сотрудник»
+  MANAGER // UI: «Руководитель проекта»
+  USER // UI: «Сотрудник»
   CONTRACTOR // Подрядчик (внешний, без финансов)
-  CLIENT     // Заказчик (внешний, просмотр своего проекта)
+  CLIENT // Заказчик (внешний, просмотр своего проекта)
 }
 
 enum ProjectStatus {

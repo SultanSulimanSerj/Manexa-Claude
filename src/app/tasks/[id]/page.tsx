@@ -26,7 +26,11 @@ import {
   CheckCircle2,
   Circle,
   XCircle,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  Download,
+  Trash2,
+  Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -40,8 +44,17 @@ interface TaskDetail {
   createdAt: string
   project: { id: string; name: string } | null
   creator: { id: string; name: string }
-  assignments: Array<{ user: { id: string; name: string } }>
+  assignments: Array<{ user: { id: string; name: string }; role?: string }>
   subtasks?: Subtask[]
+}
+
+interface Attachment {
+  id: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  createdAt: string
+  uploadedBy?: { id: string; name: string }
 }
 
 interface Comment {
@@ -71,6 +84,9 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<TaskDetail | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
@@ -126,6 +142,9 @@ export default function TaskDetailPage() {
         // Если подзадачи пришли с задачей, используем их
         if (data.subtasks && data.subtasks.length > 0) {
           setSubtasks(data.subtasks)
+        }
+        if (data.attachments) {
+          setAttachments(data.attachments)
         }
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -243,16 +262,22 @@ export default function TaskDetailPage() {
   // Быстрое добавление/удаление исполнителя
   const handleAssigneeToggle = async (userId: string, isAdding: boolean) => {
     if (!task) return
-    const currentIds = task.assignments.map(a => a.user.id)
-    const newIds = isAdding 
-      ? [...currentIds, userId]
-      : currentIds.filter(id => id !== userId)
-    
+    // Сохраняем существующие роли, меняем только состав
+    const roles = new Map<string, 'RESPONSIBLE' | 'PARTICIPANT'>(
+      task.assignments.map((a) => [a.user.id, (a.role as 'RESPONSIBLE' | 'PARTICIPANT') || 'PARTICIPANT'])
+    )
+    if (isAdding) {
+      if (!roles.has(userId)) roles.set(userId, 'PARTICIPANT')
+    } else {
+      roles.delete(userId)
+    }
+    const assignments = Array.from(roles, ([uid, role]) => ({ userId: uid, role }))
+
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigneeIds: newIds })
+        body: JSON.stringify({ assignments })
       })
       if (response.ok) {
         await fetchTask()
@@ -315,6 +340,72 @@ export default function TaskDetailPage() {
       if (response.ok) {
         await fetchSubtasks()
       }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // Загрузка вложения
+  const fetchAttachments = async () => {
+    const taskId = Array.isArray(params?.id) ? params.id[0] : params?.id
+    if (!taskId) return
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/attachments`)
+      if (response.ok) {
+        const data = await response.json()
+        setAttachments(data.attachments || [])
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleUploadFiles = async (files: FileList | null) => {
+    const taskId = Array.isArray(params?.id) ? params.id[0] : params?.id
+    if (!taskId || !files || files.length === 0) return
+    setUploading(true)
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData()
+        fd.append('file', file)
+        await fetch(`/api/tasks/${taskId}/attachments`, { method: 'POST', body: fd })
+      }
+      await fetchAttachments()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    const taskId = Array.isArray(params?.id) ? params.id[0] : params?.id
+    if (!taskId) return
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/attachments/${attachmentId}`, { method: 'DELETE' })
+      if (response.ok) {
+        setAttachments((prev) => prev.filter((a) => a.id !== attachmentId))
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // Смена роли исполнителя (Ответственный / Участник)
+  const handleSetAssigneeRole = async (userId: string, role: 'RESPONSIBLE' | 'PARTICIPANT') => {
+    if (!task) return
+    const next = task.assignments.map((a) => ({
+      userId: a.user.id,
+      role: a.user.id === userId ? role : ((a.role as 'RESPONSIBLE' | 'PARTICIPANT') || 'PARTICIPANT')
+    }))
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments: next })
+      })
+      if (response.ok) await fetchTask()
     } catch (err) {
       console.error(err)
     }
@@ -462,6 +553,12 @@ export default function TaskDetailPage() {
     const taskId = Array.isArray(params?.id) ? params.id[0] : params?.id
     if (!taskId) return
     
+    // Сохраняем роли для остающихся исполнителей, новым — Участник
+    const prevRoles = new Map<string, 'RESPONSIBLE' | 'PARTICIPANT'>(
+      (task?.assignments || []).map((a) => [a.user.id, (a.role as 'RESPONSIBLE' | 'PARTICIPANT') || 'PARTICIPANT'])
+    )
+    const assignments = editForm.assigneeIds.map((uid) => ({ userId: uid, role: prevRoles.get(uid) || 'PARTICIPANT' }))
+
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
@@ -472,7 +569,7 @@ export default function TaskDetailPage() {
           status: editForm.status,
           priority: editForm.priority,
           dueDate: editForm.dueDate ? new Date(editForm.dueDate).toISOString() : null,
-          assigneeIds: editForm.assigneeIds
+          assignments
         })
       })
 
@@ -566,6 +663,13 @@ export default function TaskDetailPage() {
     const map: Record<string, string> = { 'HIGH': '#dc2626', 'MEDIUM': '#b45309', 'LOW': '#16a34a' }
     return map[priority] || '#a1a1aa'
   }
+  const isImage = (mime: string) => (mime || '').startsWith('image/')
+  const fmtSize = (b: number) => {
+    if (b < 1024) return `${b} Б`
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} КБ`
+    return `${(b / 1024 / 1024).toFixed(1)} МБ`
+  }
+  const attHref = (a: Attachment, inline = false) => `/api/tasks/${task?.id}/attachments/${a.id}/download${inline ? '?inline=1' : ''}`
 
   if (loading) {
     return (
@@ -663,15 +767,51 @@ export default function TaskDetailPage() {
 
               {/* Фото и вложения */}
               <section>
-                <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-neutral-400">Фото и вложения</div>
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-neutral-400">
+                  Фото и вложения{attachments.length > 0 ? ` · ${attachments.length}` : ''}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleUploadFiles(e.target.files)}
+                />
                 <div className="flex flex-wrap gap-3">
+                  {attachments.map((a) => (
+                    <div key={a.id} className="group relative h-[78px] w-[104px] overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
+                      {isImage(a.mimeType) ? (
+                        <a href={attHref(a, true)} target="_blank" rel="noopener noreferrer" className="block h-full w-full">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={attHref(a, true)} alt={a.fileName} className="h-full w-full object-cover" />
+                        </a>
+                      ) : (
+                        <a href={attHref(a)} className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center">
+                          <FileText className="h-6 w-6 text-neutral-400" />
+                          <span className="w-full truncate text-[10.5px] text-neutral-600">{a.fileName}</span>
+                        </a>
+                      )}
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/45 px-1.5 py-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="truncate text-[9px] text-white tabular-nums">{fmtSize(a.fileSize)}</span>
+                        <div className="pointer-events-auto flex items-center gap-1">
+                          <a href={attHref(a)} className="text-white/80 hover:text-white" title="Скачать">
+                            <Download className="h-3 w-3" />
+                          </a>
+                          <button onClick={() => handleDeleteAttachment(a.id)} className="text-white/80 hover:text-red-300" title="Удалить">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={handleEditTask}
-                    className="flex h-[78px] w-[104px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-neutral-300 text-neutral-400 transition-colors hover:border-blue-600 hover:text-blue-600"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex h-[78px] w-[104px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-neutral-300 text-neutral-400 transition-colors hover:border-blue-600 hover:text-blue-600 disabled:opacity-50"
                   >
-                    <Plus className="h-5 w-5" />
-                    <span className="text-[11px]">Добавить</span>
+                    {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                    <span className="text-[11px]">{uploading ? 'Загрузка…' : 'Добавить'}</span>
                   </button>
                 </div>
               </section>
@@ -915,19 +1055,26 @@ export default function TaskDetailPage() {
                 ) : (
                   <div className="space-y-2.5">
                     {task.assignments.length > 0 ? (
-                      task.assignments.map((assignment, idx) => (
-                        <div key={idx} className="flex items-center gap-2.5">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white" style={{ backgroundColor: avColor(assignment.user.id) }}>
-                            {initials(assignment.user.name)}
+                      task.assignments.map((assignment, idx) => {
+                        const isResp = assignment.role === 'RESPONSIBLE'
+                        return (
+                          <div key={idx} className="flex items-center gap-2.5">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white" style={{ backgroundColor: avColor(assignment.user.id) }}>
+                              {initials(assignment.user.name)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-semibold text-neutral-900">{assignment.user.name}</p>
+                              <button
+                                onClick={() => handleSetAssigneeRole(assignment.user.id, isResp ? 'PARTICIPANT' : 'RESPONSIBLE')}
+                                className={`text-[11px] hover:underline ${isResp ? 'text-neutral-600' : 'text-neutral-400'}`}
+                                title="Переключить роль"
+                              >
+                                {isResp ? 'Ответственный' : 'Участник'}
+                              </button>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-[13px] font-semibold text-neutral-900">{assignment.user.name}</p>
-                            <p className="text-[11px] text-neutral-400">
-                              {assignment.user.id === task.creator.id ? 'Ответственный' : 'Участник'}
-                            </p>
-                          </div>
-                        </div>
-                      ))
+                        )
+                      })
                     ) : (
                       <p className="text-[12.5px] text-neutral-400">Не назначены</p>
                     )}

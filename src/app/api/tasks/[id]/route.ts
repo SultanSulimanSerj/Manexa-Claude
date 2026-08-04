@@ -35,6 +35,12 @@ export async function GET(
               select: { id: true, name: true, email: true }
             }
           }
+        },
+        attachments: {
+          include: {
+            uploadedBy: { select: { id: true, name: true } }
+          },
+          orderBy: { createdAt: 'desc' }
         }
       }
     })
@@ -101,22 +107,29 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { title, description, status, priority, dueDate, projectId, assigneeIds } = body
+    const { title, description, status, priority, dueDate, projectId, assigneeIds, assignments } = body
 
-    // If assigneeIds provided, update assignments
-    if (assigneeIds) {
-      // Delete existing assignments
+    // Обновление исполнителей: приоритет у assignments[{userId, role}], иначе assigneeIds (все — участники)
+    const assignList: Array<{ userId: string; role: 'RESPONSIBLE' | 'PARTICIPANT' }> | null =
+      Array.isArray(assignments)
+        ? assignments
+            .filter((a: any) => a && a.userId)
+            .map((a: any) => ({ userId: a.userId, role: a.role === 'RESPONSIBLE' ? 'RESPONSIBLE' : 'PARTICIPANT' }))
+        : Array.isArray(assigneeIds)
+        ? assigneeIds.map((userId: string) => ({ userId, role: 'PARTICIPANT' as const }))
+        : null
+
+    if (assignList) {
       await prisma.taskAssignment.deleteMany({
         where: { taskId: params.id }
       })
-      
-      // Create new assignments
-      if (assigneeIds.length > 0) {
+      if (assignList.length > 0) {
         await prisma.taskAssignment.createMany({
-          data: assigneeIds.map((userId: string) => ({
+          data: assignList.map((a) => ({
             id: generateId(),
             taskId: params.id,
-            userId
+            userId: a.userId,
+            role: a.role
           }))
         })
       }
