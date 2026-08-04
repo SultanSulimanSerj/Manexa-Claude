@@ -389,6 +389,23 @@ export default function ApprovalsPage() {
     }
   }
 
+  // Открытие окна согласования: показываем сразу из списка (там комменты урезаны take:5),
+  // затем подтягиваем полную заявку со ВСЕМИ комментами.
+  const openApproval = async (approval: Approval) => {
+    setSelectedApproval(approval)
+    setShowDetailsModal(true)
+    fetchAttachments(approval.id)
+    try {
+      const res = await fetch(`/api/approvals/${approval.id}`)
+      if (res.ok) {
+        const full = await res.json()
+        setSelectedApproval((cur) => (cur?.id === full.id ? full : cur))
+      }
+    } catch (err) {
+      console.error('Error fetching approval detail:', err)
+    }
+  }
+
   const handleFileUpload = async (approvalId: string, file: File) => {
     setUploadingFile(true)
     try {
@@ -739,11 +756,7 @@ export default function ApprovalsPage() {
                   return (
                     <div
                       key={approval.id}
-                      onClick={() => {
-                        setSelectedApproval(approval)
-                        setShowDetailsModal(true)
-                        fetchAttachments(approval.id)
-                      }}
+                      onClick={() => openApproval(approval)}
                       className={`grid cursor-pointer items-center border-t border-neutral-100 px-3 transition-colors ${
                         mine ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-neutral-50'
                       }`}
