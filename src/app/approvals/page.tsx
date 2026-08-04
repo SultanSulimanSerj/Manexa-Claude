@@ -1330,7 +1330,7 @@ export default function ApprovalsPage() {
                                         · {new Date(c.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
                                       </span>
                                     </div>
-                                    <div className="mt-0.5 text-[12.5px] leading-relaxed text-neutral-700">{c.content}</div>
+                                    <div className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[12.5px] leading-relaxed text-neutral-700">{c.content}</div>
                                   </div>
                                 </div>
                               ))
