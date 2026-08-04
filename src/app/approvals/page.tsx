@@ -3,14 +3,10 @@
 import { useState, useEffect } from 'react'
 import Layout from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { confirm } from '@/components/ui/confirm'
 import { toast } from '@/components/ui/use-toast'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Plus, CheckCircle, X, Clock, XCircle, FileText, Users, Calendar, MessageSquare, Paperclip, History, AlertCircle, Eye, Trash2, Search, ChevronDown, MoreHorizontal, Check, Package, Wrench, CornerUpLeft, MapPin, AlertTriangle } from 'lucide-react'
-import ExpandableDescription from '@/components/expandable-description'
-import ApprovalProgress from '@/components/approval-progress'
+import { Plus, X, XCircle, FileText, MessageSquare, Trash2, Search, ChevronDown, MoreHorizontal, Check, Package, Wrench, CornerUpLeft, MapPin, AlertTriangle } from 'lucide-react'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
@@ -103,9 +99,6 @@ export default function ApprovalsPage() {
   const [rejectBusy, setRejectBusy] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
-  const [showCommentsModal, setShowCommentsModal] = useState(false)
-  const [showAttachmentsModal, setShowAttachmentsModal] = useState(false)
-  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [attachments, setAttachments] = useState<any[]>([])
   const [uploadingFile, setUploadingFile] = useState(false)
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null)
@@ -426,30 +419,6 @@ export default function ApprovalsPage() {
     }
   }
 
-  const handleDeleteAttachmentClick = async (attachmentId: string, approvalId: string) => {
-    const ok = await confirm({
-      title: 'Удалить файл?',
-      description: 'Файл будет удалён без возможности восстановления.',
-      confirmText: 'Удалить',
-      destructive: true,
-    })
-    if (!ok) return
-    try {
-      const response = await fetch(`/api/approvals/${approvalId}/attachments/${attachmentId}`, {
-        method: 'DELETE'
-      })
-      if (response.ok) {
-        await fetchAttachments(approvalId)
-        toast.success('Файл удалён')
-      } else {
-        toast.error('Ошибка при удалении файла')
-      }
-    } catch (error) {
-      console.error('Error deleting attachment:', error)
-      toast.error('Ошибка при удалении файла')
-    }
-  }
-
   const handleDeleteApprovalClick = async (approvalId: string) => {
     const ok = await confirm({
       title: 'Удалить согласование?',
@@ -513,69 +482,6 @@ export default function ApprovalsPage() {
       setCommentLoading(false)
     }
   }
-
-  const getStatusText = (status: string) => {
-    const map: Record<string, string> = {
-      'PENDING': 'Ожидает',
-      'APPROVED': 'Одобрено',
-      'REJECTED': 'Отклонено',
-      'CANCELLED': 'Отменено'
-    }
-    return map[status] || status
-  }
-
-  const getStatusColor = (status: string) => {
-    const map: Record<string, string> = {
-      'PENDING': 'bg-yellow-50 text-yellow-700 border-yellow-200',
-      'APPROVED': 'bg-green-50 text-green-700 border-green-200',
-      'REJECTED': 'bg-red-50 text-red-700 border-red-200',
-      'CANCELLED': 'bg-gray-50 text-gray-700 border-gray-200'
-    }
-    return map[status] || 'bg-gray-50 text-gray-700'
-  }
-
-  const getPriorityText = (priority: string) => {
-    const map: Record<string, string> = {
-      'LOW': 'Низкий',
-      'MEDIUM': 'Средний',
-      'HIGH': 'Высокий',
-      'URGENT': 'Срочный'
-    }
-    return map[priority] || priority
-  }
-
-  const getPriorityColor = (priority: string) => {
-    const map: Record<string, string> = {
-      'LOW': 'bg-blue-50 text-blue-700 border-blue-200',
-      'MEDIUM': 'bg-yellow-50 text-yellow-700 border-yellow-200',
-      'HIGH': 'bg-orange-50 text-orange-700 border-orange-200',
-      'URGENT': 'bg-red-50 text-red-700 border-red-200'
-    }
-    return map[priority] || 'bg-gray-50 text-gray-700'
-  }
-
-  const getRoleText = (role: string) => {
-    const map: Record<string, string> = {
-      'INITIATOR': 'Инициатор',
-      'APPROVER': 'Согласующий',
-      'REVIEWER': 'Рецензент',
-      'OBSERVER': 'Наблюдатель'
-    }
-    return map[role] || role
-  }
-
-  const getTypeText = (type: string) => {
-    const map: Record<string, string> = {
-      'BUDGET': 'Бюджет',
-      'DOCUMENT': 'Документ',
-      'TIMELINE': 'Сроки',
-      'CONTRACT': 'Договор',
-      'RESOURCE': 'Ресурсы',
-      'GENERAL': 'Общее'
-    }
-    return map[type] || type
-  }
-
 
   const canUserRespond = (approval: Approval) => {
     if (!currentUser) return false
@@ -1413,9 +1319,53 @@ export default function ApprovalsPage() {
                             Все согласуют параллельно — порядок не важен.
                           </p>
                         </div>
-                        <div className="flex-1 p-5">
-                          <div className={secLabel}>Обсуждение</div>
-                          <p className="text-[12px] text-neutral-400">Комментарии появятся здесь.</p>
+                        <div className="flex min-h-0 flex-1 flex-col p-5">
+                          <div className={secLabel}>Обсуждение{a.comments.length ? ` · ${a.comments.length}` : ''}</div>
+                          <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto">
+                            {a.comments.length === 0 ? (
+                              <p className="text-[12px] text-neutral-400">Комментариев пока нет.</p>
+                            ) : (
+                              [...a.comments].reverse().map((c) => (
+                                <div key={c.id} className="flex gap-2.5">
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-[9px] font-semibold text-white">
+                                    {initials(c.user.name)}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="text-[12.5px]">
+                                      <span className="font-semibold text-neutral-900">{c.user.name}</span>{' '}
+                                      <span className="text-neutral-400">
+                                        · {new Date(c.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                                      </span>
+                                    </div>
+                                    <div className="mt-0.5 text-[12.5px] leading-relaxed text-neutral-700">{c.content}</div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="mt-3 flex items-end gap-2 border-t border-neutral-100 pt-3">
+                            <textarea
+                              value={newComment}
+                              onChange={(e) => setNewComment(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  handleAddComment(a.id)
+                                }
+                              }}
+                              rows={1}
+                              placeholder="Написать комментарий…"
+                              className="max-h-24 min-h-[38px] flex-1 resize-none rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[12.5px] text-neutral-800 placeholder:text-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => handleAddComment(a.id)}
+                              disabled={commentLoading || !newComment.trim()}
+                              className="h-[38px] shrink-0 bg-blue-600 px-3 hover:bg-blue-700"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1545,164 +1495,6 @@ export default function ApprovalsPage() {
           </Dialog>
         )}
 
-        {/* Comments Modal */}
-        {showCommentsModal && selectedApproval && (
-          <Dialog open={showCommentsModal} onOpenChange={setShowCommentsModal}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Комментарии</DialogTitle>
-                <DialogDescription>
-                  Обсуждение согласования "{selectedApproval.title}"
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                {/* Add Comment Form */}
-                <div className="border-t pt-4">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Добавить комментарий..."
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleAddComment(selectedApproval.id)
-                        }
-                      }}
-                    />
-                    <Button
-                      onClick={() => handleAddComment(selectedApproval.id)}
-                      disabled={!newComment.trim() || commentLoading}
-                    >
-                      {commentLoading ? 'Отправка...' : 'Отправить'}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Comments List */}
-                <div className="space-y-3">
-                  {selectedApproval.comments.map((comment) => (
-                    <div key={comment.id} className="border-b pb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">{comment.user.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(comment.createdAt).toLocaleString('ru-RU')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700">{comment.content}</p>
-                    </div>
-                  ))}
-                  {selectedApproval.comments.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">Нет комментариев</p>
-                  )}
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowCommentsModal(false)}
-                  >
-                    Закрыть
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Attachments Modal */}
-        {showAttachmentsModal && selectedApproval && (
-          <Dialog open={showAttachmentsModal} onOpenChange={setShowAttachmentsModal}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Вложения</DialogTitle>
-                <DialogDescription>
-                  Файлы согласования "{selectedApproval.title}"
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  {(selectedApproval.attachments || []).length > 0 ? (
-                    (selectedApproval.attachments || []).map((attachment) => (
-                      <div key={attachment.id} className="flex items-center justify-between p-3 border rounded">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium">{attachment.fileName}</p>
-                            <p className="text-xs text-gray-500">
-                              {(attachment.fileSize / 1024).toFixed(1)} KB • {attachment.user.name}
-                            </p>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            window.open(`/api/approvals/${selectedApproval.id}/attachments/${attachment.id}/download`, '_blank')
-                          }}
-                        >
-                          Скачать
-                        </Button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">Нет вложений</p>
-                  )}
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAttachmentsModal(false)}
-                  >
-                    Закрыть
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* History Modal */}
-        {showHistoryModal && selectedApproval && (
-          <Dialog open={showHistoryModal} onOpenChange={setShowHistoryModal}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>История изменений</DialogTitle>
-                <DialogDescription>
-                  История согласования "{selectedApproval.title}"
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  {selectedApproval.comments.map((comment, index) => (
-                    <div key={index} className="border-l-2 border-gray-200 pl-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">{comment.user.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(comment.createdAt).toLocaleString('ru-RU')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700">{comment.content}</p>
-                    </div>
-                  ))}
-                  {selectedApproval.comments.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">Нет истории</p>
-                  )}
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowHistoryModal(false)}
-                  >
-                    Закрыть
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
     </Layout>
   )
