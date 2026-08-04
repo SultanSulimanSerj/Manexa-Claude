@@ -347,13 +347,13 @@ function TasksPageContent() {
 
         {/* фильтры */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[13px] text-neutral-500">
-            <Search className="h-4 w-4" />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Поиск задач…"
-              className="w-56 bg-transparent outline-none placeholder:text-neutral-400"
+              className="w-[280px] rounded-lg border border-neutral-200 bg-white py-[7px] pl-9 pr-3 text-[13px] text-neutral-700 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             />
           </div>
           <div className="inline-flex rounded-lg bg-neutral-200/60 p-0.5">
