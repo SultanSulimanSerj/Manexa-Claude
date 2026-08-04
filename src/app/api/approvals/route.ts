@@ -149,11 +149,12 @@ export async function POST(request: NextRequest) {
       documentId, 
       projectId, 
       assigneeIds, 
-      priority, 
+      priority,
       dueDate,
       requireAllApprovals,
       autoPublishOnApproval,
-      roles 
+      roles,
+      data
     } = body
 
     // Если согласование привязано к проекту, проверяем доступ
@@ -175,6 +176,7 @@ export async function POST(request: NextRequest) {
         dueDate: dueDate ? new Date(dueDate) : null,
         requireAllApprovals: requireAllApprovals || false,
         autoPublishOnApproval: autoPublishOnApproval !== undefined ? autoPublishOnApproval : true,
+        ...(data && typeof data === 'object' ? { data } : {}),
         creatorId: user.id,
         companyId: user.companyId,
         updatedAt: new Date(),

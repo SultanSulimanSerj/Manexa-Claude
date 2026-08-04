@@ -120,7 +120,19 @@ export default function ApprovalsPage() {
     projectId: '',
     documentId: '',
     assigneeIds: [] as string[],
-    roles: {} as Record<string, string>
+    roles: {} as Record<string, string>,
+    // 6a — тип заявки и поля, зависящие от типа (уходят в Approval.data)
+    kind: 'material' as 'material' | 'installation' | 'works' | 'document',
+    itemName: '',
+    manufacturer: '',
+    quantity: '',
+    unitPrice: '',
+    amount: '',
+    section: '',
+    floors: '',
+    axes: '',
+    node: '',
+    volume: '',
   })
   const [createFormFiles, setCreateFormFiles] = useState<File[]>([])
   const [uploadingCreateFiles, setUploadingCreateFiles] = useState(false)
@@ -142,6 +154,7 @@ export default function ApprovalsPage() {
       setCreateForm((prev) => ({
         ...prev,
         type: 'DOCUMENT',
+        kind: 'document',
         documentId,
         title: title ? `Согласование: ${title}` : prev.title,
       }))
@@ -228,16 +241,45 @@ export default function ApprovalsPage() {
     }
   }
 
+  // 6a — тип заявки → legacy-enum (для совместимости) + собираем data JSON
+  const KIND_TO_TYPE: Record<string, string> = { material: 'RESOURCE', installation: 'GENERAL', works: 'GENERAL', document: 'DOCUMENT' }
+  const buildApprovalData = (f: typeof createForm) => {
+    const num = (v: string) => {
+      const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.'))
+      return isNaN(n) ? undefined : n
+    }
+    const data: Record<string, any> = { kind: f.kind }
+    if (f.itemName) data.itemName = f.itemName
+    if (f.manufacturer) data.manufacturer = f.manufacturer
+    if (f.quantity) data.quantity = f.quantity
+    if (num(f.unitPrice) != null) data.unitPrice = num(f.unitPrice)
+    if (num(f.amount) != null) data.amount = num(f.amount)
+    if (f.section) data.section = f.section
+    if (f.floors) data.floors = f.floors
+    if (f.axes) data.axes = f.axes
+    if (f.node) data.node = f.node
+    if (f.volume) data.volume = f.volume
+    return data
+  }
+
   const handleCreateApproval = async (e: React.FormEvent) => {
     e.preventDefault()
     setUploadingCreateFiles(true)
     try {
+      const payload = {
+        ...createForm,
+        title: createForm.title || createForm.itemName,
+        type: KIND_TO_TYPE[createForm.kind] || 'GENERAL',
+        // параллельная модель: заявка приходит всем сразу, ждём согласия всех
+        requireAllApprovals: true,
+        data: buildApprovalData(createForm),
+      }
       const response = await fetch('/api/approvals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(createForm)
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -269,7 +311,18 @@ export default function ApprovalsPage() {
           projectId: '',
           documentId: '',
           assigneeIds: [],
-          roles: {}
+          roles: {},
+          kind: 'material',
+          itemName: '',
+          manufacturer: '',
+          quantity: '',
+          unitPrice: '',
+          amount: '',
+          section: '',
+          floors: '',
+          axes: '',
+          node: '',
+          volume: '',
         })
         setCreateFormFiles([])
       }
@@ -912,259 +965,238 @@ export default function ApprovalsPage() {
 
         {/* Create Approval Modal */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Создать согласование</DialogTitle>
-              <DialogDescription>
-                Создайте новое согласование для документа или проекта
-              </DialogDescription>
-            </DialogHeader>
-            <div>
-                <form onSubmit={handleCreateApproval} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DialogContent className="max-w-[600px] gap-0 overflow-hidden p-0">
+            <DialogTitle className="sr-only">Новая заявка на согласование</DialogTitle>
+            {(() => {
+              const f = createForm
+              const set = (patch: Partial<typeof createForm>) => setCreateForm({ ...f, ...patch })
+              const fieldCls = 'w-full rounded-[9px] border border-neutral-200 px-3 py-2.5 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20'
+              const labelCls = 'text-[13px] font-medium text-neutral-700'
+              const KINDS: { k: 'material' | 'installation' | 'works' | 'document'; label: string; Icon: any }[] = [
+                { k: 'material', label: 'Материал', Icon: Package },
+                { k: 'installation', label: 'Монтаж', Icon: Wrench },
+                { k: 'works', label: 'Работы', Icon: Wrench },
+                { k: 'document', label: 'Документ', Icon: FileText },
+              ]
+              const nameLabel =
+                f.kind === 'material' ? 'Наименование материала' : f.kind === 'installation' ? 'Что монтируем' : f.kind === 'works' ? 'Вид работ' : 'Название документа'
+              const selectedUsers = users.filter((u) => f.assigneeIds.includes(u.id))
+              const restUsers = users.filter((u) => !f.assigneeIds.includes(u.id))
+              return (
+                <form onSubmit={handleCreateApproval} className="flex max-h-[88vh] flex-col">
+                  <div className="border-b border-neutral-100 px-6 py-4">
+                    <div className="text-[17px] font-bold text-neutral-900">Новая заявка на согласование</div>
+                  </div>
+
+                  <div className="flex flex-col gap-[18px] overflow-y-auto px-6 py-[22px]">
+                    {/* Шаг 1: тип */}
                     <div>
-                      <Label htmlFor="title">Название</Label>
-                      <Input
-                        id="title"
-                        value={createForm.title}
-                        onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                        placeholder="Введите название согласования"
+                      <label className={`mb-2 block ${labelCls}`}>Что согласуем</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {KINDS.map(({ k, label, Icon }) => {
+                          const active = f.kind === k
+                          return (
+                            <button
+                              key={k}
+                              type="button"
+                              onClick={() => set({ kind: k })}
+                              className={`flex flex-col items-center gap-2 rounded-[10px] border px-2.5 py-3 transition-colors ${
+                                active ? 'border-[1.5px] border-blue-600 bg-blue-50' : 'border-neutral-200 hover:bg-neutral-50'
+                              }`}
+                            >
+                              <Icon className={`h-5 w-5 ${active ? 'text-blue-700' : 'text-neutral-400'}`} strokeWidth={1.8} />
+                              <span className={`text-[12px] ${active ? 'font-semibold text-blue-800' : 'font-medium text-neutral-500'}`}>{label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-neutral-100" />
+
+                    <div className="-my-1 flex items-center gap-2">
+                      <span className="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-800">
+                        Поля для «{KINDS.find((x) => x.k === f.kind)?.label}»
+                      </span>
+                      <span className="text-[11.5px] text-neutral-400">меняются в зависимости от типа</span>
+                    </div>
+
+                    {/* Наименование */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelCls}>{nameLabel} *</label>
+                      <input
+                        className={fieldCls}
+                        value={f.itemName}
+                        onChange={(e) => set({ itemName: e.target.value })}
+                        placeholder={nameLabel}
                         required
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="type">Тип согласования</Label>
-                      <select
-                        id="type"
-                        value={createForm.type}
-                        onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="DOCUMENT">Документ</option>
-                        <option value="BUDGET">Бюджет</option>
-                        <option value="TIMELINE">Сроки</option>
-                        <option value="CONTRACT">Договор</option>
-                        <option value="RESOURCE">Ресурсы</option>
-                        <option value="GENERAL">Общее</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="priority">Приоритет</Label>
-                      <select
-                        id="priority"
-                        value={createForm.priority}
-                        onChange={(e) => setCreateForm({ ...createForm, priority: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="LOW">Низкий</option>
-                        <option value="MEDIUM">Средний</option>
-                        <option value="HIGH">Высокий</option>
-                        <option value="URGENT">Срочный</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="dueDate">Срок выполнения</Label>
-                      <Input
-                        id="dueDate"
-                        type="datetime-local"
-                        value={createForm.dueDate}
-                        onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description">Описание</Label>
-                    <textarea
-                      id="description"
-                      value={createForm.description}
-                      onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                      placeholder="Подробное описание согласования"
-                      className="w-full p-2 border border-gray-300 rounded-md h-24"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="project">Проект (опционально)</Label>
-                      <select
-                        id="project"
-                        value={createForm.projectId}
-                        onChange={(e) => {
-                          const projectId = e.target.value
-                          const currentDoc = documents.find(d => d.id === createForm.documentId)
-                          const docBelongsToProject = currentDoc && (currentDoc.projectId === projectId || currentDoc.project?.id === projectId)
-                          setCreateForm({
-                            ...createForm,
-                            projectId,
-                            documentId: projectId && docBelongsToProject ? createForm.documentId : ''
-                          })
-                        }}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="">Выберите проект</option>
-                        {projects.map(project => (
-                          <option key={project.id} value={project.id}>{project.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="document">Документ (опционально)</Label>
-                      <select
-                        id="document"
-                        value={createForm.documentId}
-                        onChange={(e) => setCreateForm({ ...createForm, documentId: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        disabled={!createForm.projectId}
-                      >
-                        <option value="">
-                          {createForm.projectId ? 'Выберите документ проекта' : 'Сначала выберите проект'}
-                        </option>
-                        {documents
-                          .filter(doc => (doc.projectId ?? doc.project?.id) === createForm.projectId)
-                          .map(doc => (
-                            <option key={doc.id} value={doc.id}>{doc.title}</option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={createForm.requireAllApprovals}
-                        onChange={(e) => setCreateForm({ ...createForm, requireAllApprovals: e.target.checked })}
-                      />
-                      <span className="text-sm">Требуется согласие всех</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={createForm.autoPublishOnApproval}
-                        onChange={(e) => setCreateForm({ ...createForm, autoPublishOnApproval: e.target.checked })}
-                      />
-                      <span className="text-sm">Автопубликация при одобрении</span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <Label>Участники согласования</Label>
-                    <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
-                      {users.map(user => (
-                        <div key={user.id} className="flex items-center justify-between">
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={createForm.assigneeIds.includes(user.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setCreateForm({
-                                    ...createForm,
-                                    assigneeIds: [...createForm.assigneeIds, user.id],
-                                    roles: { ...createForm.roles, [user.id]: 'APPROVER' }
-                                  })
-                                } else {
-                                  setCreateForm({
-                                    ...createForm,
-                                    assigneeIds: createForm.assigneeIds.filter(id => id !== user.id),
-                                    roles: { ...createForm.roles, [user.id]: undefined } as Record<string, string>
-                                  })
-                                }
-                              }}
-                            />
-                            <span className="text-sm">{user.name} ({user.email})</span>
-                          </label>
-                          {createForm.assigneeIds.includes(user.id) && (
-                            <select
-                              value={createForm.roles[user.id] || 'APPROVER'}
-                              onChange={(e) => setCreateForm({
-                                ...createForm,
-                                roles: { ...createForm.roles, [user.id]: e.target.value }
-                              })}
-                              className="text-xs p-1 border border-gray-300 rounded"
-                            >
-                              <option value="APPROVER">Согласующий</option>
-                              <option value="REVIEWER">Рецензент</option>
-                              <option value="OBSERVER">Наблюдатель</option>
-                            </select>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Вложения (опционально)</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                      <div className="text-center">
-                        <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600 mb-2">
-                          Перетащите файлы сюда или нажмите для выбора
-                        </p>
-                        <input
-                          type="file"
-                          multiple
-                          onChange={handleCreateFormFileUpload}
-                          className="hidden"
-                          id="create-file-upload"
-                        />
-                        <label
-                          htmlFor="create-file-upload"
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
-                        >
-                          Выбрать файлы
-                        </label>
-                      </div>
-                      
-                      {createFormFiles.length > 0 && (
-                        <div className="mt-4">
-                          <p className="text-sm font-medium text-gray-700 mb-2">Выбранные файлы:</p>
-                          <div className="space-y-2">
-                            {createFormFiles.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                <div className="flex items-center space-x-2">
-                                  <Paperclip className="h-4 w-4 text-gray-500" />
-                                  <span className="text-sm text-gray-700">{file.name}</span>
-                                  <span className="text-xs text-gray-500">
-                                    ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveCreateFormFile(index)}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
+                    {/* Строка: производитель/узел + проект */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {f.kind === 'material' && (
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Производитель</label>
+                          <input className={fieldCls} value={f.manufacturer} onChange={(e) => set({ manufacturer: e.target.value })} placeholder="Напр. Knauf" />
                         </div>
                       )}
+                      {f.kind === 'installation' && (
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Узел / место монтажа</label>
+                          <input className={fieldCls} value={f.node} onChange={(e) => set({ node: e.target.value })} placeholder="Узел, отметка" />
+                        </div>
+                      )}
+                      {f.kind === 'works' && (
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Участок</label>
+                          <input className={fieldCls} value={f.section} onChange={(e) => set({ section: e.target.value })} placeholder="Участок работ" />
+                        </div>
+                      )}
+                      {f.kind === 'document' && (
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Документ</label>
+                          <select
+                            className={fieldCls}
+                            value={f.documentId}
+                            onChange={(e) => set({ documentId: e.target.value })}
+                            disabled={!f.projectId}
+                          >
+                            <option value="">{f.projectId ? 'Выберите документ' : 'Сначала проект'}</option>
+                            {documents.filter((d) => (d.projectId ?? d.project?.id) === f.projectId).map((d) => (
+                              <option key={d.id} value={d.id}>{d.title}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelCls}>Проект (объект)</label>
+                        <select className={fieldCls} value={f.projectId} onChange={(e) => set({ projectId: e.target.value, documentId: '' })}>
+                          <option value="">Выберите проект</option>
+                          {projects.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Кол-во / Цена / Сумма (материал) или Объём/Сумма */}
+                    {f.kind === 'material' ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Кол-во</label>
+                          <input className={fieldCls} value={f.quantity} onChange={(e) => set({ quantity: e.target.value })} placeholder="540 мешков" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Цена за ед.</label>
+                          <input className={fieldCls} value={f.unitPrice} onChange={(e) => set({ unitPrice: e.target.value })} placeholder="1 185" inputMode="decimal" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Сумма</label>
+                          <input className={fieldCls} value={f.amount} onChange={(e) => set({ amount: e.target.value })} placeholder="640 000" inputMode="decimal" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {(f.kind === 'installation' || f.kind === 'works') && (
+                          <div className="flex flex-col gap-1.5">
+                            <label className={labelCls}>Объём</label>
+                            <input className={fieldCls} value={f.volume} onChange={(e) => set({ volume: e.target.value })} placeholder="Объём / кол-во" />
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>{f.kind === 'document' ? 'Сумма договора' : 'Сумма'}</label>
+                          <input className={fieldCls} value={f.amount} onChange={(e) => set({ amount: e.target.value })} placeholder="Сумма, ₽" inputMode="decimal" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Место применения (материал/монтаж) */}
+                    {(f.kind === 'material' || f.kind === 'installation') && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelCls}>Место применения</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input className={fieldCls} value={f.section} onChange={(e) => set({ section: e.target.value })} placeholder="Секция" />
+                          <input className={fieldCls} value={f.floors} onChange={(e) => set({ floors: e.target.value })} placeholder="Этажи 3–7" />
+                          <input className={fieldCls} value={f.axes} onChange={(e) => set({ axes: e.target.value })} placeholder="Оси А–Д" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Приложения */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelCls}>Приложения</label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {createFormFiles.map((file, i) => (
+                          <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-100 px-2.5 py-1.5 text-[12px] text-neutral-700">
+                            {file.name}
+                            <button type="button" onClick={() => handleRemoveCreateFormFile(i)} className="text-neutral-400 hover:text-red-600">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <input type="file" multiple onChange={handleCreateFormFileUpload} className="hidden" id="create-file-upload" />
+                        <label htmlFor="create-file-upload" className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-neutral-300 px-2.5 py-1.5 text-[12px] text-neutral-500 hover:bg-neutral-50">
+                          <Plus className="h-3.5 w-3.5" /> Добавить
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Кто согласует (параллельно) */}
+                    <div className="flex flex-col gap-2">
+                      <label className={labelCls}>Кто согласует</label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedUsers.map((u) => (
+                          <span key={u.id} className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-100 py-1 pl-1 pr-2 text-[12px] text-neutral-700">
+                            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-neutral-800 text-[9px] font-semibold text-white">{initials(u.name)}</span>
+                            {u.name}
+                            <button
+                              type="button"
+                              onClick={() => set({ assigneeIds: f.assigneeIds.filter((id) => id !== u.id) })}
+                              className="text-neutral-400 hover:text-red-600"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                        {restUsers.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => { if (e.target.value) set({ assigneeIds: [...f.assigneeIds, e.target.value] }) }}
+                            className="rounded-lg border border-dashed border-neutral-300 px-2.5 py-1.5 text-[12px] text-neutral-500 focus:outline-none"
+                          >
+                            <option value="">+ добавить</option>
+                            {restUsers.map((u) => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[11.5px] text-neutral-400">
+                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-[4px] bg-blue-600">
+                          <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                        </span>
+                        Заявка придёт всем сразу · согласуют параллельно, порядок не важен
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowCreateModal(false)}
-                    >
-                      Отмена
-                    </Button>
-                    <Button type="submit" disabled={uploadingCreateFiles}>
-                      {uploadingCreateFiles ? 'Создание...' : 'Создать согласование'}
-                    </Button>
+                  {/* футер */}
+                  <div className="flex items-center justify-between border-t border-neutral-100 px-6 py-4">
+                    <span className="text-[12px] text-neutral-400">Заявку получат все согласующие сразу</span>
+                    <div className="flex gap-2.5">
+                      <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Отмена</Button>
+                      <Button type="submit" disabled={uploadingCreateFiles || f.assigneeIds.length === 0} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
+                        {uploadingCreateFiles ? 'Отправка…' : 'Отправить на согласование'}
+                      </Button>
+                    </div>
                   </div>
                 </form>
-            </div>
+              )
+            })()}
           </DialogContent>
         </Dialog>
+
 
         {/* Approval Details Modal */}
         {showDetailsModal && selectedApproval && (
