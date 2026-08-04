@@ -1133,13 +1133,36 @@ export default function ApprovalsPage() {
                 }
                 const badge = STATUS[st]
                 const secLabel = 'mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-neutral-400'
-                const cell = (label: string, value: any, valueCls = '') => (
-                  <div className="border-b border-neutral-100 px-[15px] py-[11px] last:border-b-0 [&:nth-child(odd)]:border-r">
-                    <div className="text-[11px] text-neutral-400">{label}</div>
-                    <div className={`mt-0.5 text-[13px] font-medium text-neutral-900 tabular-nums ${valueCls}`}>{value}</div>
-                  </div>
-                )
-                const hasPlace = d.section || d.floors || d.axes || d.area
+                // Ячейки блока «Что согласуем» зависят от типа заявки
+                const money = amount != null ? fmtMoney(amount) : '—'
+                const matchCell: [string, any, string] = [
+                  'По проекту',
+                  d.matchesProject === true ? 'Соответствует ✓' : d.matchesProject === false ? 'Не соответствует' : '—',
+                  d.matchesProject === true ? 'text-green-700' : d.matchesProject === false ? 'text-red-600' : '',
+                ]
+                const whatCells: [string, any, string?][] =
+                  kind === 'material'
+                    ? [
+                        ['Производитель', d.manufacturer || '—', ''],
+                        matchCell,
+                        ['Кол-во', d.quantity || '—', ''],
+                        ['Сумма закупки', money, 'font-semibold'],
+                      ]
+                    : kind === 'installation'
+                    ? [
+                        ['Узел / место', d.node || '—', ''],
+                        ['Объём', d.volume || '—', ''],
+                        ['Сумма', money, 'font-semibold'],
+                      ]
+                    : kind === 'works'
+                    ? [
+                        ['Участок', d.section || '—', ''],
+                        ['Объём', d.volume || '—', ''],
+                        ['Сумма', money, 'font-semibold'],
+                      ]
+                    : [['Сумма договора', money, 'font-semibold']]
+                // «Место применения» — только для материала и монтажа
+                const showPlace = (kind === 'material' || kind === 'installation') && (d.section || d.floors || d.axes || d.area)
                 return (
                   <div className="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
                     {/* header */}
@@ -1191,15 +1214,18 @@ export default function ApprovalsPage() {
                                 <div className="truncate text-[12px] text-neutral-400">{d.itemSubtitle || KIND_LABEL[kind]}</div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2">
-                              {cell('Производитель', d.manufacturer || '—')}
-                              {cell(
-                                'По проекту',
-                                d.matchesProject === true ? 'Соответствует ✓' : d.matchesProject === false ? 'Не соответствует' : '—',
-                                d.matchesProject === true ? 'text-green-700' : d.matchesProject === false ? 'text-red-600' : '',
-                              )}
-                              {cell('Кол-во', d.quantity || '—')}
-                              {cell('Сумма закупки', amount != null ? fmtMoney(amount) : '—', 'font-semibold')}
+                            <div className={whatCells.length > 1 ? 'grid grid-cols-2' : ''}>
+                              {whatCells.map(([label, value, cls], i) => (
+                                <div
+                                  key={i}
+                                  className={`px-[15px] py-[11px] ${
+                                    whatCells.length > 1 ? 'border-b border-neutral-100 last:border-b-0 [&:nth-child(odd)]:border-r' : ''
+                                  }`}
+                                >
+                                  <div className="text-[11px] text-neutral-400">{label}</div>
+                                  <div className={`mt-0.5 text-[13px] font-medium text-neutral-900 tabular-nums ${cls || ''}`}>{value}</div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                           {d.unitPrice != null && d.estimatePrice != null && (
@@ -1220,7 +1246,7 @@ export default function ApprovalsPage() {
                         </section>
 
                         {/* Место применения */}
-                        {hasPlace && (
+                        {showPlace && (
                           <section>
                             <div className={secLabel}>Место применения</div>
                             <div className="flex flex-col gap-2.5">
