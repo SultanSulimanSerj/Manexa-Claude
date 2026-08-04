@@ -107,10 +107,14 @@ export default function EstimateEditorPage() {
   const itemProfit = (it: Item) => itemTotal(it) - itemCost(it)
   const subtotalNoVat = items.reduce((s, it) => s + itemTotal(it), 0)
   const totalCost = items.reduce((s, it) => s + itemCost(it), 0)
-  const profit = subtotalNoVat - totalCost
   const vatAmount = vatEnabled ? items.reduce((s, it) => s + itemTotal(it) * ((it.vatRate ?? vatRate) / 100), 0) : 0
   const totalWithVat = subtotalNoVat + vatAmount
-  const margin = subtotalNoVat > 0 ? (profit / subtotalNoVat) * 100 : 0
+  // Прибыль/маржа — только по позициям с заданной себестоимостью
+  const withCost = items.filter((it) => num(it.costPrice) > 0)
+  const revenueWithCost = withCost.reduce((s, it) => s + itemTotal(it), 0)
+  const profit = withCost.reduce((s, it) => s + itemProfit(it), 0)
+  const margin = revenueWithCost > 0 ? (profit / revenueWithCost) * 100 : 0
+  const noCostCount = items.length - withCost.length
 
   // группировка по разделам (категориям), порядок появления
   const sections: string[] = []
@@ -336,6 +340,12 @@ export default function EstimateEditorPage() {
               <span>Прибыль по смете</span>
               <span className="tabular-nums">{profit >= 0 ? '+' : '−'}{fmt(Math.abs(profit))} · {margin.toFixed(1).replace('.', ',')}%</span>
             </div>
+            {noCostCount > 0 && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11.5px] text-amber-700">
+                <span>⚠</span>
+                <span>{noCostCount} {noCostCount === 1 ? 'позиция' : noCostCount < 5 ? 'позиции' : 'позиций'} без себестоимости не учтены в прибыли и марже.</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
