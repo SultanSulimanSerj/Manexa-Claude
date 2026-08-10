@@ -235,15 +235,22 @@ export default function Navigation() {
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto px-4 pt-6">
             <div className="mb-6 px-2">
-              <Image
-                src="/manexa-logo.png"
-                alt="Manexa"
-                width={120}
-                height={0}
-                style={{ height: 'auto' }}
-                className="mb-1.5"
-                priority
-              />
+              <Link
+                href="/"
+                onClick={() => setIsOpen(false)}
+                aria-label="На главную"
+                className="inline-block rounded-lg transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Image
+                  src="/manexa-logo.png"
+                  alt="Manexa"
+                  width={120}
+                  height={0}
+                  style={{ height: 'auto' }}
+                  className="mb-1.5"
+                  priority
+                />
+              </Link>
               <p className="text-xs text-neutral-500">Управление проектами</p>
             </div>
 
