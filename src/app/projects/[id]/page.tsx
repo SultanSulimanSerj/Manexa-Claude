@@ -140,7 +140,7 @@ export default function ProjectDetailPage() {
   const [estimatesTotal, setEstimatesTotal] = useState<number>(0)
   const [estimatesCount, setEstimatesCount] = useState<number>(0)
   const [stages, setStages] = useState<any[]>([])
-  const [recentFinances, setRecentFinances] = useState<any[]>([])
+  const [overview, setOverview] = useState<{ counts: { tasksOverdue: number; approvalsPending: number; materialsMovements: number }; activity: any[] } | null>(null)
   const [workStagesStats, setWorkStagesStats] = useState<{
     total: number
     completed: number
@@ -207,6 +207,7 @@ export default function ProjectDetailPage() {
       fetchFinanceStats()
       fetchEstimatesTotal()
       fetchWorkStagesStats()
+      fetchOverview()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params?.id])
@@ -266,11 +267,6 @@ export default function ProjectDetailPage() {
       if (response.ok) {
         const data = await response.json()
         const finances = data.finances || []
-        // Недавние операции для ленты активности (5 последних по дате)
-        const recent = [...finances]
-          .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
-          .slice(0, 5)
-        setRecentFinances(recent)
 
         const invoicedTotal = finances.filter((f: any) => f.type === 'INCOME').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
         const received = finances.filter((f: any) => f.type === 'INCOME' && f.isPaid).reduce((sum: number, f: any) => sum + Number(f.amount), 0)
@@ -318,6 +314,15 @@ export default function ProjectDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching estimates total:', error)
+    }
+  }
+
+  const fetchOverview = async () => {
+    try {
+      const response = await fetch(`/api/projects/${params?.id}/overview`)
+      if (response.ok) setOverview(await response.json())
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -849,7 +854,7 @@ export default function ProjectDetailPage() {
               { label: 'Задачи', href: `/tasks?projectId=${project.id}`, count: project._count.tasks || null },
               { label: 'Материалы', href: `/materials`, count: null as number | null },
               { label: 'Документы', href: `/documents?projectId=${project.id}`, count: project._count.documents || null },
-              { label: 'Согласования', href: `/approvals?projectId=${project.id}`, count: null as number | null },
+              { label: 'Согласования', href: `/approvals?projectId=${project.id}`, count: overview?.counts.approvalsPending || null },
             ]).map((t) => (
               <Link
                 key={t.label}
@@ -964,26 +969,37 @@ export default function ProjectDetailPage() {
               })()}
             </div>
 
-            {/* Последняя активность */}
-            {hasPermission('canViewFinances') && recentFinances.length > 0 && (
-            <div className="rounded-xl border border-neutral-200 bg-white p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold text-neutral-900">Последняя активность</h2>
-                <Link href={`/finance?projectId=${project.id}`} className="text-[13px] font-medium text-blue-600 hover:underline">Все операции →</Link>
-              </div>
-              <div className="space-y-3">
-                {recentFinances.map((f:any)=>{ const income = f.type==='INCOME'; return (
-                  <div key={f.id} className="flex items-start gap-3">
-                    <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${income ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>{income ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] text-neutral-800">{income ? 'Поступление' : 'Расход'}{f.title||f.description ? `: ${f.title||f.description}` : ''} <span className={`font-semibold tabular-nums ${income ? 'text-green-700' : 'text-neutral-900'}`}>{income ? '+' : '−'}{Number(f.amount).toLocaleString('ru-RU')} ₽</span></div>
-                      <div className="text-[12px] tabular-nums text-neutral-400">{new Date(f.date || f.createdAt).toLocaleDateString('ru-RU')}</div>
-                    </div>
+            {/* Последняя активность (единый фид) */}
+            {(() => {
+              const acts = (overview?.activity || []).filter((a: any) => a.kind !== 'finance' || hasPermission('canViewFinances'))
+              if (acts.length === 0) return null
+              const iconFor = (a: any) => {
+                if (a.kind === 'document') return { icon: <FileText className="h-3.5 w-3.5" />, cls: 'bg-neutral-100 text-neutral-500' }
+                if (a.kind === 'approval') return { icon: <CheckCircle2 className="h-3.5 w-3.5" />, cls: a.positive ? 'bg-green-50 text-green-600' : 'bg-indigo-50 text-indigo-600' }
+                if (a.kind === 'material') return { icon: <TrendingDown className="h-3.5 w-3.5" />, cls: 'bg-red-50 text-red-600' }
+                return a.positive ? { icon: <TrendingUp className="h-3.5 w-3.5" />, cls: 'bg-green-50 text-green-600' } : { icon: <TrendingDown className="h-3.5 w-3.5" />, cls: 'bg-red-50 text-red-600' }
+              }
+              const hrefFor = (a: any) => a.kind === 'document' ? `/documents?projectId=${project.id}` : a.kind === 'approval' ? `/approvals?projectId=${project.id}` : a.kind === 'material' ? '/materials' : `/finance?projectId=${project.id}`
+              return (
+                <div className="rounded-xl border border-neutral-200 bg-white p-5">
+                  <h2 className="mb-3 text-[15px] font-semibold text-neutral-900">Последняя активность</h2>
+                  <div className="space-y-3">
+                    {acts.map((a: any) => { const ic = iconFor(a); return (
+                      <Link key={a.id} href={hrefFor(a)} className="flex items-start gap-3 rounded-lg -mx-1 px-1 py-0.5 hover:bg-neutral-50">
+                        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${ic.cls}`}>{ic.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] text-neutral-800">
+                            {a.actor && <span className="font-semibold text-neutral-900">{a.actor} </span>}{a.text}
+                            {a.amount != null && <span className={`font-semibold tabular-nums ${a.positive ? 'text-green-700' : 'text-neutral-900'}`}> {a.positive ? '+' : '−'}{Number(a.amount).toLocaleString('ru-RU')} ₽</span>}
+                          </div>
+                          <div className="text-[12px] tabular-nums text-neutral-400">{new Date(a.date).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      </Link>
+                    )})}
                   </div>
-                )})}
-              </div>
-            </div>
-            )}
+                </div>
+              )
+            })()}
 
             {project.description && (
             <div className="rounded-xl border border-neutral-200 bg-white p-5">
@@ -1014,16 +1030,20 @@ export default function ProjectDetailPage() {
             {/* Разделы */}
             <div className="rounded-xl border border-neutral-200 bg-white p-2">
               <div className="px-3 pb-1 pt-2 text-[15px] font-semibold text-neutral-900">Разделы</div>
-              {[
-                { label:'Сметы', href:`/projects/${project.id}/estimates`, val: (estimatesCount || 0) as number | null },
-                { label:'Задачи', href:`/tasks?projectId=${project.id}`, val: project._count.tasks as number | null },
-                { label:'Документы', href:`/documents?projectId=${project.id}`, val: project._count.documents as number | null },
-                { label:'Материалы', href:`/materials`, val: null as number | null },
-                { label:'Согласования', href:`/approvals?projectId=${project.id}`, val: null as number | null },
-              ].map((r)=>(
+              {([
+                { label:'Сметы', href:`/projects/${project.id}/estimates`, val: (estimatesCount || 0) as number | null, badge: null as { text: string; cls: string } | null },
+                { label:'Задачи', href:`/tasks?projectId=${project.id}`, val: project._count.tasks as number | null, badge: overview?.counts.tasksOverdue ? { text: `${overview.counts.tasksOverdue} просрочено`, cls: 'border-amber-200 bg-amber-50 text-amber-700' } : null },
+                { label:'Документы', href:`/documents?projectId=${project.id}`, val: project._count.documents as number | null, badge: null as { text: string; cls: string } | null },
+                { label:'Материалы', href:`/materials`, val: null as number | null, badge: null as { text: string; cls: string } | null },
+                { label:'Согласования', href:`/approvals?projectId=${project.id}`, val: null as number | null, badge: overview?.counts.approvalsPending ? { text: `${overview.counts.approvalsPending} ждут`, cls: 'border-indigo-200 bg-indigo-50 text-indigo-700' } : null },
+              ]).map((r)=>(
                 <Link key={r.label} href={r.href} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-neutral-50">
                   <span className="text-[13.5px] text-neutral-700">{r.label}</span>
-                  <span className="flex items-center gap-2 text-neutral-400">{r.val!=null && <span className="text-[13px] font-medium tabular-nums text-neutral-700">{r.val}</span>}<ChevronRight className="h-4 w-4" /></span>
+                  <span className="flex items-center gap-2 text-neutral-400">
+                    {r.badge && <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${r.badge.cls}`}>{r.badge.text}</span>}
+                    {r.val!=null && <span className="text-[13px] font-medium tabular-nums text-neutral-700">{r.val}</span>}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
                 </Link>
               ))}
             </div>
