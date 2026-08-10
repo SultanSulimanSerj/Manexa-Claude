@@ -761,10 +761,11 @@ export default function ProjectDetailPage() {
     }
     return m[s] || m.NOT_STARTED
   }
-  const fmtMln = (n: number) => {
-    if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' млн'
-    if (Math.abs(n) >= 1000) return new Intl.NumberFormat('ru-RU').format(Math.round(n))
-    return String(Math.round(n))
+  // Компактная сумма с корректной единицей (₽ / млн ₽) — единица считается сама, не хардкодить снаружи
+  const money = (n: number) => {
+    const a = Math.abs(n)
+    if (a >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' млн ₽'
+    return new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽'
   }
   const avColorHex = (id: string) => ['#1c7fd6', '#0d9488', '#b45309', '#7c3aed', '#c2410c', '#0369a1'][Math.abs((id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % 6]
   const initials = (name?: string) => { const p = (name || '?').trim().split(/\s+/); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?' }
@@ -846,7 +847,7 @@ export default function ProjectDetailPage() {
               { label: 'Сметы', href: `/projects/${project.id}/estimates`, count: estimatesCount || null },
               ...(hasPermission('canViewFinances') ? [{ label: 'Финансы', href: `/finance?projectId=${project.id}`, count: null as number | null }] : []),
               { label: 'Задачи', href: `/tasks?projectId=${project.id}`, count: project._count.tasks || null },
-              { label: 'Материалы', href: `/materials?projectId=${project.id}`, count: null as number | null },
+              { label: 'Материалы', href: `/materials`, count: null as number | null },
               { label: 'Документы', href: `/documents?projectId=${project.id}`, count: project._count.documents || null },
               { label: 'Согласования', href: `/approvals?projectId=${project.id}`, count: null as number | null },
             ]).map((t) => (
@@ -882,7 +883,7 @@ export default function ProjectDetailPage() {
           <div className="rounded-xl border border-neutral-200 bg-white p-4">
             <div className="text-[12.5px] text-neutral-500">Бюджет · факт / план</div>
             <div className="mt-1 text-[22px] font-bold tabular-nums text-neutral-900">
-              {fmtMln(financeStats?.totalExpenses ?? 0)} <span className="text-[14px] font-medium text-neutral-400">/ {project.budget ? fmtMln(Number(project.budget)) : '—'} млн ₽</span>
+              {money(financeStats?.totalExpenses ?? 0)} <span className="text-[14px] font-medium text-neutral-400">/ {project.budget ? money(Number(project.budget)) : '—'}</span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
               <div className="h-full rounded-full bg-green-600" style={{ width: `${project.budget ? Math.min(100, ((financeStats?.totalExpenses ?? 0) / Number(project.budget)) * 100) : 0}%` }} />
@@ -893,7 +894,7 @@ export default function ProjectDetailPage() {
           <div className="rounded-xl border border-neutral-200 bg-white p-4">
             <div className="text-[12.5px] text-neutral-500">Прибыль · маржа</div>
             <div className={`mt-1 text-[22px] font-bold tabular-nums ${(financeStats?.profit ?? 0) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-              {(financeStats?.profit ?? 0) >= 0 ? '+' : '−'}{fmtMln(Math.abs(financeStats?.profit ?? 0))} млн ₽ <span className="text-[14px]">{(financeStats?.margin ?? 0).toFixed(1)}%</span>
+              {(financeStats?.profit ?? 0) >= 0 ? '+' : '−'}{money(Math.abs(financeStats?.profit ?? 0))} <span className="text-[14px]">{(financeStats?.margin ?? 0).toFixed(1)}%</span>
             </div>
             <div className="mt-1 text-[12px] text-neutral-400">по полученным платежам</div>
           </div>
@@ -1017,7 +1018,7 @@ export default function ProjectDetailPage() {
                 { label:'Сметы', href:`/projects/${project.id}/estimates`, val: (estimatesCount || 0) as number | null },
                 { label:'Задачи', href:`/tasks?projectId=${project.id}`, val: project._count.tasks as number | null },
                 { label:'Документы', href:`/documents?projectId=${project.id}`, val: project._count.documents as number | null },
-                { label:'Материалы', href:`/materials?projectId=${project.id}`, val: null as number | null },
+                { label:'Материалы', href:`/materials`, val: null as number | null },
                 { label:'Согласования', href:`/approvals?projectId=${project.id}`, val: null as number | null },
               ].map((r)=>(
                 <Link key={r.label} href={r.href} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-neutral-50">

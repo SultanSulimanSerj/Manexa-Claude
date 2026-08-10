@@ -10,6 +10,7 @@ import { Plus, X, XCircle, FileText, MessageSquare, Trash2, Search, ChevronDown,
 import { ErrorBanner } from '@/components/ui/error-banner'
 import PageHeader from '@/components/page-header'
 import { SkeletonList } from '@/components/ui/skeleton'
+import Link from 'next/link'
 
 // Обновленные интерфейсы с новыми полями
 interface Approval {
@@ -86,6 +87,7 @@ export default function ApprovalsPage() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string } | null>(null)
   // 4c — реестр
   const [segment, setSegment] = useState<'all' | 'mine' | 'inwork' | 'approved' | 'rejected'>('all')
+  const [projectFilter, setProjectFilter] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'material' | 'installation' | 'works' | 'document'>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -138,6 +140,9 @@ export default function ApprovalsPage() {
 
     // Открытие модалки создания из редактора документа: /approvals?create=1&documentId=...
     const params = new URLSearchParams(window.location.search)
+    // Фильтр по проекту, если открыто из карточки проекта: /approvals?projectId=...
+    const pid = params.get('projectId')
+    if (pid) setProjectFilter(pid)
     if (params.get('create') === '1') {
       const documentId = params.get('documentId') || ''
       const title = params.get('title') || ''
@@ -550,6 +555,8 @@ export default function ApprovalsPage() {
 
   const filteredApprovals = approvals
     .filter((a) => {
+      // проект (если открыто из карточки проекта)
+      if (projectFilter && a.project?.id !== projectFilter) return false
       // сегмент
       if (segment === 'mine' && !waitsForMe(a)) return false
       if (segment === 'inwork' && !(a.status === 'PENDING' && !waitsForMe(a))) return false
@@ -614,7 +621,12 @@ export default function ApprovalsPage() {
         {/* 4c — шапка реестра */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-xl font-bold text-neutral-900">Согласования</h1>
+            {projectFilter && (
+              <div className="text-[12px] text-neutral-400">
+                <Link href="/projects" className="hover:underline">Проекты</Link> · <Link href={`/projects/${projectFilter}`} className="hover:underline">{projects.find((p) => p.id === projectFilter)?.name || approvals.find((a) => a.project?.id === projectFilter)?.project?.name || 'проект'}</Link>
+              </div>
+            )}
+            <h1 className="text-xl font-bold text-neutral-900">Согласования{projectFilter ? ' по проекту' : ''}</h1>
             <p className="mt-0.5 text-[12.5px] text-neutral-400">
               {counts.all} всего · {counts.mine} ждут вас · {counts.inwork} в работе
             </p>

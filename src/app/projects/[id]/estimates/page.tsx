@@ -6,6 +6,7 @@ import Layout from '@/components/layout'
 import { SkeletonList } from '@/components/ui/skeleton'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { Plus, Search, MoreHorizontal } from 'lucide-react'
+import Link from 'next/link'
 
 interface EstimateItem { id: string }
 interface Estimate {
@@ -141,7 +142,9 @@ export default function EstimatesListPage() {
         {/* заголовок */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[12px] text-neutral-400">Проекты · {projectName || '—'}</div>
+            <div className="text-[12px] text-neutral-400">
+              <Link href="/projects" className="hover:underline">Проекты</Link> · <Link href={`/projects/${projectId}`} className="hover:underline">{projectName || '—'}</Link>
+            </div>
             <div className="mt-0.5 flex items-center gap-2 text-[22px] font-bold text-neutral-900">
               Сметы <span className="text-[16px] font-medium text-neutral-400">· {total}</span>
             </div>

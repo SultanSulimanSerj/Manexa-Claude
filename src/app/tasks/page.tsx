@@ -330,6 +330,11 @@ function TasksPageContent() {
         {/* шапка 8a */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
+            {currentProject && (
+              <div className="text-[12px] text-neutral-400">
+                <Link href="/projects" className="hover:underline">Проекты</Link> · <Link href={`/projects/${currentProject.id}`} className="hover:underline">{currentProject.name}</Link>
+              </div>
+            )}
             <div className="text-[20px] font-bold text-neutral-900">
               {currentProject ? `Задачи · ${currentProject.name}` : 'Задачи'}
             </div>
