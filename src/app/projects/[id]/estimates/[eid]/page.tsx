@@ -7,7 +7,7 @@ import { SkeletonList } from '@/components/ui/skeleton'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { toast } from '@/components/ui/use-toast'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus, Download, FileText, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Download, FileText, Trash2, GripVertical } from 'lucide-react'
 
 interface Item {
   id: string
@@ -51,6 +51,9 @@ export default function EstimateEditorPage() {
   const [error, setError] = useState<string | null>(null)
   // Общая prompt-модалка (замена window.prompt)
   const [promptDlg, setPromptDlg] = useState<{ open: boolean; title: string; placeholder?: string; value: string; onOk: (v: string) => void }>({ open: false, title: '', value: '', onOk: () => {} })
+  // Drag-and-drop перетаскивание позиций (тащим за ручку-грип)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; after: boolean } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -108,23 +111,38 @@ export default function EstimateEditorPage() {
     })
     setDirty(true)
   }
-  // Перемещение позиции вверх/вниз в пределах своего раздела
-  const moveItem = (id: string, dir: 'up' | 'down') => {
+  // Перетаскивание позиции на место targetId (before/after). Раздел меняется на раздел цели.
+  const dropOnItem = (targetId: string, after: boolean) => {
     setItems((prev) => {
-      const it = prev.find((x) => x.id === id)
-      if (!it) return prev
-      const sameCat = prev.filter((x) => x.category === it.category)
-      const pos = sameCat.findIndex((x) => x.id === id)
-      const target = sameCat[pos + (dir === 'up' ? -1 : 1)]
-      if (!target) return prev
-      const a = prev.findIndex((x) => x.id === id)
-      const b = prev.findIndex((x) => x.id === target.id)
-      const copy = [...prev]
-      ;[copy[a], copy[b]] = [copy[b], copy[a]]
-      return copy
+      if (!dragId || dragId === targetId) return prev
+      const from = prev.findIndex((x) => x.id === dragId)
+      const target = prev.find((x) => x.id === targetId)
+      if (from < 0 || !target) return prev
+      const moved: Item = { ...prev[from], category: target.category }
+      const without = prev.filter((x) => x.id !== dragId)
+      let ti = without.findIndex((x) => x.id === targetId)
+      if (after) ti += 1
+      without.splice(ti, 0, moved)
+      return without
     })
     setDirty(true)
   }
+  // Перетаскивание в конец раздела (drop на заголовок или пустую зону раздела)
+  const dropIntoSection = (category: string) => {
+    setItems((prev) => {
+      if (!dragId) return prev
+      const from = prev.findIndex((x) => x.id === dragId)
+      if (from < 0) return prev
+      const moved: Item = { ...prev[from], category }
+      const without = prev.filter((x) => x.id !== dragId)
+      let lastIdx = -1
+      without.forEach((it, i) => { if (it.category === category) lastIdx = i })
+      without.splice(lastIdx + 1, 0, moved)
+      return without
+    })
+    setDirty(true)
+  }
+  const endDrag = () => { setDragId(null); setDropTarget(null) }
   const addSection = () => {
     setPromptDlg({
       open: true,
@@ -310,7 +328,7 @@ export default function EstimateEditorPage() {
 
         {/* таблица позиций */}
         <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
-          <div className="grid grid-cols-[2.4fr_0.7fr_0.8fr_1fr_1fr_1fr_1fr_72px] items-center border-b border-neutral-200 bg-neutral-50 px-3 text-[11.5px] font-semibold uppercase tracking-wide text-neutral-400">
+          <div className="grid grid-cols-[2.4fr_0.7fr_0.8fr_1fr_1fr_1fr_1fr_36px] items-center border-b border-neutral-200 bg-neutral-50 px-3 text-[11.5px] font-semibold uppercase tracking-wide text-neutral-400">
             <div className="py-2.5 pl-2">Позиция</div>
             <div className="py-2.5">Ед.</div>
             <div className="py-2.5 text-right">Кол-во</div>
@@ -329,13 +347,39 @@ export default function EstimateEditorPage() {
               const secSum = secItems.reduce((s, it) => s + itemTotal(it), 0)
               return (
                 <div key={sec}>
-                  <div className="flex items-center justify-between border-t border-neutral-100 bg-blue-50/40 px-3 py-2">
+                  <div
+                    onDragOver={(e) => { if (dragId) e.preventDefault() }}
+                    onDrop={(e) => { if (dragId) { e.preventDefault(); dropIntoSection(sec); endDrag() } }}
+                    className="flex items-center justify-between border-t border-neutral-100 bg-blue-50/40 px-3 py-2"
+                  >
                     <span className="pl-2 text-[13px] font-semibold text-blue-800">{sec}</span>
                     <span className="text-[12px] font-medium tabular-nums text-neutral-500">{fmt(secSum)}</span>
                   </div>
-                  {secItems.map((it, si) => (
-                    <div key={it.id} className="grid grid-cols-[2.4fr_0.7fr_0.8fr_1fr_1fr_1fr_1fr_72px] items-center border-t border-neutral-100 px-3 hover:bg-neutral-50/60">
-                      <div className="py-1.5 pl-0">
+                  {secItems.map((it) => {
+                    const isDragged = dragId === it.id
+                    const over = dropTarget?.id === it.id ? dropTarget : null
+                    return (
+                    <div
+                      key={it.id}
+                      onDragOver={(e) => {
+                        if (!dragId || dragId === it.id) return
+                        e.preventDefault()
+                        const r = e.currentTarget.getBoundingClientRect()
+                        setDropTarget({ id: it.id, after: e.clientY > r.top + r.height / 2 })
+                      }}
+                      onDrop={(e) => { if (dragId) { e.preventDefault(); dropOnItem(it.id, over ? over.after : false); endDrag() } }}
+                      className={`grid grid-cols-[2.4fr_0.7fr_0.8fr_1fr_1fr_1fr_1fr_36px] items-center border-t border-neutral-100 px-3 hover:bg-neutral-50/60 ${isDragged ? 'opacity-40' : ''} ${over ? (over.after ? 'shadow-[inset_0_-2px_0_0_#2563eb]' : 'shadow-[inset_0_2px_0_0_#2563eb]') : ''}`}
+                    >
+                      <div className="flex items-center gap-1 py-1.5 pl-0">
+                        <span
+                          draggable
+                          onDragStart={(e) => { setDragId(it.id); e.dataTransfer.effectAllowed = 'move' }}
+                          onDragEnd={endDrag}
+                          title="Перетащить"
+                          className="shrink-0 cursor-grab text-neutral-300 hover:text-neutral-500 active:cursor-grabbing"
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </span>
                         <input value={it.name} onChange={(e) => patchItem(it.id, { name: e.target.value })} placeholder="Наименование" className={cellInput + ' text-left'} />
                       </div>
                       <div className="py-1.5">
@@ -350,27 +394,12 @@ export default function EstimateEditorPage() {
                       <div className={`py-1.5 pr-2 text-right text-[13px] font-semibold tabular-nums ${num(it.costPrice) === 0 ? 'text-neutral-300' : itemProfit(it) >= 0 ? 'text-green-700' : 'text-red-600'}`} title={num(it.costPrice) === 0 ? 'Себестоимость не задана' : ''}>
                         {num(it.costPrice) === 0 ? '—' : `${itemProfit(it) >= 0 ? '+' : '−'}${fmt(Math.abs(itemProfit(it)))}`}
                       </div>
-                      <div className="flex items-center justify-end gap-0.5 py-1.5">
-                        <button
-                          onClick={() => moveItem(it.id, 'up')}
-                          disabled={si === 0}
-                          title="Выше"
-                          className="text-neutral-300 hover:text-neutral-700 disabled:opacity-30 disabled:hover:text-neutral-300"
-                        >
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => moveItem(it.id, 'down')}
-                          disabled={si === secItems.length - 1}
-                          title="Ниже"
-                          className="text-neutral-300 hover:text-neutral-700 disabled:opacity-30 disabled:hover:text-neutral-300"
-                        >
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
+                      <div className="flex justify-center py-1.5">
                         <button onClick={() => removeItem(it.id)} title="Удалить" className="text-neutral-300 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                   <div className="border-t border-neutral-100 px-3 py-2">
                     <button onClick={() => addItem(sec)} className="inline-flex items-center gap-1.5 text-[12.5px] text-blue-600 hover:underline">
                       <Plus className="h-3.5 w-3.5" /> Добавить позицию
