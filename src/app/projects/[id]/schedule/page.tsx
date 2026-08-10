@@ -114,6 +114,16 @@ const statusIcons: Record<string, any> = {
   DELAYED: AlertTriangle
 }
 
+// Цвета полос Ганта по статусу (10b): фон = светлый тон, fill = насыщенный на % выполнения
+const STAGE_BAR: Record<string, { bg: string; fill: string; dot: string; dashed?: boolean }> = {
+  NOT_STARTED: { bg: '#fafafa', fill: '#c4c4c9', dot: '#c4c4c9', dashed: true },
+  IN_PROGRESS: { bg: '#d7e9fa', fill: '#1c7fd6', dot: '#1c7fd6' },
+  PAUSED: { bg: '#fdf6e7', fill: '#d97706', dot: '#d97706' },
+  COMPLETED: { bg: '#dff0e4', fill: '#16803c', dot: '#16803c' },
+  DELAYED: { bg: '#fdeef0', fill: '#dc2626', dot: '#dc2626' },
+}
+const avInit = (name?: string) => { const p = (name || '?').trim().split(/\s+/); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?' }
+
 const defaultColors = [
   '#3B82F6', // blue
   '#10B981', // green
@@ -647,86 +657,51 @@ export default function ProjectSchedulePage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <PageHeader
-          breadcrumbs={[
-            { label: 'Проекты', href: '/projects' },
-            { label: projectName || 'Проект', href: `/projects/${projectId}` },
-            { label: 'График работ' },
-          ]}
-          back={`/projects/${projectId}`}
-          title="График работ"
-          description={projectName}
-          actions={
-          <div className="flex items-center gap-3">
-            {/* Навигация по времени */}
-            <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2">
-              <button onClick={() => navigateWeeks(-1)} className="p-1 hover:bg-gray-100 rounded">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm font-medium min-w-[180px] text-center">
-                {formatDate(dateRange[0])} — {formatDate(dateRange[dateRange.length - 1])}
-              </span>
-              <button onClick={() => navigateWeeks(1)} className="p-1 hover:bg-gray-100 rounded">
-                <ChevronRight className="w-4 h-4" />
-              </button>
+        {/* Шапка 10b */}
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="text-[12.5px] text-neutral-400">
+              <Link href="/projects" className="hover:underline">Проекты</Link> · <Link href={`/projects/${projectId}`} className="hover:underline">{projectName || 'Проект'}</Link>
             </div>
-            
-            <button
-              onClick={() => setViewStartDate(new Date())}
-              className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
-            >
-              Сегодня
-            </button>
-            
-            <button
-              onClick={handleExport}
-              disabled={exporting || stages.length === 0}
-              className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Экспорт в Excel"
-            >
-              {exporting ? (
-                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <FileSpreadsheet className="w-4 h-4" />
-              )}
-              <span className="hidden sm:inline">Экспорт</span>
-            </button>
-            
-            <button
-              onClick={openCreateModal}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
-            >
-              <Plus className="w-4 h-4" />
-              Добавить этап
-            </button>
+            <h1 className="mt-0.5 text-[23px] font-bold text-neutral-900">График работ</h1>
           </div>
-          }
-        />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-lg border border-neutral-200 bg-white">
+              <button onClick={() => navigateWeeks(-1)} className="flex h-9 w-9 items-center justify-center rounded-l-lg text-neutral-500 hover:bg-neutral-50"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="min-w-[180px] px-2 text-center text-[13px] font-medium tabular-nums text-neutral-800">{formatDate(dateRange[0])} — {formatDate(dateRange[dateRange.length - 1])}</span>
+              <button onClick={() => navigateWeeks(1)} className="flex h-9 w-9 items-center justify-center rounded-r-lg text-neutral-500 hover:bg-neutral-50"><ChevronRight className="h-4 w-4" /></button>
+            </div>
+            <button onClick={() => setViewStartDate(new Date())} className="h-9 rounded-lg border border-neutral-200 bg-white px-3.5 text-[13px] font-medium text-neutral-700 hover:bg-neutral-50">Сегодня</button>
+            <button onClick={handleExport} disabled={exporting || stages.length === 0} className="flex h-9 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3.5 text-[13px] font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}<span className="hidden sm:inline">Экспорт</span>
+            </button>
+            <button onClick={openCreateModal} className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700"><Plus className="h-4 w-4" /> Добавить этап</button>
+          </div>
+        </div>
 
         {/* Gantt Chart */}
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          {/* Заголовок с датами */}
-          <div className="border-b">
-            <div className="flex">
-              <div className="w-64 min-w-[256px] p-3 border-r bg-gray-50 font-medium text-sm text-gray-600">
-                Этап работ
+          {/* Заголовок: месяцы + дни */}
+          <div className="flex border-b border-neutral-200 bg-neutral-50/40">
+            <div className="w-[300px] shrink-0 border-r border-neutral-100 px-4 py-2.5 text-[11.5px] font-semibold uppercase tracking-wide text-neutral-400">Этап работ</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex border-b border-neutral-100">
+                {(() => {
+                  const months: { label: string; span: number }[] = []
+                  dateRange.forEach((d) => {
+                    const label = d.toLocaleDateString('ru-RU', { month: 'long' })
+                    const last = months[months.length - 1]
+                    if (last && last.label === label) last.span++
+                    else months.push({ label, span: 1 })
+                  })
+                  return months.map((m, i) => (
+                    <div key={i} className="truncate px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400" style={{ width: `${(m.span / dateRange.length) * 100}%` }}>{m.label}</div>
+                  ))
+                })()}
               </div>
-              <div className="flex-1 flex">
+              <div className="flex">
                 {dateRange.map((date, i) => (
-                  <div 
-                    key={i} 
-                    className={`flex-1 min-w-[30px] p-2 text-center text-xs border-r last:border-r-0 ${
-                      isToday(date) ? 'bg-gray-100 font-bold text-gray-900' : 
-                      isWeekend(date) ? 'bg-gray-50 text-gray-400' : 'text-gray-500'
-                    }`}
-                  >
-                    <div>{date.getDate()}</div>
-                    {date.getDate() === 1 || i === 0 ? (
-                      <div className="text-[10px] uppercase">
-                        {date.toLocaleDateString('ru-RU', { month: 'short' })}
-                      </div>
-                    ) : null}
-                  </div>
+                  <div key={i} className={`min-w-0 flex-1 border-l border-neutral-50 py-1.5 text-center text-[11px] tabular-nums ${isToday(date) ? 'font-bold text-neutral-900' : isWeekend(date) ? 'text-neutral-300' : 'text-neutral-400'}`}>{date.getDate()}</div>
                 ))}
               </div>
             </div>
@@ -750,120 +725,65 @@ export default function ProjectSchedulePage() {
             <div className="divide-y">
               {stages.map((stage) => {
                 const position = getStagePosition(stage)
-                const StatusIcon = statusIcons[stage.status]
                 const isExpanded = expandedStageId === stage.id
                 const stageChecklist = checklistItems[stage.id] || []
                 const completedCount = stageChecklist.filter(i => i.isCompleted).length
                 
                 return (
                   <div key={stage.id}>
-                    <div className="flex hover:bg-gray-50 group">
-                      {/* Название этапа */}
-                      <div className="w-64 min-w-[256px] p-3 border-r flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => toggleStageExpand(stage.id)}
-                              className="p-0.5 hover:bg-gray-200 rounded flex-shrink-0"
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-gray-500" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-500" />
-                              )}
-                            </button>
-                            <div 
-                              className="w-3 h-3 rounded-full flex-shrink-0" 
-                              style={{ backgroundColor: stage.color }}
-                            />
-                            <span className="font-medium text-sm truncate">{stage.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 ml-6">
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[stage.status]}`}>
-                              {statusLabels[stage.status]}
-                            </span>
-                            {stageChecklist.length > 0 && (
-                              <span className="text-xs text-gray-500 flex items-center gap-0.5">
-                                <CheckSquare className="w-3 h-3" />
-                                {completedCount}/{stageChecklist.length}
-                              </span>
-                            )}
-                            {(stagePhotos[stage.id]?.length || 0) > 0 && (
-                              <span className="text-xs text-gray-500 flex items-center gap-0.5">
-                                <Camera className="w-3 h-3" />
-                                {stagePhotos[stage.id]?.length}
-                              </span>
-                            )}
-                            {stage.responsible && (
-                              <span className="text-xs text-gray-500 truncate">
-                                {stage.responsible.name}
-                              </span>
-                            )}
+                    <div className="flex hover:bg-neutral-50/60 group">
+                      {/* Левая колонка */}
+                      <div className="flex w-[300px] shrink-0 items-center justify-between gap-2 border-r border-neutral-100 px-3 py-2.5">
+                        <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                          <button onClick={() => toggleStageExpand(stage.id)} className="mt-0.5 rounded p-0.5 text-neutral-400 hover:bg-neutral-200">
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </button>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: STAGE_BAR[stage.status].dot }} />
+                              <span className="truncate text-[13.5px] font-semibold text-neutral-900">{stage.name}</span>
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-2 pl-[18px] text-[12px] text-neutral-400">
+                              {stage.responsible && <span className="truncate">{stage.responsible.name}</span>}
+                              <span className="tabular-nums">· {stage.progress}%</span>
+                              {stageChecklist.length > 0 && <span className="flex items-center gap-0.5"><CheckSquare className="h-3 w-3" />{completedCount}/{stageChecklist.length}</span>}
+                              {(stagePhotos[stage.id]?.length || 0) > 0 && <span className="flex items-center gap-0.5"><Camera className="h-3 w-3" />{stagePhotos[stage.id]?.length}</span>}
+                            </div>
                           </div>
                         </div>
-                        
-                        {/* Кнопки действий */}
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => openEditModal(stage)}
-                            className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(stage.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button onClick={() => openEditModal(stage)} className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"><Edit2 className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => handleDeleteClick(stage.id)} className="rounded p-1 text-neutral-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </div>
-                      
                       {/* Полоса Ганта */}
-                      <div className="flex-1 relative h-16 flex items-center">
-                        {/* Фон с выходными */}
+                      <div className="relative flex h-14 min-w-0 flex-1 items-center">
                         <div className="absolute inset-0 flex">
                           {dateRange.map((date, i) => (
-                            <div 
-                              key={i} 
-                              className={`flex-1 min-w-[30px] border-r last:border-r-0 ${
-                                isToday(date) ? 'bg-gray-50' : 
-                                isWeekend(date) ? 'bg-gray-50' : ''
-                              }`}
-                            />
+                            <div key={i} className={`min-w-0 flex-1 border-l border-neutral-50 ${isWeekend(date) ? 'bg-neutral-50/70' : ''}`} />
                           ))}
                         </div>
-                        
-                        {/* Линия "сегодня" */}
-                        {dateRange.some(d => isToday(d)) && (
-                          <div 
-                            className="absolute top-0 bottom-0 w-0.5 bg-gray-900 z-10"
-                            style={{
-                              left: `${((new Date().getTime() - dateRange[0].getTime()) / 
-                                (dateRange[dateRange.length - 1].getTime() - dateRange[0].getTime())) * 100}%`
-                            }}
-                          />
+                        {dateRange.some((d) => isToday(d)) && (
+                          <div className="absolute top-0 bottom-0 z-20 w-px bg-neutral-900" style={{ left: `${((new Date().getTime() - dateRange[0].getTime()) / (dateRange[dateRange.length - 1].getTime() - dateRange[0].getTime())) * 100}%` }} />
                         )}
-                        
-                        {/* Полоса этапа */}
-                        <div
-                          className="absolute h-8 rounded-md flex items-center px-2 cursor-pointer hover:opacity-90 transition-opacity"
-                          style={{
-                            left: position.left,
-                            width: position.width,
-                            backgroundColor: stage.color,
-                          }}
-                          onClick={() => openEditModal(stage)}
-                        >
-                          {/* Прогресс внутри полосы */}
-                          <div 
-                            className="absolute left-0 top-0 bottom-0 rounded-md bg-black/20"
-                            style={{ width: `${stage.progress}%` }}
-                          />
-                          <span className="relative text-white text-xs font-medium truncate">
-                            {stage.progress > 0 && `${stage.progress}%`}
-                          </span>
-                        </div>
+                        {(() => {
+                          const bar = STAGE_BAR[stage.status]
+                          const whiteText = stage.status === 'COMPLETED' || stage.progress >= 35
+                          return (
+                            <div
+                              className="absolute z-10 flex h-7 items-center overflow-hidden rounded-md cursor-pointer hover:brightness-95"
+                              style={{ left: position.left, width: position.width, backgroundColor: bar.bg, border: bar.dashed ? `1px dashed ${bar.dot}` : 'none' }}
+                              onClick={() => openEditModal(stage)}
+                              title={`${stage.name} · ${stage.progress}%`}
+                            >
+                              <div className="absolute inset-y-0 left-0 rounded-md" style={{ width: `${stage.progress}%`, backgroundColor: bar.fill }} />
+                              <span className={`relative z-10 truncate px-2 text-[12px] font-medium ${whiteText ? 'text-white' : 'text-neutral-700'}`}>{stage.name}{stage.progress > 0 ? ` · ${stage.progress}%` : ''}</span>
+                              {stage.responsible && (
+                                <span className="relative z-10 ml-auto mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/90 text-[9px] font-semibold text-neutral-700 ring-1 ring-black/5" title={stage.responsible.name}>{avInit(stage.responsible.name)}</span>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                     
@@ -1076,23 +996,17 @@ export default function ProjectSchedulePage() {
           )}
         </div>
 
-        {/* Легенда */}
-        <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-900" />
-            <span>Сегодня</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-3 bg-gray-100 rounded" />
-            <span>Выходные</span>
-          </div>
-          {Object.entries(statusLabels).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-2">
-              <span className={`px-1.5 py-0.5 rounded text-xs ${statusColors[key]}`}>
-                {label}
-              </span>
-            </div>
+        {/* Легенда 10b */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-[12.5px] text-neutral-500">
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-neutral-900" /> Сегодня</span>
+          {([['NOT_STARTED', 'Не начат'], ['IN_PROGRESS', 'В работе'], ['PAUSED', 'Приостановлен'], ['COMPLETED', 'Завершён'], ['DELAYED', 'Задерживается']] as const).map(([k, l]) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="h-3 w-5 rounded" style={STAGE_BAR[k].dashed ? { backgroundColor: STAGE_BAR[k].bg, border: `1px dashed ${STAGE_BAR[k].dot}` } : { backgroundColor: STAGE_BAR[k].fill }} />
+              {l}
+            </span>
           ))}
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rotate-45 bg-neutral-900" /> Веха</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-neutral-100" /> Выходные</span>
         </div>
       </div>
 
