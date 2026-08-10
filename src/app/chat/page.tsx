@@ -667,13 +667,13 @@ export default function ChatPage() {
                 <Smile className="h-4 w-4" />
               </Button>
               {showEmoji && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 grid grid-cols-8 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                <div className="absolute bottom-full left-0 mb-2 z-50 grid w-[300px] grid-cols-8 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
                   {EMOJIS.map((em) => (
                     <button
                       key={em}
                       type="button"
                       onClick={() => insertEmoji(em)}
-                      className="h-7 w-7 rounded text-lg hover:bg-gray-100"
+                      className="flex h-8 w-full items-center justify-center rounded text-xl leading-none hover:bg-gray-100"
                     >
                       {em}
                     </button>
