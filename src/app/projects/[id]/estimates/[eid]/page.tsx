@@ -6,6 +6,7 @@ import Layout from '@/components/layout'
 import { SkeletonList } from '@/components/ui/skeleton'
 import { ErrorBanner } from '@/components/ui/error-banner'
 import { toast } from '@/components/ui/use-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, Download, FileText, Trash2 } from 'lucide-react'
 
 interface Item {
@@ -48,6 +49,8 @@ export default function EstimateEditorPage() {
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Общая prompt-модалка (замена window.prompt)
+  const [promptDlg, setPromptDlg] = useState<{ open: boolean; title: string; placeholder?: string; value: string; onOk: (v: string) => void }>({ open: false, title: '', value: '', onOk: () => {} })
 
   const load = useCallback(async () => {
     try {
@@ -97,8 +100,13 @@ export default function EstimateEditorPage() {
     setDirty(true)
   }
   const addSection = () => {
-    const nm = window.prompt('Название раздела')?.trim()
-    if (nm) addItem(nm)
+    setPromptDlg({
+      open: true,
+      title: 'Новый раздел',
+      placeholder: 'Название раздела',
+      value: '',
+      onOk: (v) => { const nm = v.trim(); if (nm) addItem(nm) },
+    })
   }
 
   // ——— расчёты ———
@@ -165,11 +173,18 @@ export default function EstimateEditorPage() {
     }
   }
 
-  const toContract = async () => {
-    const cn = window.prompt('Номер договора (например ДОГ-214)', contractNumber || '')?.trim()
-    if (cn === undefined || cn === null) return
-    await save({ status: 'APPROVED', contractNumber: cn || null })
-    toast.success('Смета утверждена и привязана к договору')
+  const toContract = () => {
+    setPromptDlg({
+      open: true,
+      title: 'Утвердить и привязать к договору',
+      placeholder: 'например ДОГ-214',
+      value: contractNumber || '',
+      onOk: async (v) => {
+        const cn = v.trim()
+        await save({ status: 'APPROVED', contractNumber: cn || null })
+        toast.success('Смета утверждена и привязана к договору')
+      },
+    })
   }
 
   const exportCsv = () => {
@@ -349,6 +364,44 @@ export default function EstimateEditorPage() {
           </div>
         </div>
       </div>
+
+      {/* Prompt-модалка (раздел / номер договора) */}
+      <Dialog open={promptDlg.open} onOpenChange={(o) => !o && setPromptDlg((p) => ({ ...p, open: false }))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{promptDlg.title}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              const v = promptDlg.value
+              setPromptDlg((p) => ({ ...p, open: false }))
+              promptDlg.onOk(v)
+            }}
+            className="space-y-4"
+          >
+            <input
+              autoFocus
+              value={promptDlg.value}
+              onChange={(e) => setPromptDlg((p) => ({ ...p, value: e.target.value }))}
+              placeholder={promptDlg.placeholder}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPromptDlg((p) => ({ ...p, open: false }))}
+                className="rounded-lg bg-neutral-100 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Отмена
+              </button>
+              <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                ОК
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }
