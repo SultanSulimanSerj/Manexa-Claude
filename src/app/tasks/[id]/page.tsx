@@ -363,9 +363,19 @@ export default function TaskDetailPage() {
   const handleUploadFiles = async (files: FileList | null) => {
     const taskId = Array.isArray(params?.id) ? params.id[0] : params?.id
     if (!taskId || !files || files.length === 0) return
+    const MAX = 40 * 1024 * 1024
+    const tooBig = Array.from(files).filter((f) => f.size > MAX)
+    if (tooBig.length > 0) {
+      alert(`Файл слишком большой (максимум 40 МБ): ${tooBig.map((f) => f.name).join(', ')}`)
+    }
+    const okFiles = Array.from(files).filter((f) => f.size <= MAX && f.size > 0)
+    if (okFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
     setUploading(true)
     try {
-      for (const file of Array.from(files)) {
+      for (const file of okFiles) {
         const fd = new FormData()
         fd.append('file', file)
         await fetch(`/api/tasks/${taskId}/attachments`, { method: 'POST', body: fd })

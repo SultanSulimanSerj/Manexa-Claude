@@ -4,6 +4,7 @@ import { verifyTaskCompanyAccess, userCanEditTask } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
 import { uploadFile } from '@/lib/storage'
 import { generateId } from '@/lib/id-generator'
+import { validateUploadFile } from '@/lib/upload-validation'
 
 // GET /api/tasks/[id]/attachments — список вложений задачи
 export async function GET(
@@ -56,8 +57,9 @@ export async function POST(
     const formData = await request.formData()
     const file = formData.get('file') as File
 
-    if (!file) {
-      return NextResponse.json({ error: 'File is required' }, { status: 400 })
+    const validationError = validateUploadFile(file)
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

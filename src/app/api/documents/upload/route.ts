@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { generateId } from '@/lib/id-generator'
 import { uploadFile } from '@/lib/storage'
 import { verifyProjectCompanyAccess } from '@/lib/access-control'
+import { validateUploadFile } from '@/lib/upload-validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,8 +23,9 @@ export async function POST(request: NextRequest) {
     const projectId = formData.get('projectId') as string
     const category = formData.get('category') as string
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    const validationError = validateUploadFile(file)
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
     }
 
     if (!title) {

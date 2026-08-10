@@ -3,6 +3,7 @@ import { authenticateUser } from '@/lib/auth-api'
 import { verifyTaskCompanyAccess } from '@/lib/access-control'
 import { prisma } from '@/lib/prisma'
 import { getFileStream } from '@/lib/storage'
+import { isInlineSafeMime } from '@/lib/upload-validation'
 
 // GET /api/tasks/[id]/attachments/[attachmentId]/download — скачать/просмотреть файл
 export async function GET(
@@ -29,13 +30,18 @@ export async function GET(
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 })
     }
 
-    const inline = new URL(request.url).searchParams.get('inline') === '1'
+    // inline разрешаем ТОЛЬКО для безопасных растровых типов (png/jpeg/gif/webp/bmp).
+    // SVG/HTML и прочее — всегда attachment, иначе возможен stored XSS на origin приложения.
+    const inline =
+      new URL(request.url).searchParams.get('inline') === '1' &&
+      isInlineSafeMime(attachment.mimeType)
 
     try {
       const { stream, contentLength } = await getFileStream(attachment.filePath)
       const headers: Record<string, string> = {
         'Content-Type': attachment.mimeType || 'application/octet-stream',
         'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(attachment.fileName || 'attachment')}"`,
+        'Content-Security-Policy': "default-src 'none'; sandbox; script-src 'none'; style-src 'unsafe-inline'",
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         'X-Content-Type-Options': 'nosniff',
         Pragma: 'no-cache',
