@@ -47,38 +47,47 @@ function formatMoney(value: number): string {
   return value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function headerCell(text: string): TableCell {
+// Ширины колонок в % (№ узкая, Наименование широкая): №, Наим., Кол-во, Ед., Цена, Сумма
+const COL_WIDTHS = [5, 47, 11, 9, 14, 14]
+// То же в dxa (при ширине контента ~9600) — для стабильной раскладки в Word
+const COL_WIDTHS_DXA = [480, 4512, 1056, 864, 1344, 1344]
+
+function headerCell(text: string, widthPct: number): TableCell {
   return new TableCell({
+    width: { size: widthPct, type: WidthType.PERCENTAGE },
     children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
     shading: { fill: 'E8E8E8' },
   })
 }
 
-function bodyCell(text: string): TableCell {
-  return new TableCell({ children: [new Paragraph({ text })] })
+function bodyCell(text: string, widthPct: number): TableCell {
+  return new TableCell({
+    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    children: [new Paragraph({ text })],
+  })
 }
 
 export function generateCommercialOfferDocument(data: CommercialOfferData): Document {
   const tableRows = [
     new TableRow({
       children: [
-        headerCell('№'),
-        headerCell('Наименование'),
-        headerCell('Кол-во'),
-        headerCell('Ед.'),
-        headerCell('Цена, ₽'),
-        headerCell('Сумма, ₽'),
+        headerCell('№', COL_WIDTHS[0]),
+        headerCell('Наименование', COL_WIDTHS[1]),
+        headerCell('Кол-во', COL_WIDTHS[2]),
+        headerCell('Ед.', COL_WIDTHS[3]),
+        headerCell('Цена, ₽', COL_WIDTHS[4]),
+        headerCell('Сумма, ₽', COL_WIDTHS[5]),
       ],
     }),
     ...data.items.map((item, index) =>
       new TableRow({
         children: [
-          bodyCell(String(index + 1)),
-          bodyCell(item.name),
-          bodyCell(formatMoney(item.quantity)),
-          bodyCell(item.unit),
-          bodyCell(formatMoney(item.unitPrice)),
-          bodyCell(formatMoney(item.total)),
+          bodyCell(String(index + 1), COL_WIDTHS[0]),
+          bodyCell(item.name, COL_WIDTHS[1]),
+          bodyCell(formatMoney(item.quantity), COL_WIDTHS[2]),
+          bodyCell(item.unit, COL_WIDTHS[3]),
+          bodyCell(formatMoney(item.unitPrice), COL_WIDTHS[4]),
+          bodyCell(formatMoney(item.total), COL_WIDTHS[5]),
         ],
       })
     ),
@@ -118,6 +127,7 @@ export function generateCommercialOfferDocument(data: CommercialOfferData): Docu
             : []),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
+            columnWidths: COL_WIDTHS_DXA,
             borders: {
               top: { style: BorderStyle.SINGLE, size: 1 },
               bottom: { style: BorderStyle.SINGLE, size: 1 },
