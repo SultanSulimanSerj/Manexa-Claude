@@ -91,7 +91,9 @@ else
 fi
 
 echo "==> PM2 restart"
-ssh "$REMOTE" "cd ${REMOTE_DIR} && pm2 restart all --update-env >/dev/null && pm2 save >/dev/null && pm2 status"
+# Перезапускаем только приложение и воркер — НЕ трогаем сторонние процессы (напр. ts/Tailscale-туннель),
+# иначе каждый деплой рвёт публичный доступ. Имена берём динамически, кроме ts.
+ssh "$REMOTE" "cd ${REMOTE_DIR} && for app in \$(pm2 jlist | python3 -c 'import sys,json; [print(p[\"name\"]) for p in json.load(sys.stdin) if p[\"name\"]!=\"ts\"]'); do pm2 restart \"\$app\" --update-env >/dev/null; done && pm2 save >/dev/null && pm2 status"
 
 echo "==> Healthcheck"
 sleep 3
