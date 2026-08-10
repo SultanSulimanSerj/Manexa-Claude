@@ -13,7 +13,7 @@ import { SkeletonList } from '@/components/ui/skeleton'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 const EXPENSE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
-import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, UserPlus, MapPin, FileSignature, Clock, CheckCircle2, Copy } from 'lucide-react'
+import { ArrowLeft, Edit, Users, FileText, Flag, DollarSign, Calendar, X, MessageSquare, Send, TrendingUp, TrendingDown, Percent, Plus, UserMinus, UserPlus, MapPin, FileSignature, Clock, CheckCircle2, Copy, ChevronRight } from 'lucide-react'
 import { copyText } from '@/lib/clipboard'
 import Link from 'next/link'
 import { PermissionButton, usePermissions } from '@/components/permission-guard'
@@ -138,6 +138,9 @@ export default function ProjectDetailPage() {
   const [showContactModal, setShowContactModal] = useState(false)
   const [selectedMember, setSelectedMember] = useState<User | null>(null)
   const [estimatesTotal, setEstimatesTotal] = useState<number>(0)
+  const [estimatesCount, setEstimatesCount] = useState<number>(0)
+  const [stages, setStages] = useState<any[]>([])
+  const [recentFinances, setRecentFinances] = useState<any[]>([])
   const [workStagesStats, setWorkStagesStats] = useState<{
     total: number
     completed: number
@@ -263,7 +266,12 @@ export default function ProjectDetailPage() {
       if (response.ok) {
         const data = await response.json()
         const finances = data.finances || []
-        
+        // Недавние операции для ленты активности (5 последних по дате)
+        const recent = [...finances]
+          .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
+          .slice(0, 5)
+        setRecentFinances(recent)
+
         const invoicedTotal = finances.filter((f: any) => f.type === 'INCOME').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
         const received = finances.filter((f: any) => f.type === 'INCOME' && f.isPaid).reduce((sum: number, f: any) => sum + Number(f.amount), 0)
         const totalExpenses = finances.filter((f: any) => f.type === 'EXPENSE').reduce((sum: number, f: any) => sum + Number(f.amount), 0)
@@ -306,6 +314,7 @@ export default function ProjectDetailPage() {
           return sum + Number(estimate.totalWithVat || estimate.total || 0)
         }, 0)
         setEstimatesTotal(total)
+        setEstimatesCount(Array.isArray(estimates) ? estimates.length : 0)
       }
     } catch (error) {
       console.error('Error fetching estimates total:', error)
@@ -317,14 +326,15 @@ export default function ProjectDetailPage() {
       const response = await fetch(`/api/projects/${params?.id}/stages`)
       if (response.ok) {
         const stages = await response.json()
+        setStages(Array.isArray(stages) ? stages : [])
         const total = stages.length
         const completed = stages.filter((s: any) => s.status === 'COMPLETED').length
         const inProgress = stages.filter((s: any) => s.status === 'IN_PROGRESS').length
         const delayed = stages.filter((s: any) => s.status === 'DELAYED').length
-        const progress = total > 0 
+        const progress = total > 0
           ? Math.round(stages.reduce((sum: number, s: any) => sum + s.progress, 0) / total)
           : 0
-        
+
         setWorkStagesStats({ total, completed, inProgress, delayed, progress })
       }
     } catch (error) {
@@ -729,6 +739,36 @@ export default function ProjectDetailPage() {
     return colorMap[priority] || 'bg-gray-100 text-gray-800'
   }
 
+  // ——— helpers 10a ———
+  const priorityDot = (p: string) => (p === 'URGENT' || p === 'HIGH' ? '#dc2626' : p === 'MEDIUM' ? '#d97706' : '#16a34a')
+  const statusBadge10a = (s: string) => {
+    const m: Record<string, string> = {
+      PLANNING: 'bg-blue-50 text-blue-700 border-blue-200',
+      ACTIVE: 'bg-green-50 text-green-700 border-green-200',
+      COMPLETED: 'bg-neutral-100 text-neutral-600 border-neutral-200',
+      ON_HOLD: 'bg-amber-50 text-amber-700 border-amber-200',
+      CANCELLED: 'bg-red-50 text-red-700 border-red-200',
+    }
+    return m[s] || 'bg-neutral-100 text-neutral-600 border-neutral-200'
+  }
+  const stageMeta = (s: string) => {
+    const m: Record<string, { dot: string; bar: string; label: string }> = {
+      COMPLETED: { dot: '#16803c', bar: 'bg-green-600', label: 'Завершён' },
+      IN_PROGRESS: { dot: '#1c7fd6', bar: 'bg-blue-600', label: 'В работе' },
+      PAUSED: { dot: '#d97706', bar: 'bg-amber-500', label: 'Пауза' },
+      DELAYED: { dot: '#dc2626', bar: 'bg-red-600', label: 'Задержка' },
+      NOT_STARTED: { dot: '#c4c4c9', bar: 'bg-neutral-300', label: 'Не начат' },
+    }
+    return m[s] || m.NOT_STARTED
+  }
+  const fmtMln = (n: number) => {
+    if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' млн'
+    if (Math.abs(n) >= 1000) return new Intl.NumberFormat('ru-RU').format(Math.round(n))
+    return String(Math.round(n))
+  }
+  const avColorHex = (id: string) => ['#1c7fd6', '#0d9488', '#b45309', '#7c3aed', '#c2410c', '#0369a1'][Math.abs((id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % 6]
+  const initials = (name?: string) => { const p = (name || '?').trim().split(/\s+/); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?' }
+
   if (loading) {
     return (
       <Layout>
@@ -753,303 +793,255 @@ export default function ProjectDetailPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
-        <PageHeader
-          title={project.name}
-          description={
-            <span className="inline-flex flex-wrap items-center gap-3">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                {getStatusText(project.status)}
-              </span>
-              <span className="text-gray-500">Создатель: {project.creator.name}</span>
-            </span>
-          }
-          back="/projects"
-          breadcrumbs={[{ label: 'Проекты', href: '/projects' }, { label: project.name }]}
-          actions={
-            <button
-              onClick={handleEdit}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Редактировать
-            </button>
-          }
-        />
+        {/* Шапка проекта (10a) */}
+        <div>
+          <div className="text-[12.5px] text-neutral-400">
+            <Link href="/projects" className="hover:underline">Проекты</Link> · {project.name}
+          </div>
+          <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-[23px] font-bold text-neutral-900">{project.name}</h1>
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[12px] font-medium ${statusBadge10a(project.status)}`}>
+                  {getStatusText(project.status)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[13px] text-neutral-600">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: priorityDot(project.priority) }} />
+                  {getPriorityText(project.priority)} приоритет
+                </span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-neutral-600">
+                {(project.clientLegalName || project.clientName) && (
+                  <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-neutral-400" />{project.clientLegalName || project.clientName}</span>
+                )}
+                {project.objectAddress && (
+                  <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-neutral-400" />{project.objectAddress}</span>
+                )}
+                {project.contractNumber && (
+                  <span className="inline-flex items-center gap-1.5"><FileSignature className="h-3.5 w-3.5 text-neutral-400" />Договор № {project.contractNumber}{project.contractDate ? ` от ${new Date(project.contractDate).toLocaleDateString('ru-RU')}` : ''}</span>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link href={`/projects/${project.id}/schedule`} className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3.5 py-2 text-[13px] font-medium text-neutral-700 hover:bg-neutral-50">
+                <Calendar className="h-4 w-4" /> График работ
+              </Link>
+              <button onClick={handleEdit} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-blue-700">
+                <Edit className="h-4 w-4" /> Редактировать
+              </button>
+            </div>
+          </div>
+        </div>
 
-        {/* Вкладки */}
-        <div className="border-b border-gray-200">
+        {/* Вкладки (10a): Обзор + ссылки в разделы + Команда/Реквизиты/Чат */}
+        <div className="border-b border-neutral-200">
           <nav className="flex gap-1 -mb-px overflow-x-auto">
-            {visibleTabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === t.key
-                    ? 'border-neutral-900 text-neutral-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-900'
-                }`}
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13.5px] font-medium transition-colors ${activeTab === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-neutral-500 hover:text-neutral-900'}`}
+            >
+              Обзор
+            </button>
+            {([
+              { label: 'Сметы', href: `/projects/${project.id}/estimates`, count: estimatesCount || null },
+              ...(hasPermission('canViewFinances') ? [{ label: 'Финансы', href: `/finance?projectId=${project.id}`, count: null as number | null }] : []),
+              { label: 'Задачи', href: `/tasks?projectId=${project.id}`, count: project._count.tasks || null },
+              { label: 'Материалы', href: `/materials?projectId=${project.id}`, count: null as number | null },
+              { label: 'Документы', href: `/documents?projectId=${project.id}`, count: project._count.documents || null },
+              { label: 'Согласования', href: `/approvals?projectId=${project.id}`, count: null as number | null },
+            ]).map((t) => (
+              <Link
+                key={t.label}
+                href={t.href}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3.5 py-2.5 text-[13.5px] font-medium text-neutral-500 transition-colors hover:text-neutral-900"
               >
                 {t.label}
-              </button>
+                {t.count != null && <span className="text-neutral-400 tabular-nums">{t.count}</span>}
+              </Link>
             ))}
+            <button onClick={() => setActiveTab('team')} className={`whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13.5px] font-medium transition-colors ${activeTab === 'team' ? 'border-blue-600 text-blue-600' : 'border-transparent text-neutral-500 hover:text-neutral-900'}`}>Бригада</button>
+            {!isExternal && (
+              <button onClick={() => setActiveTab('client')} className={`whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13.5px] font-medium transition-colors ${activeTab === 'client' ? 'border-blue-600 text-blue-600' : 'border-transparent text-neutral-500 hover:text-neutral-900'}`}>Реквизиты</button>
+            )}
+            <button onClick={() => setActiveTab('chat')} className={`whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13.5px] font-medium transition-colors ${activeTab === 'chat' ? 'border-blue-600 text-blue-600' : 'border-transparent text-neutral-500 hover:text-neutral-900'}`}>Чат</button>
           </nav>
         </div>
 
         {activeTab === 'overview' && (
         <>
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Link 
-            href={`/tasks?projectId=${project.id}`}
-            className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-neutral-100 rounded-lg">
-                <Flag className="h-5 w-5 text-neutral-700" />
-              </div>
+        {/* KPI */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-neutral-200 bg-white p-4">
+            <div className="text-[12.5px] text-neutral-500">Прогресс работ</div>
+            <div className="mt-1 text-[26px] font-bold tabular-nums text-neutral-900">{workStagesStats?.progress ?? 0}%</div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div className="h-full rounded-full bg-blue-600" style={{ width: `${workStagesStats?.progress ?? 0}%` }} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{project._count.tasks}</p>
-            <p className="text-xs text-gray-600">Задач →</p>
-          </Link>
-
-          <Link 
-            href={`/documents?projectId=${project.id}`}
-            className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-neutral-100 rounded-lg">
-                <FileText className="h-5 w-5 text-neutral-700" />
-              </div>
+          </div>
+          {hasPermission('canViewFinances') && (
+          <div className="rounded-xl border border-neutral-200 bg-white p-4">
+            <div className="text-[12.5px] text-neutral-500">Бюджет · факт / план</div>
+            <div className="mt-1 text-[22px] font-bold tabular-nums text-neutral-900">
+              {fmtMln(financeStats?.totalExpenses ?? 0)} <span className="text-[14px] font-medium text-neutral-400">/ {project.budget ? fmtMln(Number(project.budget)) : '—'} млн ₽</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{project._count.documents}</p>
-            <p className="text-xs text-gray-600">Документов →</p>
-          </Link>
-
-          <Link 
-            href={`/finance?projectId=${project.id}`}
-            className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-neutral-100 rounded-lg">
-                <DollarSign className="h-5 w-5 text-neutral-700" />
-              </div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div className="h-full rounded-full bg-green-600" style={{ width: `${project.budget ? Math.min(100, ((financeStats?.totalExpenses ?? 0) / Number(project.budget)) * 100) : 0}%` }} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">
-              {project.budget ? `${Number(project.budget).toLocaleString('ru-RU')} ₽` : '—'}
-            </p>
-            <p className="text-xs text-gray-600">Бюджет →</p>
-          </Link>
-
-          <Link
-            href={`/projects/${project.id}/estimates`}
-            className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-neutral-100 rounded-lg">
-                <FileText className="h-5 w-5 text-neutral-700" />
-              </div>
+          </div>
+          )}
+          {hasPermission('canViewFinances') && (
+          <div className="rounded-xl border border-neutral-200 bg-white p-4">
+            <div className="text-[12.5px] text-neutral-500">Прибыль · маржа</div>
+            <div className={`mt-1 text-[22px] font-bold tabular-nums ${(financeStats?.profit ?? 0) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              {(financeStats?.profit ?? 0) >= 0 ? '+' : '−'}{fmtMln(Math.abs(financeStats?.profit ?? 0))} млн ₽ <span className="text-[14px]">{(financeStats?.margin ?? 0).toFixed(1)}%</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">
-              {estimatesTotal > 0 ? `${estimatesTotal.toLocaleString('ru-RU')} ₽` : '—'}
-            </p>
-            <p className="text-xs text-gray-600">Смета →</p>
-          </Link>
-
-          <Link 
-            href={`/documents/new?projectId=${project.id}`}
-            className="bg-white rounded-lg p-5 border hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-neutral-100 rounded-lg">
-                <FileText className="h-5 w-5 text-neutral-700" />
-              </div>
-            </div>
-            <p className="text-sm font-medium text-neutral-900">Создать документы</p>
-            <p className="text-xs text-gray-600">Генерация документа →</p>
-          </Link>
+            <div className="mt-1 text-[12px] text-neutral-400">по полученным платежам</div>
+          </div>
+          )}
+          <div className="rounded-xl border border-neutral-200 bg-white p-4">
+            <div className="text-[12.5px] text-neutral-500">Срок</div>
+            {project.endDate ? (() => {
+              const days = Math.ceil((new Date(project.endDate as string).getTime() - Date.now()) / 86400000)
+              const overdue = days < 0
+              return (<>
+                <div className={`mt-1 text-[22px] font-bold tabular-nums ${overdue ? 'text-red-600' : 'text-neutral-900'}`}>{Math.abs(days)} <span className="text-[14px] font-medium text-neutral-400">{overdue ? 'дн. просрочка' : 'дн. осталось'}</span></div>
+                <div className="mt-1 text-[12px] tabular-nums text-neutral-400">{project.startDate ? `${new Date(project.startDate).toLocaleDateString('ru-RU')} — ` : ''}{new Date(project.endDate as string).toLocaleDateString('ru-RU')}</div>
+              </>)
+            })() : <div className="mt-1 text-[15px] text-neutral-400">Срок не задан</div>}
+          </div>
         </div>
 
-        {/* Financial Stats — только для ролей с доступом к финансам */}
-        {financeStats && hasPermission('canViewFinances') && (
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Финансовая статистика</h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <FileText className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">Выставлено</span>
-                </div>
-                <p className="text-xl font-bold text-gray-900">
-                  {financeStats.invoiced.toLocaleString()} ₽
-                </p>
+        {/* Тело: 1fr 340px */}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_340px]">
+          <div className="space-y-5">
+            {/* Этапы работ */}
+            <div className="rounded-xl border border-neutral-200 bg-white p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-[15px] font-semibold text-neutral-900">Этапы работ{stages.length ? ` · ${stages.length}` : ''}</h2>
+                <Link href={`/projects/${project.id}/schedule`} className="text-[13px] font-medium text-blue-600 hover:underline">Весь график →</Link>
               </div>
-
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-gray-600">Получено</span>
-                </div>
-                <p className="text-xl font-bold text-green-600">
-                  {financeStats.received.toLocaleString()} ₽
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <TrendingDown className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-gray-600">Расходы</span>
-                </div>
-                <p className="text-xl font-bold text-red-600">
-                  {financeStats.totalExpenses.toLocaleString()} ₽
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">Прибыль</span>
-                </div>
-                <p className={`text-xl font-bold ${financeStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {financeStats.profit.toLocaleString()} ₽
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Percent className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm text-gray-600">Маржа</span>
-                </div>
-                <p className={`text-xl font-bold ${financeStats.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {financeStats.margin.toFixed(1)}%
-                </p>
-              </div>
-            </div>
-
-            {financeStats.expenseByCategory.length > 0 && (
-              <div className="mt-6 border-t border-gray-100 pt-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Структура расходов</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                  <div className="h-40">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={financeStats.expenseByCategory}
-                          dataKey="amount"
-                          nameKey="category"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={42}
-                          outerRadius={68}
-                          paddingAngle={2}
-                        >
-                          {financeStats.expenseByCategory.map((_, i) => (
-                            <Cell key={i} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
+              {stages.length === 0 ? (
+                <div className="py-6 text-center text-[13px] text-neutral-400">Этапы не заданы. <Link href={`/projects/${project.id}/schedule`} className="text-blue-600 hover:underline">Создать график →</Link></div>
+              ) : (() => {
+                const done = stages.filter((s:any)=>s.status==='COMPLETED').length
+                const active = stages.filter((s:any)=>s.status==='IN_PROGRESS').length
+                const ahead = stages.length - done - active
+                const activeList = stages.filter((s:any)=>s.status==='IN_PROGRESS' || s.status==='PAUSED' || s.status==='DELAYED').slice(0,4)
+                return (<>
+                  <div className="mb-1.5 flex items-center justify-between text-[12.5px]">
+                    <span className="text-neutral-500">Готово {done} · в работе {active} · впереди {ahead}</span>
+                    <span className="font-semibold tabular-nums text-neutral-900">{workStagesStats?.progress ?? 0}%</span>
                   </div>
-                  <div className="space-y-1.5">
-                    {financeStats.expenseByCategory.slice(0, 5).map((item, i) => {
-                      const pct = financeStats.totalExpenses > 0 ? (item.amount / financeStats.totalExpenses) * 100 : 0
-                      return (
-                        <div key={i} className="flex items-center justify-between gap-3 text-sm">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
-                            <span className="truncate text-gray-700">{item.category}</span>
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+                    {stages.map((s:any)=>(<div key={s.id} className={stageMeta(s.status).bar} style={{ width: `${100/stages.length}%` }} />))}
+                  </div>
+                  {activeList.length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-neutral-400">Сейчас в работе</div>
+                    <div className="space-y-2.5">
+                      {activeList.map((s:any)=>{ const m = stageMeta(s.status); return (
+                        <div key={s.id} className="flex items-center gap-3">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: m.dot }} />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[13.5px] font-medium text-neutral-900">{s.name}</div>
+                            <div className="text-[12px] text-neutral-400">{s.status==='PAUSED' ? 'приостановлен' : s.plannedEndDate ? `до ${new Date(s.plannedEndDate).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}` : ''}{s.status!=='PAUSED' ? ` · ${s.progress}%` : ''}</div>
                           </div>
-                          <div className="flex shrink-0 items-center gap-2 tabular-nums">
-                            <span className="text-gray-400">{pct.toFixed(0)}%</span>
-                            <span className="font-medium text-gray-900">{item.amount.toLocaleString('ru-RU')} ₽</span>
-                          </div>
+                          {s.status==='PAUSED' ? (
+                            <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Пауза</span>
+                          ) : (
+                            <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-neutral-100 sm:block"><div className={m.bar+' h-full rounded-full'} style={{ width: `${s.progress}%` }} /></div>
+                          )}
                         </div>
-                      )
-                    })}
-                    {financeStats.expenseByCategory.length > 5 && (
-                      <p className="text-xs text-gray-400 pt-1">и ещё {financeStats.expenseByCategory.length - 5}</p>
-                    )}
+                      )})}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+                  )}
+                  {ahead > 0 && (
+                    <Link href={`/projects/${project.id}/schedule`} className="mt-3 block border-t border-neutral-100 pt-3 text-center text-[13px] text-neutral-500 hover:text-neutral-800">Ещё {ahead} запланированных этапов →</Link>
+                  )}
+                </>)
+              })()}
+            </div>
 
-        {/* Work Schedule Block */}
-        <Link 
-          href={`/projects/${project.id}/schedule`}
-          className="block bg-white rounded-lg border p-6 hover:shadow-md transition-shadow group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-50 rounded-lg">
-                <Calendar className="h-6 w-6 text-indigo-600" />
+            {/* Последняя активность */}
+            {hasPermission('canViewFinances') && recentFinances.length > 0 && (
+            <div className="rounded-xl border border-neutral-200 bg-white p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-[15px] font-semibold text-neutral-900">Последняя активность</h2>
+                <Link href={`/finance?projectId=${project.id}`} className="text-[13px] font-medium text-blue-600 hover:underline">Все операции →</Link>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">График работ</h2>
-                <p className="text-gray-500 text-sm">Планирование и отслеживание этапов</p>
+              <div className="space-y-3">
+                {recentFinances.map((f:any)=>{ const income = f.type==='INCOME'; return (
+                  <div key={f.id} className="flex items-start gap-3">
+                    <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${income ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>{income ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] text-neutral-800">{income ? 'Поступление' : 'Расход'}{f.title||f.description ? `: ${f.title||f.description}` : ''} <span className={`font-semibold tabular-nums ${income ? 'text-green-700' : 'text-neutral-900'}`}>{income ? '+' : '−'}{Number(f.amount).toLocaleString('ru-RU')} ₽</span></div>
+                      <div className="text-[12px] tabular-nums text-neutral-400">{new Date(f.date || f.createdAt).toLocaleDateString('ru-RU')}</div>
+                    </div>
+                  </div>
+                )})}
               </div>
             </div>
-            
-            {workStagesStats && workStagesStats.total > 0 ? (
-              <div className="flex items-center gap-6">
-                {/* Прогресс-бар */}
-                <div className="hidden md:block">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-gray-500 text-sm">Прогресс</span>
-                    <span className="text-gray-900 font-semibold">{workStagesStats.progress}%</span>
-                  </div>
-                  <div className="w-40 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                      style={{ width: `${workStagesStats.progress}%` }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Статистика этапов */}
-                <div className="flex gap-4 text-center">
-                  <div className="px-3 py-1 bg-gray-50 rounded-lg">
-                    <p className="text-xl font-bold text-gray-900">{workStagesStats.total}</p>
-                    <p className="text-xs text-gray-500">всего</p>
-                  </div>
-                  <div className="px-3 py-1 bg-green-50 rounded-lg">
-                    <p className="text-xl font-bold text-green-600">{workStagesStats.completed}</p>
-                    <p className="text-xs text-gray-500">готово</p>
-                  </div>
-                  {workStagesStats.inProgress > 0 && (
-                    <div className="px-3 py-1 bg-gray-50 rounded-lg">
-                      <p className="text-xl font-bold text-gray-900">{workStagesStats.inProgress}</p>
-                      <p className="text-xs text-gray-500">в работе</p>
-                    </div>
-                  )}
-                  {workStagesStats.delayed > 0 && (
-                    <div className="px-3 py-1 bg-red-50 rounded-lg">
-                      <p className="text-xl font-bold text-red-600">{workStagesStats.delayed}</p>
-                      <p className="text-xs text-gray-500">задержка</p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-2 text-gray-400 group-hover:text-indigo-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <span className="text-gray-500 text-sm">Создать план работ</span>
-                <div className="p-2 text-gray-400 group-hover:text-indigo-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
+            )}
+
+            {project.description && (
+            <div className="rounded-xl border border-neutral-200 bg-white p-5">
+              <h2 className="mb-2 text-[15px] font-semibold text-neutral-900">Описание</h2>
+              <p className="whitespace-pre-wrap text-[13.5px] leading-[1.55] text-neutral-700">{project.description}</p>
+            </div>
             )}
           </div>
-        </Link>
+
+          <div className="space-y-5">
+            {/* Команда */}
+            <div className="rounded-xl border border-neutral-200 bg-white p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-[15px] font-semibold text-neutral-900">Команда</h2>
+                <span className="text-[12.5px] text-neutral-400">{project._count.users} чел.</span>
+              </div>
+              <div className="space-y-3">
+                {project.users.slice(0,5).map((u:any)=>(
+                  <div key={u.user.id} className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ backgroundColor: avColorHex(u.user.id) }}>{initials(u.user.name)}</span>
+                    <div className="min-w-0"><div className="truncate text-[13.5px] font-medium text-neutral-900">{u.user.name}</div><div className="truncate text-[12px] text-neutral-400">{u.user.email}</div></div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setActiveTab('team')} className="mt-3 flex items-center gap-2 text-[12.5px] text-blue-600 hover:underline"><span className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-blue-600"><Plus className="h-3.5 w-3.5" /></span>Управление командой</button>
+            </div>
+
+            {/* Разделы */}
+            <div className="rounded-xl border border-neutral-200 bg-white p-2">
+              <div className="px-3 pb-1 pt-2 text-[15px] font-semibold text-neutral-900">Разделы</div>
+              {[
+                { label:'Сметы', href:`/projects/${project.id}/estimates`, val: (estimatesCount || 0) as number | null },
+                { label:'Задачи', href:`/tasks?projectId=${project.id}`, val: project._count.tasks as number | null },
+                { label:'Документы', href:`/documents?projectId=${project.id}`, val: project._count.documents as number | null },
+                { label:'Материалы', href:`/materials?projectId=${project.id}`, val: null as number | null },
+                { label:'Согласования', href:`/approvals?projectId=${project.id}`, val: null as number | null },
+              ].map((r)=>(
+                <Link key={r.label} href={r.href} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-neutral-50">
+                  <span className="text-[13.5px] text-neutral-700">{r.label}</span>
+                  <span className="flex items-center gap-2 text-neutral-400">{r.val!=null && <span className="text-[13px] font-medium tabular-nums text-neutral-700">{r.val}</span>}<ChevronRight className="h-4 w-4" /></span>
+                </Link>
+              ))}
+            </div>
+
+            {/* Реквизиты заказчика */}
+            {!isExternal && (project.clientLegalName || project.clientInn || project.contractNumber || project.budget != null) && (
+            <div className="rounded-xl border border-neutral-200 bg-white p-5">
+              <h2 className="mb-3 text-[15px] font-semibold text-neutral-900">Реквизиты заказчика</h2>
+              <div className="space-y-2 text-[13px]">
+                {(project.clientLegalName||project.clientName) && (<div className="flex justify-between gap-3"><span className="text-neutral-400">Организация</span><span className="text-right font-medium text-neutral-900">{project.clientLegalName||project.clientName}</span></div>)}
+                {project.clientInn && (<div className="flex justify-between gap-3"><span className="text-neutral-400">ИНН / КПП</span><span className="text-right font-medium tabular-nums text-neutral-900">{project.clientInn}{project.clientKpp?` / ${project.clientKpp}`:''}</span></div>)}
+                {project.contractNumber && (<div className="flex justify-between gap-3"><span className="text-neutral-400">Договор</span><span className="text-right font-medium text-neutral-900">№ {project.contractNumber}</span></div>)}
+                {project.budget != null && (<div className="flex justify-between gap-3"><span className="text-neutral-400">Сумма договора</span><span className="text-right font-medium tabular-nums text-neutral-900">{Number(project.budget).toLocaleString('ru-RU')} ₽</span></div>)}
+              </div>
+              <button onClick={()=>setActiveTab('client')} className="mt-3 text-[12.5px] text-blue-600 hover:underline">Все реквизиты →</button>
+            </div>
+            )}
+          </div>
+        </div>
         </>
         )}
 
@@ -1176,145 +1168,6 @@ export default function ProjectDetailPage() {
         </>
         )}
 
-        {activeTab === 'overview' && (
-        <>
-        {/* Details */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Детали проекта</h2>
-          
-          {/* Прогресс по времени */}
-          {project.startDate && project.endDate && (() => {
-            const start = new Date(project.startDate).getTime()
-            const end = new Date(project.endDate).getTime()
-            const now = Date.now()
-            const totalDuration = end - start
-            const elapsed = now - start
-            const timeProgress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100))
-            const daysRemaining = Math.ceil((end - now) / (1000 * 60 * 60 * 24))
-            const totalDays = Math.ceil(totalDuration / (1000 * 60 * 60 * 24))
-            const isOverdue = now > end
-            
-            return (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">Прогресс по времени</span>
-                  </div>
-                  <span className={`text-sm font-semibold ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
-                    {isOverdue 
-                      ? `Просрочен на ${Math.abs(daysRemaining)} дн.` 
-                      : daysRemaining === 0 
-                        ? 'Сегодня дедлайн'
-                        : `Осталось ${daysRemaining} дн.`
-                    }
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all ${isOverdue ? 'bg-red-500' : 'bg-gray-900'}`}
-                    style={{ width: `${timeProgress}%` }}
-                  />
-                </div>
-                <div className="flex justify-between mt-2 text-xs text-gray-500">
-                  <span>{new Date(project.startDate).toLocaleDateString('ru-RU')}</span>
-                  <span>Длительность: {totalDays} дн.</span>
-                  <span>{new Date(project.endDate).toLocaleDateString('ru-RU')}</span>
-                </div>
-              </div>
-            )
-          })()}
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {/* Даты */}
-            {project.startDate && (
-              <div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>Начало</span>
-                </div>
-                <p className="text-sm font-medium text-gray-900">
-                  {new Date(project.startDate).toLocaleDateString('ru-RU')}
-                </p>
-              </div>
-            )}
-            {project.endDate && (
-              <div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>Окончание</span>
-                </div>
-                <p className="text-sm font-medium text-gray-900">
-                  {new Date(project.endDate).toLocaleDateString('ru-RU')}
-                </p>
-              </div>
-            )}
-
-            {/* Договор */}
-            {project.contractNumber && (
-              <div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                  <FileSignature className="h-4 w-4" />
-                  <span>Договор №</span>
-                </div>
-                <p className="text-sm font-medium text-gray-900">{project.contractNumber}</p>
-                {project.contractDate && (
-                  <p className="text-xs text-gray-500">
-                    от {new Date(project.contractDate).toLocaleDateString('ru-RU')}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Приоритет */}
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                <Flag className="h-4 w-4" />
-                <span>Приоритет</span>
-              </div>
-              <span className={`inline-flex px-2 py-0.5 rounded text-sm font-medium ${
-                project.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
-                project.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : 
-                project.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-              }`}>
-                {getPriorityText(project.priority)}
-              </span>
-            </div>
-
-            {/* Задачи */}
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Задачи</span>
-              </div>
-              <p className="text-sm font-medium text-gray-900">{project._count.tasks} шт.</p>
-            </div>
-          </div>
-
-          {/* Адрес объекта */}
-          {project.objectAddress && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Адрес объекта</p>
-                  <p className="text-sm font-medium text-gray-900">{project.objectAddress}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Описание */}
-          {project.description && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-sm text-gray-500 mb-2">Описание</p>
-              <p className="text-sm text-gray-900 whitespace-pre-wrap">{project.description}</p>
-            </div>
-          )}
-        </div>
-
-        </>
-        )}
 
         {activeTab === 'team' && (
         <>
