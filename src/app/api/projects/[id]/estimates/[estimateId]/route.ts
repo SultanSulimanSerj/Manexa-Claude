@@ -36,7 +36,7 @@ export async function GET(
         }
       },
       include: {
-        items: true,
+        items: { orderBy: { orderIndex: 'asc' } },
         creator: {
           select: { id: true, name: true, email: true }
         }
@@ -100,7 +100,7 @@ export async function PUT(
       let vatAmount = 0
       const estimateRate = Number(vatRate || 20)
       if (items && items.length > 0) {
-        const estimateItems = (items as EstimateItemInput[]).map((item) => {
+        const estimateItems = (items as EstimateItemInput[]).map((item, itemIndex) => {
           const itemTotal = Number(item.quantity) * Number(item.unitPrice)
           const itemCost = Number(item.quantity) * Number(item.costPrice || 0)
           // ставка НДС позиции: своя, иначе ставка сметы
@@ -122,7 +122,8 @@ export async function PUT(
             costPrice: Number(item.costPrice || 0),
             vatRate: item.vatRate != null && item.vatRate !== '' ? Number(item.vatRate) : null,
             total: itemTotal,
-            category: item.category
+            category: item.category,
+            orderIndex: itemIndex
           }
         })
 
