@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth-api'
 import { verifyProjectCompanyAccess } from '@/lib/access-control'
+import { hasPermission, UserRole } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/projects/[id]/overview — счётчики разделов + единая лента активности проекта
@@ -19,6 +20,8 @@ export async function GET(
 
     const projectId = params.id
     const now = new Date()
+    // Финансовые события отдаём только ролям с доступом к финансам (иначе суммы утекают внешним ролям)
+    const canViewFinances = hasPermission(user.role as UserRole, 'canViewFinances')
 
     // ——— счётчики ———
     const [tasksOverdue, approvalsPending, materialsMovements] = await Promise.all([
@@ -47,12 +50,14 @@ export async function GET(
         take: 6,
         select: { id: true, title: true, status: true, updatedAt: true, creator: { select: { name: true } } },
       }),
-      prisma.finance.findMany({
-        where: { projectId },
-        orderBy: { date: 'desc' },
-        take: 6,
-        select: { id: true, type: true, amount: true, date: true, description: true, isPaid: true },
-      }),
+      canViewFinances
+        ? prisma.finance.findMany({
+            where: { projectId },
+            orderBy: { date: 'desc' },
+            take: 6,
+            select: { id: true, type: true, amount: true, date: true, description: true, isPaid: true },
+          })
+        : Promise.resolve([] as any[]),
       prisma.stockMovement.findMany({
         where: { projectId, type: 'ISSUE' },
         orderBy: { date: 'desc' },
